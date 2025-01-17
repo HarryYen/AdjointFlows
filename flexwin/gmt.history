@@ -1,0 +1,11 @@
+# GMT 5 Session common arguments shelf
+BEGIN GMT 5.3.3
+B	:Transverse component:/EN
+J	X
+Jm	m0.8
+JX	X6.5/-2
+R	0/120.00/0/0.4589
+X	2.7
+Y	-3.5
+L	6
+END

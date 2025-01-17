@@ -1,0 +1,47 @@
+# INTERATIVE INVERSION
+inversion:
+  setup:
+    MBEG: 0                 # The model number that you choose to start 
+    NLEG: 1                 # Which leg (stage) you start (start from 1)
+    ITE_MAX: 9999           # Max iteration number (set 9999 if you don't care it)
+  first_model:
+    MSTART_IN_THIS_LEG: 0   # First model in this period (leg), determines SD or LBFGS
+  flexwin:
+    FLEXWIN_FLAG: 0         # Re-pick flexwin windows during the same leg (1: every iteration, 0: only first iteration)
+
+model_database:
+  IMOD: 1                   # Establish model and database for simulation (1: establish, 0: read directly)
+  ICHK: 0                   # Check existing files for a continuous run (1: check, 0: start over)
+
+lbfgs:
+  N_STORE_LBFGS: 5          # Number of models used for approximating Hessian
+
+processing:
+  event_station:
+    EVLST: rmt_only_new_22.txt # Path to event list
+    STLST: sta_bats_cwb_cwb24.txt # Path to station list
+    EVCHK: rmt_only_new_22.txt   # Event list to check misfit in line search
+  seismogram:
+    TBEG: -30              # Cutting time: start (seconds)
+    TEND: 150              # Cutting time: end (seconds)
+    TCOR: 0.0              # Systematic time shift to correct (if any)
+    DT: 0.0325             # Resampling rate for both data and synthetics
+    filter:
+      P1: 10               # Lower bound of period filtering band
+      P2: 50               # Upper bound of period filtering band
+    component:
+      COMP: semv           # Synthetic component to use
+      EN2RT: 0             # Rotate E & N to R & T (1: yes, 0: no)
+
+kernel:
+  smoothing:
+    ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
+    SIGMA_H: 15000        # Horizontal smoothing width (m)
+    SIGMA_V: 7500         # Vertical smoothing width (m)
+  visualization:
+    IVTKOUT: 1            # Output kernel VTK file (1: yes, 0: no)
+
+
+line_search:
+  STEP_INTERVAL_SD: 0.02  # Step interval for steepest descent
+  STEP_MAX: 0.20          # Maximum step length

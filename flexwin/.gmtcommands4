@@ -1,0 +1,18 @@
+# GMT common arguments shelf
+-B:Transverse component:/EN
+-Jm0.8
+-JW121.5/5
+-JX6.5/-2
+-R0/149.99/0/2.5095
+-X-1
+-x2.7
+-Y8
+-y-3.5
+-jX6.5/-2
+EOF
+5/-2
+EOF
+
+
+-jX7/1.5
+EOF

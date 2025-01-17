@@ -1,0 +1,11 @@
+# GMT common arguments shelf
+-Ba50f10:Time (s):/a1f1S
+-JM3.0
+-JX3.5/1
+-R-30/150/-1.82483e-05/1.82483e-05
+-X3.75
+-x15
+-Y0.5
+-y-1.5
+-jX3.5/1
+EOF
