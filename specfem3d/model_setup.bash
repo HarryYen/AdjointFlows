@@ -66,7 +66,7 @@ echo " " > OUTPUT_FILES/model_database_ready
 
 
 # combine all slices to a complete model output
-./bin/xcombine_vol_data_vtk 0 $nslice vp DATABASES_MPI/ . 0
-./bin/xcombine_vol_data_vtk 0 $nslice vs DATABASES_MPI/ . 0
+# ./bin/xcombine_vol_data_vtk 0 $nslice vp DATABASES_MPI/ . 0
+# ./bin/xcombine_vol_data_vtk 0 $nslice vs DATABASES_MPI/ . 0
 echo "model collected and constructed!"
 
