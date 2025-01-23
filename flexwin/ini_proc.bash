@@ -12,18 +12,19 @@ echo $1    # evt_dir
 
 # set path and parameters
 pwd=`pwd`
-evlst=`grep EVLST ../tomo.par | gawk '{print $3}'`  # path to event list
-stlst=`grep STLST ../tomo.par | gawk '{print $3}'`  # path to station list
-evlst=`echo ../DATA/$evlst`
-stlst=`echo ../DATA/$stlst`
-tbeg=`grep TBEG ../tomo.par | gawk '{print $3}'`    # begin time to cut (adding 30 sec prior to origin time for STA/LTA)
-tend=`grep TEND ../tomo.par | gawk '{print $3}'`    # ending time to cut (make sure long enough to include desired phases)
-tcor=`grep TCOR ../tomo.par | gawk '{print $3}'`    # systematic time shift to correct (if any), e.g. 1.66667 is the RMT time shift.
-dt=`grep DT ../tomo.par | gawk '{print $3}'`        # sampling rate to reset
-p1=`grep P1 ../tomo.par | gawk '{print $3}'`        # min period for bandpass
-p2=`grep P2 ../tomo.par | gawk '{print $3}'`        # max period for bandpass
-comp=`grep COMP ../tomo.par | gawk '{print $3}'`    # synthetic component to use
-en2rt=`grep EN2RT ../tomo.par | gawk '{print $3}'`  # rotate the E & N component to R & T
+par_file=../adjointflows/config.yaml
+evlst=`grep evlst $par_file | gawk '{print $2}'`  # path to event list
+stlst=`grep stlst $par_file | gawk '{print $2}'`  # path to station list
+evlst=`echo ../DATA/evlst/$evlst`
+stlst=`echo ../DATA/stlst/$stlst`
+tbeg=`grep tbeg $par_file | gawk '{print $2}'`    # begin time to cut (adding 30 sec prior to origin time for STA/LTA)
+tend=`grep tend $par_file | gawk '{print $2}'`    # ending time to cut (make sure long enough to include desired phases)
+tcor=`grep tcor $par_file | gawk '{print $2}'`    # systematic time shift to correct (if any), e.g. 1.66667 is the RMT time shift.
+dt=`grep dt $par_file | gawk '{print $2}'`        # sampling rate to reset
+p1=`grep P1 $par_file | gawk '{print $2}'`        # min period for bandpass
+p2=`grep P2 $par_file | gawk '{print $2}'`        # max period for bandpass
+comp=`grep COMP $par_file | gawk '{print $2}'`    # synthetic component to use
+en2rt=`grep EN2RT $par_file | gawk '{print $2}'`  # rotate the E & N component to R & T
 
 
 f1=$(echo "scale=3; 1 / $p2"|bc)
@@ -37,9 +38,9 @@ continue
 fi
 fi
 
-if [ -d ../DATA/$dir -a -d ../SYN/$dir ]; then
+if [ -d ../DATA/wav/$dir -a -d ../SYN/$dir ]; then
 
-rm -f ../DATA/$dir/*.tomo
+rm -f ../DATA/wav/$dir/*.tomo
 rm -f ../SYN/$dir/*.tomo
 yy=`echo $cmt | gawk -F[:/] '{print $2}'`
 mm=`echo $cmt | gawk -F[:/] '{print $3}'`
@@ -70,7 +71,7 @@ ls ../SYN/$dir/*.sac | gawk '{print "saclst b f",$0}' | sh | gawk '{print "r "$1
 
 echo $stlst
 
-for sta in `ls ../DATA/$dir | gawk -F. '{print $1}' | uniq | gawk '{print "grep "$1" "stlst}' stlst="$stlst" | sh | gawk '{print $1"_"$2"_"$3"_"$4}'`
+for sta in `ls ../DATA/wav/$dir | gawk -F. '{print $1}' | uniq | gawk '{print "grep "$1" "stlst}' stlst="$stlst" | sh | gawk '{print $1"_"$2"_"$3"_"$4}'`
 do
 echo $sta
 stnm=`echo $sta | gawk -F_ '{print $1}'`
@@ -81,7 +82,7 @@ stel=`echo $sta | gawk -F_ '{print $4}'`
 
 # write event/station info into sac header
 sac<<EOF
-r ../DATA/$dir/$stnm*.sac ../SYN/$dir/*$stnm*.sac
+r ../DATA/wav/$dir/$stnm*.sac ../SYN/$dir/*$stnm*.sac
 ch nzyear $yy
 ch nzjday $jd
 ch nzhour $hr
@@ -105,18 +106,18 @@ EOF
 
 if [ $en2rt -eq 1 ]; then
 # rotate recorded N/E traces to filtered R/T components to better identify phase windows
-if [ -f ../DATA/$dir/$stnm*N.*sac -a -f ../DATA/$dir/$stnm*E.*sac -a -f ../SYN/$dir/*$stnm*N.$comp.*sac -a -f ../SYN/$dir/*$stnm*E.$comp.*sac]; then
+if [ -f ../DATA/wav/$dir/$stnm*N.*sac -a -f ../DATA/wav/$dir/$stnm*E.*sac -a -f ../SYN/$dir/*$stnm*N.$comp.*sac -a -f ../SYN/$dir/*$stnm*E.$comp.*sac]; then
 
 sac<<EOF
 cuterr fillz
 cut $tbeg $tend
-r ../DATA/$dir/$stnm*N.*sac ../DATA/$dir/$stnm*E.*sac
+r ../DATA/wav/$dir/$stnm*N.*sac ../DATA/wav/$dir/$stnm*E.*sac
 rotate to GCP
 rmean
 rtr; rtr; rtr
 taper
 bp p 1 n 4 c $f1 $f2
-w ../DATA/$dir/$stnm.TW.BHR.sac.tomo ../DATA/$dir/$stnm.TW.BHT.sac.tomo
+w ../DATA/wav/$dir/$stnm.TW.BHR.sac.tomo ../DATA/wav/$dir/$stnm.TW.BHT.sac.tomo
 cut off
 q
 EOF
@@ -140,30 +141,30 @@ else
 
 # filtered E & N components
 echo $dir $stnm $comp
-if [ -f ../DATA/$dir/$stnm*E.*sac -a -f ../SYN/$dir/*$stnm*E.$comp.*sac ]; then
+if [ -f ../DATA/wav/$dir/$stnm*E.*sac -a -f ../SYN/$dir/*$stnm*E.$comp.*sac ]; then
 sac<<EOF
 cuterr fillz
 cut $tbeg $tend
-r ../DATA/$dir/*$stnm*E.*sac ../SYN/$dir/*$stnm*E.$comp.*sac
+r ../DATA/wav/$dir/*$stnm*E.*sac ../SYN/$dir/*$stnm*E.$comp.*sac
 rmean
 rtr; rtr; rtr
 taper
 bp p 1 n 4 c $f1 $f2
-w ../DATA/$dir/$stnm.TW.BHE.sac.tomo ../SYN/$dir/$stnm.TW.BHE.$comp.sac.tomo
+w ../DATA/wav/$dir/$stnm.TW.BHE.sac.tomo ../SYN/$dir/$stnm.TW.BHE.$comp.sac.tomo
 cut off
 q
 EOF
 fi
-if [ -f ../DATA/$dir/$stnm*N.*sac -a -f ../SYN/$dir/*$stnm*N.$comp.*sac ]; then
+if [ -f ../DATA/wav/$dir/$stnm*N.*sac -a -f ../SYN/$dir/*$stnm*N.$comp.*sac ]; then
 sac<<EOF
 cuterr fillz
 cut $tbeg $tend
-r ../DATA/$dir/$stnm*N.*sac ../SYN/$dir/*$stnm*N.$comp.*sac
+r ../DATA/wav/$dir/$stnm*N.*sac ../SYN/$dir/*$stnm*N.$comp.*sac
 rmean
 rtr; rtr; rtr
 taper
 bp p 1 n 4 c $f1 $f2
-w ../DATA/$dir/$stnm.TW.BHN.sac.tomo ../SYN/$dir/$stnm.TW.BHN.$comp.sac.tomo
+w ../DATA/wav/$dir/$stnm.TW.BHN.sac.tomo ../SYN/$dir/$stnm.TW.BHN.$comp.sac.tomo
 cut off
 q
 EOF
@@ -172,16 +173,16 @@ fi
 fi
 
 # filtered Z components as well
-if [ -f ../DATA/$dir/$stnm*Z.*sac -a -f ../SYN/$dir/*$stnm*Z.$comp.*sac ]; then
+if [ -f ../DATA/wav/$dir/$stnm*Z.*sac -a -f ../SYN/$dir/*$stnm*Z.$comp.*sac ]; then
 sac<<EOF
 cuterr fillz
 cut $tbeg $tend
-r ../DATA/$dir/$stnm*Z.*sac ../SYN/$dir/*$stnm*Z.$comp.*sac
+r ../DATA/wav/$dir/$stnm*Z.*sac ../SYN/$dir/*$stnm*Z.$comp.*sac
 rmean
 rtr; rtr; rtr
 taper
 bp p 1 n 4 c $f1 $f2
-w ../DATA/$dir/$stnm.TW.BHZ.sac.tomo ../SYN/$dir/$stnm.TW.BHZ.$comp.sac.tomo
+w ../DATA/wav/$dir/$stnm.TW.BHZ.sac.tomo ../SYN/$dir/$stnm.TW.BHZ.$comp.sac.tomo
 cut off
 q
 EOF
@@ -191,16 +192,16 @@ done
 
 # specify the component in header
 if [ $en2rt -eq 1 ]; then
-ls ../DATA/$dir/*BHR*tomo | gawk '{print "r "$0"; ch kcmpnm BHR; w over"}END{print "q"}' | sac
-ls ../DATA/$dir/*BHT*tomo | gawk '{print "r "$0"; ch kcmpnm BHT; w over"}END{print "q"}' | sac
-ls ../DATA/$dir/*BHZ*tomo | gawk '{print "r "$0"; ch kcmpnm BHZ; w over"}END{print "q"}' | sac
+ls ../DATA/wav/$dir/*BHR*tomo | gawk '{print "r "$0"; ch kcmpnm BHR; w over"}END{print "q"}' | sac
+ls ../DATA/wav/$dir/*BHT*tomo | gawk '{print "r "$0"; ch kcmpnm BHT; w over"}END{print "q"}' | sac
+ls ../DATA/wav/$dir/*BHZ*tomo | gawk '{print "r "$0"; ch kcmpnm BHZ; w over"}END{print "q"}' | sac
 ls ../SYN/$dir/*BHR*tomo  | gawk '{print "r "$0"; ch kcmpnm BHR; w over"}END{print "q"}' | sac
 ls ../SYN/$dir/*BHT*tomo  | gawk '{print "r "$0"; ch kcmpnm BHT; w over"}END{print "q"}' | sac
 ls ../SYN/$dir/*BHZ*tomo  | gawk '{print "r "$0"; ch kcmpnm BHZ; w over"}END{print "q"}' | sac
 else
-ls ../DATA/$dir/*BHE*tomo | gawk '{print "r "$0"; ch kcmpnm BHE; w over"}END{print "q"}' | sac
-ls ../DATA/$dir/*BHN*tomo | gawk '{print "r "$0"; ch kcmpnm BHN; w over"}END{print "q"}' | sac
-ls ../DATA/$dir/*BHZ*tomo | gawk '{print "r "$0"; ch kcmpnm BHZ; w over"}END{print "q"}' | sac
+ls ../DATA/wav/$dir/*BHE*tomo | gawk '{print "r "$0"; ch kcmpnm BHE; w over"}END{print "q"}' | sac
+ls ../DATA/wav/$dir/*BHN*tomo | gawk '{print "r "$0"; ch kcmpnm BHN; w over"}END{print "q"}' | sac
+ls ../DATA/wav/$dir/*BHZ*tomo | gawk '{print "r "$0"; ch kcmpnm BHZ; w over"}END{print "q"}' | sac
 ls ../SYN/$dir/*BHE*tomo  | gawk '{print "r "$0"; ch kcmpnm BHE; w over"}END{print "q"}' | sac
 ls ../SYN/$dir/*BHN*tomo  | gawk '{print "r "$0"; ch kcmpnm BHN; w over"}END{print "q"}' | sac
 ls ../SYN/$dir/*BHZ*tomo  | gawk '{print "r "$0"; ch kcmpnm BHZ; w over"}END{print "q"}' | sac

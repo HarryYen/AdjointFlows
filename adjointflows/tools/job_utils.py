@@ -68,3 +68,36 @@ def clean_symlink_target(symlink_path):
             logging.warning(f"Target path is not a directory: {target_abs_path}")
     else:
         logging.warning(f"Path is not a symbolic link: {symlink_path}")
+        
+        
+
+def check_if_directory_not_empty(directory):
+    """
+    Check if the directory is not empty.
+    Args:
+        directory (str): The directory to check.
+    Returns:
+        bool: True if the directory is not empty, False otherwise.
+    """
+    if not os.path.isdir(directory):
+        return False
+    
+    if len(os.listdir(directory)) == 0:
+        return False
+    
+    return True
+
+def check_path_is_correct(expected_dir):
+    """
+    Comparing the current directory with the expected directory
+    Retrun:
+        bool: True if the current directory is the same as the expected directory, False otherwise
+    """
+    current_dir = os.path.abspath(os.getcwd())
+    error_message = f"Current directory {current_dir} does not match expected directory {expected_dir}"
+    if current_dir != expected_dir:
+        logging.error(error_message)
+        return False
+    else:
+        return True
+    

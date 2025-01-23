@@ -1,4 +1,5 @@
 from .job_utils import clean_and_initialize_directories
+from .global_params import GLOBAL_PARAMS
 import os
 import shutil
 import logging
@@ -7,8 +8,8 @@ logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s -
 
 class FileManager:
     
-    def __init__(self, base_dir):
-        self.base_dir = base_dir
+    def __init__(self):
+        self.base_dir = GLOBAL_PARAMS['base_dir']
         self.current_model_dir = None
         self.next_model_dir = None
     
