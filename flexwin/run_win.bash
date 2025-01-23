@@ -11,10 +11,11 @@ fi
 echo $1    # evt_dir
 
 # set path to event list
-evlst=`grep EVLST ../tomo.par | gawk '{print $3}'`  # path to event list
-evlst=`echo ../DATA/$evlst`
-comp=`grep COMP ../tomo.par | gawk '{print $3}'`    # synthetic component to use
-en2rt=`grep EN2RT ../tomo.par | gawk '{print $3}'`  # rotate the E & N comp onent to R & T
+par_file=../adjointflows/config.yaml
+evlst=`grep evlst $par_file | gawk '{print $2}'`  # path to event list
+evlst=`echo ../DATA/evlst/$evlst`
+comp=`grep COMP $par_file  | gawk '{print $2}'`    # synthetic component to use
+en2rt=`grep EN2RT $par_file  | gawk '{print $2}'`  # rotate the E & N comp onent to R & T
 echo $evlst $comp
 
 
@@ -42,17 +43,17 @@ do
       fi
    fi
 
-   if [ -d ../DATA/$dir -a -d ../SYN/$dir ]; then
+   if [ -d ../DATA/wav/$dir -a -d ../SYN/$dir ]; then
       echo $dir" match!"
 #      np=`ls ../DATA/$dir | gawk -F. '{print $1"."$2}' | uniq | wc -l`
-      ls ../DATA/$dir/*.tomo | gawk -F[./] '{print $6"."$7"."$8}' > pairs.tmp
+      ls ../DATA/wav/$dir/*.tomo | gawk -F[./] '{print $7"."$8"."$9}' > pairs.tmp
 
 #      echo $np > input
 
       for pair in `cat pairs.tmp`
       do
          echo 1 > input
-         echo ../DATA/$dir/$pair.sac.tomo >> input
+         echo ../DATA/wav/$dir/$pair.sac.tomo >> input
          echo ../SYN/$dir/$pair.$comp.sac.tomo >> input
          echo $pair | gawk '{print "MEASURE/"$1}' >> input
          ./flexwin < input
