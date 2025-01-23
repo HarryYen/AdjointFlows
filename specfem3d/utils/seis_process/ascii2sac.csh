@@ -6,7 +6,7 @@ if( $1 =~ "" ) then
   exit 1
 endif
 
-set SCRIPT_PATH = `realpath "$0"`
+set SCRIPT_PATH = `readlink -f "$0"`
 set SCRIPT_DIR = `dirname "$SCRIPT_PATH"`
 
 foreach file ($*)

@@ -13,7 +13,7 @@
 ## request 512 CPUs from four nodes
 ##PBS -l nodes=8:ppn=64
 ##PBS -l nodes=green5:ppn=64+green6:ppn=64+green7:ppn=64+green8:ppn=64+green9:ppn=64+green10:ppn=64+green11:ppn=64+green12:ppn=64
-##PBS -l nodes=node01:ppn=48+node02:ppn=48+node03:ppn=48+node04:ppn=48+node05:ppn=48+node06:ppn=48+node07:ppn=48+node08:ppn=48+node09:ppn=48+node10:ppn=48+node11:ppn=32
+#PBS -l nodes=node01:ppn=48+node02:ppn=48+node03:ppn=48+node04:ppn=48+node05:ppn=48+node06:ppn=48+node07:ppn=48+node08:ppn=48+node09:ppn=48+node10:ppn=48+node11:ppn=32
 
 ## request 512 CPUs from idle nodes
 ##PBS -l process=512
@@ -21,7 +21,7 @@
 
 ### GPU MODE ###
 ### Queue name (default)
-#PBS -q qgpu
+##PBS -q qgpu
 ### Number of nodes (select:nodes, ncpus: process per node)
 #PBS -l select=1:ncpus=1:ngpus=1
 
@@ -49,23 +49,26 @@ echo " "
 
 ###########################################################
 # PARAMETER SETTING
+par_file=../adjointflows/config.yaml
+tmp_var_file=env_vars.txt
 
 # set path to event and station list
-mbeg=`grep MBEG ../tomo.par | gawk '{print $3}'`    # the iteration currently running
-evlst=`grep EVLST ../tomo.par | gawk '{print $3}'`  # path to event list
-stlst=`grep STLST ../tomo.par | gawk '{print $3}'`  # path to station list
-ichk=`grep ICHK ../tomo.par | gawk '{print $3}'`    # continue to run or start over
-flexwin_flag=`grep FLEXWIN_FLAG ../tomo.par | gawk '{print $3}'`    # re-pick flexwin window or not
+mbeg=`grep current_model_num $par_file | gawk '{print $2}'`    # the iteration currently running
+evlst=`grep evlst $par_file | gawk '{print $2}'`  # path to event list
+stlst=`grep stlst $par_file | gawk '{print $2}'`  # path to station list
+ichk=`grep ICHK $par_file | gawk '{print $2}'`    # continue to run or start over
+flexwin_flag=`grep FLEXWIN_FLAG $par_file | gawk '{print $2}'`    # re-pick flexwin window or not
 
-m_beg_in_this_leg=`grep MBEG_IN_THIS_LEG ../adj_tomo.log | awk '{print $2}'`
-mrun=`grep model_info ../adj_tomo.log | tail -1 | awk '{print $3}'`
 
+stage_initial_model=`grep stage_initial_model $tmp_var_file | awk '{print $3}'`
+mrun=`grep mrun $tmp_var_file | awk '{print $3}'`
+echo "Get stage_initial_model: ${stage_initial_model} and current model num: ${mrun} from env!"
 
 # check where the last time stopped
 if [ $ichk -eq 1 ]; then
     set kevt=0
     declare -i kevt=0
-    for dir in `gawk '{print $1}' ../DATA/$evlst`
+    for dir in `gawk '{print $1}' ../DATA/evlst/$evlst`
     do
         if [ -d KERNEL/DATABASE/$dir ]; then
             kevt=$kevt+1
@@ -95,7 +98,7 @@ rm -f kernels_list.txt
 set nevt=0
 declare -i nevt=0
 
-for cmt in `gawk '{print $1"/"$2"/"$3"/"$4"/"$5"/"$6"/"$7"/"$8"/"$9"/"$13"/"$14"/"$15"/"$16"/"$17"/"$18"/"$19"/"$20"/"$21}' ../DATA/$evlst`
+for cmt in `gawk '{print $1"/"$2"/"$3"/"$4"/"$5"/"$6"/"$7"/"$8"/"$9"/"$13"/"$14"/"$15"/"$16"/"$17"/"$18"/"$19"/"$20"/"$21}' ../DATA/evlst/$evlst`
 do
 
     nevt=$nevt+1
@@ -134,7 +137,7 @@ do
 
 
     # make station file
-    gawk '{printf "%4s %2s %6.3f %7.3f %3.1f %3.1f\n",$1,"TW",$3,$2,0.0,0.0}' ../DATA/$stlst > DATA/STATIONS
+    gawk '{printf "%4s %2s %6.3f %7.3f %3.1f %3.1f\n",$1,"TW",$3,$2,0.0,0.0}' ../DATA/stlst/$stlst > DATA/STATIONS
 
 
     # run forward simulation
@@ -157,7 +160,7 @@ do
     cp DATA/STATIONS_FILTERED ../measure_adj/PLOTS
     rm -f ../SYN/$dir/*
     mv OUTPUT_FILES/*.sem? ../SYN/$dir
-    rm -f ../DATA/$dir/*.sac.tomo
+    rm -f ../DATA/wav/$dir/*.sac.tomo
     rm -f DATA/STATIONS_ADJOINT
 
     # shift begin time and mark the origin time (shift 1.66667 seconds in consistent with RMT process)
@@ -166,11 +169,11 @@ do
 
     # preprocess waveforms and measure adjoint sources
     cd ../flexwin
-    if [[ $m_beg_in_this_leg -eq $mrun ]] || [[ $flexwin_flag -eq 1 ]]; then 
+    if [[ $stage_initial_model -eq $mrun ]] || [[ $flexwin_flag -eq 1 ]]; then 
 	bash run_win.bash $dir
     else
         bash ini_proc.bash $dir
-        m_last=`printf "%s%03d" "m" $m_beg_in_this_leg`
+        m_last=`printf "%s%03d" "m" $stage_initial_model`
         cp ../TOMO/$m_last/MEASURE/adjoints/$dir/MEASUREMENT.WINDOWS ../measure_adj
         cd ../measure_adj
         bash run_adj.bash $dir
@@ -212,7 +215,7 @@ do
     # combine all slices to one for VTK visualization
     mkdir -p KERNEL/VTK/
     mkdir -p KERNEL/VTK/$dir
-    ivtkout=`grep IVTKOUT ../tomo.par | gawk '{print $3}'`
+    ivtkout=`grep IVTKOUT $par_file | gawk '{print $3}'`
     if [ $ivtkout -eq 1 ]; then
         ./bin/xcombine_vol_data_vtk 0 $nslice alpha_kernel KERNEL/DATABASE/$dir/ KERNEL/VTK/$dir 0
         ./bin/xcombine_vol_data_vtk 0 $nslice beta_kernel KERNEL/DATABASE/$dir/ KERNEL/VTK/$dir 0

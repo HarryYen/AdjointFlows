@@ -12,7 +12,7 @@
 
 ## request 512 CPUs from four nodes
 ##PBS -l nodes=green5:ppn=64+green6:ppn=64+green7:ppn=64+green8:ppn=64+green9:ppn=64+green10:ppn=64+green11:ppn=64+green12:ppn=64
-##PBS -l nodes=node01:ppn=48+node02:ppn=48+node03:ppn=48+node04:ppn=48+node05:ppn=48+node06:ppn=48+node07:ppn=48+node08:ppn=48+node09:ppn=48+node10:ppn=48+node11:ppn=32
+#PBS -l nodes=node01:ppn=48+node02:ppn=48+node03:ppn=48+node04:ppn=48+node05:ppn=48+node06:ppn=48+node07:ppn=48+node08:ppn=48+node09:ppn=48+node10:ppn=48+node11:ppn=32
 ## request 512 CPUs from idle nodes
 ##PBS -l process=512
 ##PBS -q default
@@ -21,9 +21,9 @@
 
 ### GPU MODE ###
 ### Queue name (default)
-#PBS -q qgpu
+##PBS -q qgpu
 ### Number of nodes (select:nodes, ncpus: process per node)
-#PBS -l select=1:ncpus=1:ngpus=1
+##PBS -l select=1:ncpus=1:ngpus=1
 
 ###########################################################
 

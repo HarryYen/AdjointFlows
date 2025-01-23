@@ -16,11 +16,12 @@ mkdir -p PLOTS/RECON
 mkdir -p PACK
 rm -rf PACK/$1
 mkdir PACK/$1
-p1=`grep P1 ../tomo.par | gawk '{print $3}'`        # min period for bandpass
-p2=`grep P2 ../tomo.par | gawk '{print $3}'`        # max period for bandpass
-en2rt=`grep EN2RT ../tomo.par | gawk '{print $3}'`  # rotate the E & N component to R & T
-tmin=`grep TBEG ../tomo.par | gawk '{print $3}'`      # tbeg of simulated waveforms for plotting
-tmax=`grep TEND ../tomo.par | gawk '{print $3}'`      # tend of simulated waveforms for plotting
+par_file=../adjointflows/config.yaml
+p1=`grep P1 $par_file | gawk '{print $2}'`        # min period for bandpass
+p2=`grep P2 $par_file | gawk '{print $2}'`        # max period for bandpass
+en2rt=`grep EN2RT $par_file | gawk '{print $2}'`  # rotate the E & N component to R & T
+tmin=`grep tbeg $par_file | gawk '{print $2}'`      # tbeg of simulated waveforms for plotting
+tmax=`grep tend $par_file | gawk '{print $2}'`      # tend of simulated waveforms for plotting
 # measuring the adjoint sources using flexwin output
 mkdir -p OUTPUT_FILES
 rm -f OUTPUT_FILES/* 
