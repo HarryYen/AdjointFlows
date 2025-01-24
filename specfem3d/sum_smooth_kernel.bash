@@ -13,7 +13,7 @@
 ## request 512 CPUs from four nodes
 ##PBS -l nodes=8:ppn=64
 ##PBS -l nodes=green5:ppn=64+green6:ppn=64+green7:ppn=64+green8:ppn=64+green9:ppn=64+green10:ppn=64+green11:ppn=64+green12:ppn=64
-##PBS -l nodes=node01:ppn=48+node02:ppn=48+node03:ppn=48+node04:ppn=48+node05:ppn=48+node06:ppn=48+node07:ppn=48+node08:ppn=48+node09:ppn=48+node10:ppn=48+node11:ppn=32
+#PBS -l nodes=node01:ppn=48+node02:ppn=48+node03:ppn=48+node04:ppn=48+node05:ppn=48+node06:ppn=48+node07:ppn=48+node08:ppn=48+node09:ppn=48+node10:ppn=48+node11:ppn=32
 
 ## request 512 CPUs from idle nodes
 ##PBS -l process=512
@@ -21,9 +21,9 @@
 
 ### GPU MODE ###
 ### Queue name (default)
-#PBS -q qgpu
+##PBS -q qgpu
 ### Number of nodes (select:nodes, ncpus: process per node)
-#PBS -l select=1:ncpus=1:ngpus=1
+##PBS -l select=1:ncpus=1:ngpus=1
 
 ###########################################################
 # PREPROCESS
@@ -43,10 +43,11 @@ echo $numnodes
 # PARAMETER SETTING
 
 # set path to event and station list
-mbeg=`grep MBEG ../tomo.par | gawk '{print $3}'`    # the iteration currently running
-evlst=`grep EVLST ../tomo.par | gawk '{print $3}'`  # path to event list
-stlst=`grep STLST ../tomo.par | gawk '{print $3}'`  # path to station list
-ichk=`grep ICHK ../tomo.par | gawk '{print $3}'`    # continue to run or start over
+par_file=../adjointflows/config.yaml
+mbeg=`grep mbeg $par_file | gawk '{print $2}'`    # the iteration currently running
+evlst=`grep evlst $par_file | gawk '{print $2}'`  # path to event list
+stlst=`grep stlst $par_file | gawk '{print $2}'`  # path to station list
+ichk=`grep ICHK $par_file | gawk '{print $2}'`    # continue to run or start over
 
 
 # sum up event kernels
@@ -70,9 +71,9 @@ mv OUTPUT_SUM/* KERNEL/SUM/
 
 # kernel smoothing
 mkdir -p KERNEL/SMOOTH/
-ismooth=`grep ISMOOTH ../tomo.par | gawk '{print $3}'`
-sigma_h=`grep SIGMA_H ../tomo.par | gawk '{print $3}'`
-sigma_v=`grep SIGMA_V ../tomo.par | gawk '{print $3}'`
+ismooth=`grep ISMOOTH $par_file | gawk '{print $2}'`
+sigma_h=`grep SIGMA_H $par_file | gawk '{print $2}'`
+sigma_v=`grep SIGMA_V $par_file | gawk '{print $2}'`
 if [ $ismooth -eq 1 ]; then
     if [ $NPROC -eq 1 ]; then
         ./bin/xsmooth_sem $sigma_h $sigma_v alpha_kernel KERNEL/SUM/ KERNEL/SMOOTH/ $gpu_flag
@@ -88,7 +89,7 @@ if [ $ismooth -eq 1 ]; then
 fi
 
 # combine summed kernels for VTK visualization
-ivtkout=`grep IVTKOUT ../tomo.par | gawk '{print $3}'`
+ivtkout=`grep IVTKOUT $par_file | gawk '{print $2}'`
 if [ $ivtkout -eq 1 ]; then
 if [ $ismooth -eq 1 ]; then
 ./bin/xcombine_vol_data_vtk 0 $nslice alpha_kernel_smooth KERNEL/SMOOTH/ KERNEL/VTK/ 0
