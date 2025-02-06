@@ -9,7 +9,7 @@ setup:
 
 preprocessing:
   IMOD: 1                   # Establish model and database for simulation (1: establish, 0: read directly)
-  ICHK: 0                   # Check existing files for a continuous run (1: check, 0: start over)
+  ICHK: 1                   # Check existing files for a continuous run (1: check, 0: start over)
 
 inversion:
   n_store_lbfgs: 5          # Number of models used for approximating Hessian
@@ -33,6 +33,9 @@ data:
       EN2RT: 0             # Rotate E & N to R & T (1: yes, 0: no)
 
 kernel:
+  type:
+    list: ['alpha', 'beta', 'rho']
+    dtype: np.float32
   smoothing:
     ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
     SIGMA_H: 15000        # Horizontal smoothing width (m)

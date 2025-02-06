@@ -15,14 +15,16 @@ class WorkflowController:
         self.flexwin_dir = os.path.join(self.base_dir, 'flexwin')
         self.iterate_dir = os.path.join(self.base_dir, 'iterate_inv')
         self.current_model_num = self.config.get('setup.model.current_model_num')
+        self.ichk              = self.config.get('preprocessing.ICHK')
     
     def setup(self):
         """
         Setup files and directories for the following adjoint tomography processes
         """
+        remove_flag = lambda num: num == 0
         file_manager = FileManager()
         file_manager.set_model_number(current_model_num=self.current_model_num)
-        file_manager.setup_directory(clear_directories=True)
+        file_manager.setup_directory(clear_directories=remove_flag(self.ichk))
         file_manager.make_symbolic_links()
     
     def generate_model(self):
@@ -37,9 +39,12 @@ class WorkflowController:
         Run the adjoint tomography processes
         """
         forward_generator = ForwardGenerator(current_model_num=self.current_model_num, config=self.config)        
-        forward_generator.do_forward()
+        forward_generator.preprocessing()
+        forward_generator.output_vars_file()
+        index_evt_last = forward_generator.check_last_event()
+        forward_generator.process_each_event(index_evt_last)
         
-    
+        
     def misfit_check(self):
         model_evaluator = ModelEvaluator(current_model_num=self.current_model_num, config=self.config)
         is_misfit_reduced = model_evaluator.is_misfit_reduced()
@@ -55,7 +60,7 @@ class WorkflowController:
         """
         finish_signal_file = f'{self.iterate_dir}/model_gradient_ready'
         
-        post_processing = PostProcessing(current_model_num=self.current_model_num)
+        post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config)
         remove_file(finish_signal_file)
         post_processing.sum_and_smooth_kernels()
         wait_for_launching(check_file=finish_signal_file,

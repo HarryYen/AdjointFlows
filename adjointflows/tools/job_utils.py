@@ -1,7 +1,9 @@
+from pathlib import Path
 import time
 import os
 import logging
 import shutil
+import glob
 
 
 def wait_for_launching(check_file, message):
@@ -20,10 +22,28 @@ def remove_file(file):
     Remove the file
     """
     try:
-        os.remove(file)
+        dir = Path(file)
+        dir.unlink()
     except Exception as e:
         logging.warning(f"Failed to remove {file}: The path does not exist or is not a file.")
-        
+
+def remove_files_with_pattern(pattern):
+    """
+    Remove the files with the given pattern
+    Args:
+        pattern (str): The pattern to match the files to remove (e.g. '*.txt')
+    """
+    parent_dir = Path(pattern).parent
+    pattern_only = Path(pattern).name 
+
+    if parent_dir.exists():
+        for file in parent_dir.glob(pattern_only):
+            try:
+                file.unlink()
+            except FileNotFoundError:
+                logging.info(f"File does not match the given pattern: {pattern}")
+            
+            
 def clean_and_initialize_directories(directories):
     """
     Remove all files and subdirectories in the given directories, and recreate them as empty.
@@ -100,4 +120,31 @@ def check_path_is_correct(expected_dir):
         return False
     else:
         return True
+    
+
+def move_files(src_dir, dst_dir, pattern):
+    """
+    Move files from the source directory to the destination directory with the given pattern.
+    
+    Args:
+        src_dir (str): The source directory to move files from.
+        dst_dir (str): The destination directory to move files to.
+        pattern (str): The pattern to match the files to move (e.g. '*.txt').
+    """
+    src_path = Path(src_dir)
+    dst_path = Path(dst_dir)
+
+    if not src_path.exists():
+        logging.error(f"Source directory does not exist: {src_path}")
+        return
+    
+    dst_path.mkdir(parents=True, exist_ok=True)
+
+    for file in src_path.glob(pattern): 
+        try:
+            shutil.move(str(file), str(dst_path / file.name))
+            logging.info(f"Moved file: {file} to {dst_path}")
+        except Exception as e:
+            logging.error(f"Failed to move {file} to {dst_path}: {e}")
+
     

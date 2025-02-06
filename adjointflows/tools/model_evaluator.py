@@ -8,7 +8,7 @@ class ModelEvaluator:
     def __init__(self, current_model_num, config):
         self.config              = config
         self.base_dir            = GLOBAL_PARAMS['base_dir']
-        self.evlst               = f'{self.base_dir}/DATA/evlst/{config.get('data.list.evlst')}'
+        self.evlst               = f"{self.base_dir}/DATA/evlst/{config.get('data.list.evlst')}"
         self.current_model_num   = current_model_num
         self.previous_model_num  = current_model_num - 1
         self.stage_initial_model = self.config.get('setup.stage.stage_initial_model')
