@@ -43,7 +43,25 @@ def remove_files_with_pattern(pattern):
             except FileNotFoundError:
                 logging.info(f"File does not match the given pattern: {pattern}")
             
-            
+def make_symlink(src, dst):
+    """
+    Make a symbolic link from the source to the destination.
+    Args:
+        src (str): The source path to link from.
+        dst (str): The destination path to link to.
+    """
+    if not os.path.exists(src):
+        print(f"Warning: Target {src} does not exist! The symlink may be broken.")
+
+    if os.path.exists(dst) or os.path.islink(dst):
+        os.unlink(dst)
+    
+    try:
+        os.symlink(src, dst)
+        logging.info(f"Created symbolic link: {dst} -> {src}")
+    except Exception as e:
+        logging.error(f"Failed to create symbolic link {dst} -> {src}: {e}")
+        
 def clean_and_initialize_directories(directories):
     """
     Remove all files and subdirectories in the given directories, and recreate them as empty.

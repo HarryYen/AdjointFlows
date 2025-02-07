@@ -58,15 +58,9 @@ class WorkflowController:
         """
         Sum up the event kernel and smooth it
         """
-        finish_signal_file = f'{self.iterate_dir}/model_gradient_ready'
-        
         post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config)
-        remove_file(finish_signal_file)
         post_processing.sum_and_smooth_kernels()
-        wait_for_launching(check_file=finish_signal_file,
-                           message='ready to launch inversion!\n')
-    
-        
+     
         
 
     

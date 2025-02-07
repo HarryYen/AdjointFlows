@@ -1,5 +1,5 @@
 from tools.job_utils import remove_file, clean_symlink_target, wait_for_launching, check_path_is_correct
-from tools.parameter_tool import get_par_from_specfem_parfile
+from tools.matrix_utils import get_param_from_specfem_file
 from tools import GLOBAL_PARAMS
 
 from mpi4py import MPI
@@ -46,7 +46,7 @@ class ModelGenerator:
         2. generating
         """
         clean_symlink_target(self.databases_mpi_dir)
-        nproc = int(get_par_from_specfem_parfile(self.specfem_dir, 'NPROC'))
+        nproc = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
         logging.info(f"Starting model meshing and database generation for model {self.current_model_num:03d}...")
         self.run_mesher(nproc)
         subprocess.run(['./utils/change_model_type.pl', '-t'], check=True)
@@ -57,7 +57,7 @@ class ModelGenerator:
         ONLY do model generation
         1. generation
         """
-        nproc = int(get_par_from_specfem_parfile(self.specfem_dir, 'NPROC'))
+        nproc = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
         logging.info(f"Starting model database generation for model {self.current_model_num:03d}...")
         subprocess.run(['./utils/change_model_type.pl', '-t'], check=True)
         self.run_generate_databases(nproc)
@@ -67,7 +67,7 @@ class ModelGenerator:
         """ 
         run xmeshfem3D        
         """
-        print(f"Starting MPI mesher on {nproc} processors...")
+        logging.info(f"Starting MPI mesher on {nproc} processors...")
 
         if nproc == 1:
             subprocess.run(["./bin/xmeshfem3D"], check=True)

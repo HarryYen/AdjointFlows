@@ -1,6 +1,6 @@
 from tools import GLOBAL_PARAMS
 from tools.job_utils import check_if_directory_not_empty, remove_file, remove_files_with_pattern, move_files, wait_for_launching, check_path_is_correct
-from tools.parameter_tool import get_par_from_specfem_parfile
+from tools.matrix_utils import get_param_from_specfem_file
 from pathlib import Path
 
 import pandas as pd
@@ -36,7 +36,7 @@ class ForwardGenerator:
         self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
         self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', config.get('data.list.stlst'))
         
-        self.nproc               = int(get_par_from_specfem_parfile(self.specfem_dir, 'NPROC'))
+        self.nproc               = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
         self.pbs_nodefile      = os.path.join(self.base_dir, 'adjointflows', 'nodefile')
         
         
@@ -119,7 +119,9 @@ class ForwardGenerator:
             
             time.sleep(2)
             
+            # -----------------------
             # forward modeling
+            # -----------------------
             subprocess.run('./utils/change_simulation_type.pl -F', shell=True)
             remove_files_with_pattern('OUTPUT_FILES/*.sem?')
             self.run_simulator()
@@ -130,7 +132,9 @@ class ForwardGenerator:
             os.chdir(self.specfem_dir)
             time.sleep(2)
             
+            # -----------------------
             # adjoint modeling
+            # -----------------------
             subprocess.run('./utils/change_simulation_type.pl -b', shell=True)
             self.run_simulator()
             logging.info(f'Done {event_name} adjoint simulation')
@@ -220,7 +224,7 @@ class ForwardGenerator:
         run xspecfem3D        
         """
         nproc = self.nproc
-        print(f"Starting xspecfem3D on {nproc} processors...")
+        logging.info(f"Starting xspecfem3D on {nproc} processors...")
 
         if nproc == 1:
             subprocess.run(["./bin/specfem3D"], check=True)
