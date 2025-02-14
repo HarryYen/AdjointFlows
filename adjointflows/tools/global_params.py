@@ -8,5 +8,6 @@ def get_project_root() -> str:
 
 GLOBAL_PARAMS = {
     "base_dir": get_project_root(),
-    "mpirun_path": "/cluster/gcc630/openmpi-1.10.5/bin/mpirun"
+    "mpirun_path": "/cluster/gcc630/openmpi-1.10.5/bin/mpirun",
+    "mpirun_python_path": "/home/harry/.conda/envs/adjflows/bin/mpirun",
 }

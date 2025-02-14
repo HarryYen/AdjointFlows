@@ -3,6 +3,23 @@ import logging
 import sys
 import os
 
+def get_data_type(data_type):
+    """
+    check the data type, and transform it into numpy data type
+    Args:
+        data_type (str): data type (float32 or float64)
+    Returns:
+        numpy data type (np.float32 or np.float64)
+    """
+    if data_type == "float32":
+        return np.float32
+    elif data_type == "float64":
+        return np.float64
+    else:
+        error_message = f"Unknown data type: {data_type}"
+        logging.error(error_message)
+        raise ValueError(error_message)
+
 def check_bin_size(NGLLX, NGLLY, NGLLZ, NSPEC, array):
     """
     Check if the size of the given array is the same as the expected size.

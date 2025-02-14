@@ -1,3 +1,10 @@
+import os
+import sys
+
+
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+
+
 from .config import ConfigManager
 from .processing import FileManager
 from .model_evaluator import ModelEvaluator

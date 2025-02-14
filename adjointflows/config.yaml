@@ -35,7 +35,7 @@ data:
 kernel:
   type:
     list: ['alpha', 'beta', 'rho']
-    dtype: np.float32
+    dtype: float32
   smoothing:
     ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
     SIGMA_H: 15000        # Horizontal smoothing width (m)

@@ -150,37 +150,3 @@ class PostProcessing:
                             "KERNEL/SMOOTH/", "KERNEL/VTK/"], check=True)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "rho_kernel",
                             "KERNEL/SMOOTH/", "KERNEL/VTK/"], check=True)
-    
-    # def apply_hessian_to_kernel(self, comm):
-    #     """
-    #     Apply the Hessian to the kernel
-    #     Note:
-    #         SMOOTHING(SUM_event(hessian_inv)) * SMOOTHING(SUM_event(kernel))
-    #     Warning:
-    #         It's better that you have done the smoothing before applying this.
-    #     """
-    #     if comm is None:
-    #         comm = MPI.COMM_WORLD
-    #     rank = comm.Get_rank()
-    #     size = comm.Get_size()
-        
-    #     logging.info(f"Start applying the Hessian to the kernel for the {self.current_model_num:03d} model...")
-        
-    #     target_dir = f'{self.base_dir}/TOMO/m{self.current_model_num:03d}/KERNEL/PRECOND'
-        
-    #     proc_number_list = list(range(self.nproc))
-    #     hess_bin = os.path.join(self.base_dir, 'TOMO', f'm{self.current_model_num:03d}', 
-    #                             'KERNEL', 'SMOOTH', f'proc{proc_number}_hess_inv_kernel_smooth.bin')
-    #     hess_info = read_bin(hess_bin, self.NGLLX, self.NGLLY, self.NGLLZ, self.specfem, self.dtype)
-    #     hess = hess_info[0]
-    #     padding_num = hess_info[1]
-    #     for kernel_name in self.kernel_list:
-    #         kernel_bin = os.path.join(self.base_dir, 'TOMO', f'm{self.current_model_num:03d}', 
-    #                                   'KERNEL', 'SMOOTH', f'proc{proc_number}_{kernel_name}_kernel_smooth.bin')
-    #         kernel_info = read_bin(kernel_bin, self.NGLLX, self.NGLLY, self.NGLLZ, self.specfem, self.dtype)
-    #         kernel = kernel_info[0]
-    #         precond_kernel = hess * kernel
-    #         kernel_pad_and_output(kernel=precond_kernel,
-    #                               output_file=target_dir,
-    #                               padding_num=padding_num)
-            

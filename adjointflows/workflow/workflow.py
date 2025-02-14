@@ -1,6 +1,7 @@
 from tools import FileManager, ModelEvaluator
 from tools.job_utils import remove_file, wait_for_launching
 from kernel import ModelGenerator, ForwardGenerator, PostProcessing
+from iterate import IterationProcess
 import yaml
 import os
 import sys
@@ -11,6 +12,7 @@ class WorkflowController:
     def __init__(self, config, global_params):
         self.config = config
         self.base_dir = global_params['base_dir']
+        self.adjointflows_dir = os.path.join(self.base_dir, 'adjointflows')
         self.specfem_dir = os.path.join(self.base_dir, 'specfem3d')
         self.flexwin_dir = os.path.join(self.base_dir, 'flexwin')
         self.iterate_dir = os.path.join(self.base_dir, 'iterate_inv')
@@ -60,9 +62,15 @@ class WorkflowController:
         """
         post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config)
         post_processing.sum_and_smooth_kernels()
-     
+    
+    def do_iteration(self):
+        """
+        Then do the preconditioning and calculate the direction
+        """
+        iteration_process = IterationProcess(current_model_num=self.current_model_num, config=self.config)
+        iteration_process.save_params_json()
+        iteration_process.hess_times_kernel()
         
-
     
     def move_to_other_directory(self, folder_to_move):
         """
@@ -71,6 +79,7 @@ class WorkflowController:
             folder_to_move (str): The folder name you want to move
         """
         folder_mapping = {
+            'adjointflows': self.adjointflows_dir,
             'specfem': self.specfem_dir,
             'flexwin': self.flexwin_dir,
             'iterate': self.iterate_dir
