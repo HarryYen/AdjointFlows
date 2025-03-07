@@ -2,37 +2,34 @@ from tools.job_utils import remove_file, clean_symlink_target, wait_for_launchin
 from tools.matrix_utils import get_param_from_specfem_file
 from tools import GLOBAL_PARAMS
 
-from mpi4py import MPI
+# from mpi4py import MPI
 import subprocess
 import logging
 import os
+import sys
 
 class ModelGenerator:
     
-    def __init__(self, current_model_num):
-        """
-        Args:
-            base_dir (str): The work directorty for model generation (it shouold be specfem3d/)
-            current_model_num (int): The current model number
-        """
+    def __init__(self):
+
         self.base_dir          = GLOBAL_PARAMS['base_dir']
         self.mpirun_path       = GLOBAL_PARAMS['mpirun_path']
-        self.current_model_num = current_model_num
         self.specfem_dir       = os.path.join(self.base_dir, 'specfem3d')
         self.databases_mpi_dir = os.path.join(self.specfem_dir, 'DATABASES_MPI')
-        self.model_ready_file  = os.path.join(self.specfem_dir, 'OUTPUT_FILES', 'model_database_ready') 
         self.pbs_nodefile      = os.path.join(self.base_dir, 'adjointflows', 'nodefile')
-            
-    def model_setup(self, mesh_flag=True):
+        self.specfem_par_file  = os.path.join(self.specfem_dir, 'DATA', 'Par_file')
+        
+        self.debug_logger      = logging.getLogger("debug_logger")
+        
+    def model_setup(self, mesh_flag):
         """
         Setup the model mesh and model generation
         """
         if not check_path_is_correct(self.specfem_dir):
             error_message = f"STOP: the current directory is not {self.specfem_dir}!"
-            logging.error(error_message)
+            self.debug_logger.error(error_message)
             raise ValueError(error_message)
         
-        remove_file(self.model_ready_file)
         if mesh_flag:
             self.model_mesh_generation()
         else:
@@ -47,7 +44,7 @@ class ModelGenerator:
         """
         clean_symlink_target(self.databases_mpi_dir)
         nproc = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
-        logging.info(f"Starting model meshing and database generation for model {self.current_model_num:03d}...")
+        self.debug_logger.info(f"Starting model meshing and database generation for model...")
         self.run_mesher(nproc)
         subprocess.run(['./utils/change_model_type.pl', '-t'], check=True)
         self.run_generate_databases(nproc)
@@ -58,7 +55,7 @@ class ModelGenerator:
         1. generation
         """
         nproc = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
-        logging.info(f"Starting model database generation for model {self.current_model_num:03d}...")
+        self.debug_logger.info(f"Starting model database generation for model...")
         subprocess.run(['./utils/change_model_type.pl', '-t'], check=True)
         self.run_generate_databases(nproc)
 
@@ -67,15 +64,14 @@ class ModelGenerator:
         """ 
         run xmeshfem3D        
         """
-        logging.info(f"Starting MPI mesher on {nproc} processors...")
-
+        self.debug_logger.info(f"Starting MPI mesher on {nproc} processors...")
         if nproc == 1:
             subprocess.run(["./bin/xmeshfem3D"], check=True)
         else:
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xmeshfem3D'], check=True)
+            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xmeshfem3D'], 
+                           check=True, env=os.environ)
+        self.debug_logger.info("Done meshing")
         
-        logging.info("Done meshing")
-
     def run_generate_databases(self, nproc):
         """ 
         run xgenerate_databases 
@@ -85,6 +81,7 @@ class ModelGenerator:
         if nproc == 1:
             subprocess.run(['./bin/xgenerate_databases'], check=True)
         else:
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xgenerate_databases'], check=True)
+            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xgenerate_databases'], 
+                           check=True, env=os.environ)
         
-        logging.info("Done database generating")
+        self.debug_logger.info("Done database generating")

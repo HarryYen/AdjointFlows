@@ -18,7 +18,7 @@ class ForwardGenerator:
     def __init__(self, current_model_num, config):
         """
         Args:
-            base_dir (str): The work directorty for model generation (it shouold be specfem3d/)
+            config (dict): The configuration dictionary
             current_model_num (int): The current model number
         """
         self.base_dir          = GLOBAL_PARAMS['base_dir']
@@ -35,10 +35,13 @@ class ForwardGenerator:
         
         self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
         self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', config.get('data.list.stlst'))
+        self.specfem_par_file    = os.path.join(self.specfem_dir, 'DATA', 'Par_file')   
         
         self.nproc               = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
         self.pbs_nodefile      = os.path.join(self.base_dir, 'adjointflows', 'nodefile')
         
+        self.debug_logger      = logging.getLogger("debug_logger")
+        self.result_logger     = logging.getLogger("result_logger")
         
     def preprocessing(self):
         """
@@ -47,16 +50,13 @@ class ForwardGenerator:
         """
         
         if not check_if_directory_not_empty(self.databases_mpi_dir):
-            logging.error(f"STOP: {self.databases_mpi_dir} is empty!")
+            self.debug_logger.error(f"STOP: {self.databases_mpi_dir} is empty!")
             sys.exit()
         
         if not check_path_is_correct(self.specfem_dir):
             error_message = f"STOP: the current directory is not {self.specfem_dir}!"
-            logging.error(error_message)
+            self.debug_logger.error(error_message)
             raise ValueError(error_message)
-        
-        kernel_ready_file = os.path.join(self.specfem_dir, 'kernel_databases_ready')
-        remove_file(kernel_ready_file)
  
     def output_vars_file(self):
         """
@@ -76,7 +76,7 @@ class ForwardGenerator:
     
     """
     the functions below are the features for controlling specfem3d forward
-    REPLACE the original kernel_serial.bass
+    REPLACE the original kernel_serial.bash
     """
     def check_last_event(self):
         """
@@ -92,8 +92,7 @@ class ForwardGenerator:
                         event_name = line.split()[0]
                         if os.path.isdir(f"KERNEL/DATABASE/{event_name}"):
                             index_evt_last += 1
-            logging.info(f"Last time stopped at event {index_evt_last}")
-            print(f"Last time stopped at event {index_evt_last}")
+            self.debug_logger.info(f"Last time stopped at event {index_evt_last}")
             return index_evt_last
         return 0
     
@@ -109,11 +108,12 @@ class ForwardGenerator:
                                     'Mw', 'MR', 'mrr', 'mtt', 'mpp', 'mrt', 'mrp', 'mtp'])
         sta_df = pd.read_csv(self.stlst, sep='\s+',
                              names=['sta', 'lon', 'lat', 'elev'])
-        logging.info(f'We start from event {index_evt_last}')
+        self.debug_logger.info(f'We start from event {index_evt_last}')
         for evt_i in np.arange(index_evt_last, evt_df.shape[0]):
             event_info = evt_df.iloc[evt_i]
             event_name = event_info[0]
-            logging.info(f"Processing event {event_name}")
+            
+            self.debug_logger.info(f"Processing event {event_name}")
             self.write_cmt_file(event_info)
             self.write_station_file(sta_df)
             
@@ -125,7 +125,7 @@ class ForwardGenerator:
             subprocess.run('./utils/change_simulation_type.pl -F', shell=True)
             remove_files_with_pattern('OUTPUT_FILES/*.sem?')
             self.run_simulator()
-            logging.info(f'Done {event_name} forward simulation')
+            self.debug_logger.info(f'Done {event_name} forward simulation')
             self.prepare_adjoint_simulation(event_name)            
             self.select_windows_and_measure_misfit(event_name=event_name)
             
@@ -137,13 +137,13 @@ class ForwardGenerator:
             # -----------------------
             subprocess.run('./utils/change_simulation_type.pl -b', shell=True)
             self.run_simulator()
-            logging.info(f'Done {event_name} adjoint simulation')
+            self.debug_logger.info(f'Done {event_name} adjoint simulation')
             
             move_files(src_dir = f'{self.specfem_dir}/DATABASES_MPI', 
                        dst_dir = f'{self.specfem_dir}/KERNEL/DATABASE/{event_name}', 
                        pattern = 'proc*kernel.bin')
             
-            logging.info("kernel constructed and collected!")
+            self.result_logger.info("kernel constructed and collected!")
             
             
             
@@ -224,12 +224,13 @@ class ForwardGenerator:
         run xspecfem3D        
         """
         nproc = self.nproc
-        logging.info(f"Starting xspecfem3D on {nproc} processors...")
+        self.result_logger.info(f"Starting xspecfem3D on {nproc} processors...")
 
         if nproc == 1:
-            subprocess.run(["./bin/specfem3D"], check=True)
+            subprocess.run(["./bin/specfem3D"], check=True, env=os.environ)
         else:
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xspecfem3D'], check=True)
+            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xspecfem3D'], 
+                           check=True, env=os.environ)
     
     def prepare_adjoint_simulation(self, event_name):
         """

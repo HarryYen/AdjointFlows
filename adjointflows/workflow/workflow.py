@@ -1,10 +1,8 @@
 from tools import FileManager, ModelEvaluator
 from tools.job_utils import remove_file, wait_for_launching
 from kernel import ModelGenerator, ForwardGenerator, PostProcessing
-from iterate import IterationProcess
-import yaml
+from iterate import IterationProcess, StepLengthOptimizer
 import os
-import sys
 import logging
 
 
@@ -16,10 +14,32 @@ class WorkflowController:
         self.specfem_dir = os.path.join(self.base_dir, 'specfem3d')
         self.flexwin_dir = os.path.join(self.base_dir, 'flexwin')
         self.iterate_dir = os.path.join(self.base_dir, 'iterate_inv')
-        self.current_model_num = self.config.get('setup.model.current_model_num')
-        self.ichk              = self.config.get('preprocessing.ICHK')
+        self.current_model_num   = self.config.get('setup.model.current_model_num')
+        self.stage_initial_model = self.config.get('setup.stage.stage_initial_model')
+        self.ichk                = self.config.get('preprocessing.ICHK')
+        self.max_fail            = self.config.get('inversion.max_fail')
+        
+        self.debug_logger = logging.getLogger("debug_logger")
+        
+    def construct_misfit_list(self):
+        """
+        Construct a list to store the misfit values
+        The first element is the misfit of previous model
+        This is for the L-BFGS method
+        """
+        model_evaluator_tmp = ModelEvaluator(current_model_num=self.current_model_num, config=self.config)
+        previous_misfit = model_evaluator_tmp.misfit_calculation(m_num=self.current_model_num - 1)
+        self.misfit_list = [previous_misfit]
     
-    def setup(self):
+    def construct_step_length_list(self):
+        """
+        Construct a list to store the step length values
+        The first element is 1
+        This is for the L-BFGS method
+        """
+        self.step_length_list = [1.0]
+
+    def setup_dir(self):
         """
         Setup files and directories for the following adjoint tomography processes
         """
@@ -29,12 +49,23 @@ class WorkflowController:
         file_manager.setup_directory(clear_directories=remove_flag(self.ichk))
         file_manager.make_symbolic_links()
     
-    def generate_model(self):
+    def setup_for_fail(self):
+        """
+        Setup misfit list and fail_num for preparing the situation 
+        when the misfit is not reduced
+        """
+        self.reset_fail_num()
+
+        if self.current_model_num != self.stage_initial_model:
+            self.construct_misfit_list()
+            self.construct_step_length_list()
+        
+    def generate_model(self, mesh_flag):
         """
         Prepare the model for the forward simulation
         """
-        model_generator = ModelGenerator(current_model_num=self.current_model_num)
-        model_generator.model_setup(mesh_flag=True)
+        model_generator = ModelGenerator()
+        model_generator.model_setup(mesh_flag=mesh_flag)
         
     def run_forward(self):
         """
@@ -49,12 +80,24 @@ class WorkflowController:
         
     def misfit_check(self):
         model_evaluator = ModelEvaluator(current_model_num=self.current_model_num, config=self.config)
+        misfit = model_evaluator.misfit_calculation(m_num=self.current_model_num)
+        
+        if self.current_model_num != self.stage_initial_model:
+            self.misfit_list.append(misfit)
+        
         is_misfit_reduced = model_evaluator.is_misfit_reduced()
         
         if not is_misfit_reduced:
-            error_message = "STOP: Misfit is not reduced!"
-            logging.error(error_message)
-            raise ValueError(error_message)
+            if self.stage_initial_model == self.current_model_num: 
+                error_message = "STOP: [Steepest Descent] Misfit is not reduced!"
+                self.debug_logger.error(error_message)
+                raise ValueError(error_message)
+            else:
+                self.debug_logger.warning("[L-BFGS] Misfit is not reduced. Rollback the model.")
+                self.add_fail_num()
+                return False
+        else:
+            return True
     
     def create_misfit_kernel(self):
         """
@@ -71,7 +114,54 @@ class WorkflowController:
         iteration_process.save_params_json()
         iteration_process.hess_times_kernel()
         
-    
+        steplength_optimizer = StepLengthOptimizer(current_model_num=self.current_model_num, config=self.config)
+        
+        # --------------------------------------
+        # Use Steepest Descent for inversion 
+        # --------------------------------------
+        if self.stage_initial_model == self.current_model_num:
+            iteration_process.calculate_direction_sd()
+            steplength_optimizer.run_line_search()
+            step_fac = steplength_optimizer.get_current_best_step_length()
+            iteration_process.update_model(step_fac=step_fac, lbfgs_flag=False)
+        # --------------------------------------
+        # Use L-BFGS for inversion 
+        # --------------------------------------    
+        else:
+            iteration_process.calculate_direction_lbfgs()
+
+            iteration_process.update_model(step_fac=step_fac, lbfgs_flag=True)
+            
+    def reupdate_model_if_misfit_not_reduced(self):
+        
+        rollback_model = self.current_model_num - 1
+        re_iteration_process = IterationProcess(current_model_num=rollback_model, config=self.config)
+        re_iteration_process.save_params_json()
+        
+        # --------------------------------------------------------------------------------------------------
+        # take 3 (or 2 if the fail_num is 1) misfit values for finding a better step length
+        # take 2 (or 1 if the fail_num is 1) step length values for finding a better step length
+        # --------------------------------------------------------------------------------------------------
+        misfit_selected = self.misfit_list[-3:]
+        step_selected = self.step_length_list[-2:]
+        g_dot_p = re_iteration_process.get_gradient_info(param_name='g_dot_p')
+        if self.lbfgs_fail_num == 1:
+            new_step_length = re_iteration_process.quadratic_interpolation(phi_o = misfit_selected[0], 
+                                                                           phi0  = misfit_selected[1], 
+                                                                           alpha = step_selected[0],
+                                                                           g_dot_p = g_dot_p)
+        else:
+            new_step_length = re_iteration_process.cubic_interpolation(phi_o = misfit_selected[0], 
+                                                                       phi0  = misfit_selected[1],
+                                                                       phi1  = misfit_selected[2], 
+                                                                       alpha0 = step_selected[0],
+                                                                       alpha1 = step_selected[1],
+                                                                       g_dot_p = g_dot_p)        
+        self.step_length_list.append(new_step_length)
+        re_iteration_process.update_model(step_fac=new_step_length, lbfgs_flag=True)
+        
+        
+        
     def move_to_other_directory(self, folder_to_move):
         """
         Move to the specified directory
@@ -86,16 +176,21 @@ class WorkflowController:
         }
         if not folder_to_move in folder_mapping:
             error_message = f"Unknown process type: {folder_to_move}"
-            logging.error(error_message)
+            self.debug_logger.error(error_message)
             raise ValueError(error_message)
         
         target_folder = folder_mapping[folder_to_move]
         try:
             os.chdir(target_folder)
-            logging.info(f'WORKDIR CHANGE: Moved to {folder_to_move} directory')
+            self.debug_logger.info(f'WORKDIR CHANGE: Moved to {folder_to_move} directory')
         except FileNotFoundError:
             error_message = f"Target folder does not exist: {target_folder}"
-            logging.error(error_message)
+            self.debug_logger.error(error_message)
             raise FileNotFoundError(error_message)
             
+    def reset_fail_num(self):
+        self.lbfgs_fail_num = 0
         
+    def add_fail_num(self):
+        self.lbfgs_fail_num += 1
+    

@@ -35,6 +35,8 @@ class PostProcessing:
         self.NGLLZ = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLZ', param_type=int)
         self.gpu_flag = get_param_from_specfem_file(file=self.specfem_par_file, param_name='GPU_MODE', param_type=str)
         
+        self.debug_logger  = logging.getLogger("debug_logger")
+        self.result_logger = logging.getLogger("result_logger")
         
     def sum_and_smooth_kernels(self):
         """
@@ -42,7 +44,7 @@ class PostProcessing:
         Note:
             Currently, we just call the sum_smooth_kernel.bash script to do the job.
         """
-        logging.info(f"Start smoothing the kernels for the {self.current_model_num:03d} model...") 
+        self.result_logger.info(f"Start smoothing the kernels for the {self.current_model_num:03d} model...") 
         remove_file('INPUT_KERNELS')
         self.make_kernels_list()
         make_symlink(src=os.path.join(self.specfem_dir, 'KERNEL', 'DATABASE'), 
@@ -80,73 +82,75 @@ class PostProcessing:
         run xsum_preconditioned_kernels
         """
         nproc = self.nproc
-        logging.info(f"Starting precond on {nproc} processors...")
+        self.result_logger.info(f"Starting precond on {nproc} processors...")
 
         if nproc == 1:
-            subprocess.run(["./bin/xsum_preconditioned_kernels"], check=True)
+            subprocess.run(["./bin/xsum_preconditioned_kernels"], check=True, env=os.environ)
         else:
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xsum_preconditioned_kernels'], check=True)
+            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xsum_preconditioned_kernels'], 
+                           check=True, env=os.environ)
         
     def run_sum_kernels(self):
         """ 
         run xsum_kernels
         """
         nproc = self.nproc
-        logging.info(f"Starting precond on {nproc} processors...")
+        self.result_logger.info(f"Starting summation on {nproc} processors...")
 
         if nproc == 1:
-            subprocess.run(["./bin/xsum_kernels"], check=True)
+            subprocess.run(["./bin/xsum_kernels"], check=True, env=os.environ)
         else:
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xsum_kernels'], check=True)
+            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xsum_kernels'], 
+                           check=True, env=os.environ)
     
     def run_smoothing(self):
         """
         run xsmooth_sem
         """
         nproc = self.nproc
-        logging.info(f"Starting smoothing on {nproc} processors...")
+        self.result_logger.info(f"Starting smoothing on {nproc} processors...")
 
         if nproc == 1:
             subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "alpha_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True)
+                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "beta_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True)
+                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "rho_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True)
+                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "hess_inv_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True)
+                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
         else:
             subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "alpha_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True)
+                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "beta_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True)
+                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "rho_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True)
+                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "hess_inv_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True)
+                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
     
     def combine_kernels(self):
         """
         Combine the kernels using xcombine_vol_data_vtk
         """
-        logging.info(f"Starting combining the smoothed kernels into vtk")
+        self.debug_logger.info(f"Starting combining the smoothed kernels into vtk")
         nslice = int(self.nproc) - 1
         
         if self.ismooth:
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "alpha_kernel_smooth",
-                            "KERNEL/SMOOTH/", "KERNEL/VTK/"], check=True)
+                            "KERNEL/SMOOTH/", "KERNEL/VTK/", "0"], check=True, env=os.environ)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "beta_kernel_smooth",
-                            "KERNEL/SMOOTH/", "KERNEL/VTK/"], check=True)
+                            "KERNEL/SMOOTH/", "KERNEL/VTK/", "0"], check=True, env=os.environ)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "rho_kernel_smooth",
-                            "KERNEL/SMOOTH/", "KERNEL/VTK/"], check=True)
+                            "KERNEL/SMOOTH/", "KERNEL/VTK/", "0"], check=True, env=os.environ)
         else:
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "alpha_kernel",
-                            "KERNEL/SMOOTH/", "KERNEL/VTK/"], check=True)
+                            "KERNEL/SMOOTH/", "KERNEL/VTK/", "0"], check=True, env=os.environ)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "beta_kernel",
-                            "KERNEL/SMOOTH/", "KERNEL/VTK/"], check=True)
+                            "KERNEL/SMOOTH/", "KERNEL/VTK/", "0"], check=True, env=os.environ)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "rho_kernel",
-                            "KERNEL/SMOOTH/", "KERNEL/VTK/"], check=True)
+                            "KERNEL/SMOOTH/", "KERNEL/VTK/", "0"], check=True, env=os.environ)

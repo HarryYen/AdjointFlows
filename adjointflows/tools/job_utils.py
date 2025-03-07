@@ -6,6 +6,8 @@ import shutil
 import glob
 
 
+debug_logger = logging.getLogger("debug_logger")
+
 def wait_for_launching(check_file, message):
     """
     Wait for the launching of the job
@@ -15,7 +17,7 @@ def wait_for_launching(check_file, message):
     """
     while not os.path.isfile(check_file):
         time.sleep(3)
-    logging.info(message)
+    debug_logger.info(message)
 
 def remove_file(file):
     """
@@ -25,7 +27,7 @@ def remove_file(file):
         dir = Path(file)
         dir.unlink()
     except Exception as e:
-        logging.warning(f"Failed to remove {file}: The path does not exist or is not a file.")
+        debug_logger.warning(f"Failed to remove {file}: The path does not exist or is not a file.")
 
 def remove_files_with_pattern(pattern):
     """
@@ -41,7 +43,7 @@ def remove_files_with_pattern(pattern):
             try:
                 file.unlink()
             except FileNotFoundError:
-                logging.info(f"File does not match the given pattern: {pattern}")
+                debug_logger.info(f"File does not match the given pattern: {pattern}")
             
 def make_symlink(src, dst):
     """
@@ -58,9 +60,9 @@ def make_symlink(src, dst):
     
     try:
         os.symlink(src, dst)
-        logging.info(f"Created symbolic link: {dst} -> {src}")
+        debug_logger.info(f"Created symbolic link: {dst} -> {src}")
     except Exception as e:
-        logging.error(f"Failed to create symbolic link {dst} -> {src}: {e}")
+        debug_logger.error(f"Failed to create symbolic link {dst} -> {src}: {e}")
         
 def clean_and_initialize_directories(directories):
     """
@@ -73,15 +75,15 @@ def clean_and_initialize_directories(directories):
             if os.path.exists(directory):
                 if os.path.islink(directory): 
                     os.unlink(directory)
-                    logging.debug(f"Unlinked symbolic link: {directory}")
+                    debug_logger.debug(f"Unlinked symbolic link: {directory}")
                 else:
                     shutil.rmtree(directory)
-                    logging.debug(f"Removed directory: {directory}")
+                    debug_logger.debug(f"Removed directory: {directory}")
             
             os.makedirs(directory, exist_ok=True) 
-            logging.debug(f"Recreated directory: {directory}")
+            debug_logger.debug(f"Recreated directory: {directory}")
         except Exception as e:
-            logging.error(f"Failed to clean up {directory}: {e}")
+            debug_logger.error(f"Failed to clean up {directory}: {e}")
             
 
 def clean_symlink_target(symlink_path):
@@ -98,14 +100,14 @@ def clean_symlink_target(symlink_path):
             try:
                 shutil.rmtree(target_abs_path)
                 os.makedirs(target_abs_path)
-                logging.info(f"Clear all contents in: {target_abs_path}")
+                debug_logger.info(f"Clear all contents in: {target_abs_path}")
             except Exception as e:
-                logging.warning(f"Failed to clear contents in {target_abs_path}: {e}")
+                debug_logger.warning(f"Failed to clear contents in {target_abs_path}: {e}")
             
         else:
-            logging.warning(f"Target path is not a directory: {target_abs_path}")
+            debug_logger.warning(f"Target path is not a directory: {target_abs_path}")
     else:
-        logging.warning(f"Path is not a symbolic link: {symlink_path}")
+        debug_logger.warning(f"Path is not a symbolic link: {symlink_path}")
         
         
 
@@ -134,7 +136,7 @@ def check_path_is_correct(expected_dir):
     current_dir = os.path.abspath(os.getcwd())
     error_message = f"Current directory {current_dir} does not match expected directory {expected_dir}"
     if current_dir != expected_dir:
-        logging.error(error_message)
+        debug_logger.error(error_message)
         return False
     else:
         return True
@@ -153,7 +155,7 @@ def move_files(src_dir, dst_dir, pattern):
     dst_path = Path(dst_dir)
 
     if not src_path.exists():
-        logging.error(f"Source directory does not exist: {src_path}")
+        debug_logger.error(f"Source directory does not exist: {src_path}")
         return
     
     dst_path.mkdir(parents=True, exist_ok=True)
@@ -161,8 +163,42 @@ def move_files(src_dir, dst_dir, pattern):
     for file in src_path.glob(pattern): 
         try:
             shutil.move(str(file), str(dst_path / file.name))
-            logging.info(f"Moved file: {file} to {dst_path}")
+            debug_logger.info(f"Moved file: {file} to {dst_path}")
         except Exception as e:
-            logging.error(f"Failed to move {file} to {dst_path}: {e}")
+            debug_logger.error(f"Failed to move {file} to {dst_path}: {e}")
+            
+def check_dir_exists(dir_name):
+    """
+    Check if the directory exists, if not, create it.
+    Args:
+        dir_name (str): The directory name to check.
+    """
+    os.makedirs(dir_name, exist_ok=True)
 
-    
+
+def remove_path(directories):
+    """
+    Remove the specified directories or files, including symbolic links.
+    Args:
+        directories (list): A list of directories or files to remove.
+    """
+    for directory in directories:
+        try:
+            if not os.path.exists(directory):
+                debug_logger.warning(f"Path does not exist: {directory}")
+                continue
+            
+            if os.path.islink(directory): 
+                os.unlink(directory)
+                debug_logger.debug(f"Unlinked symbolic link: {directory}")
+            elif os.path.isdir(directory): 
+                shutil.rmtree(directory)
+                debug_logger.debug(f"Removed directory: {directory}")
+            elif os.path.isfile(directory): 
+                os.remove(directory)
+                debug_logger.debug(f"Removed file: {directory}")
+            else:
+                debug_logger.warning(f"Unknown path type, skipped: {directory}")
+        except Exception as e:
+            debug_logger.error(f"Failed to remove {directory}: {e}")
+
