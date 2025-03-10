@@ -21,6 +21,7 @@ sync.sh
 ./measure_adj/ADJOINT_SOURCES/*
 ./measure_adj/CMTSOLUTION_9818433
 ./measure_adj/HY_PARFILE
+./measure_adj/PACK
 
 ./flexwin/HY_PARFILE/
 ./flexwin/*ps
@@ -29,3 +30,4 @@ sync.sh
 ./flexwin/t0*
 ./flexwin/t1*
 ./flexwin/t2*
+./flexwin/PACK
