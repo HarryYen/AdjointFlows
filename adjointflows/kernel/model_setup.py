@@ -56,7 +56,7 @@ class ModelGenerator:
         """
         nproc = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
         self.debug_logger.info(f"Starting model database generation for model...")
-        subprocess.run(['./utils/change_model_type.pl', '-t'], check=True)
+        subprocess.run(['./utils/change_model_type.pl', '-g'], check=True)
         self.run_generate_databases(nproc)
 
     
