@@ -10,6 +10,7 @@ sync.sh
 
 ./adjointflows/logger/*
 
+./specfem3d_mine/
 
 ./specfem3d/*.bash
 ./specfem3d/*.qbs

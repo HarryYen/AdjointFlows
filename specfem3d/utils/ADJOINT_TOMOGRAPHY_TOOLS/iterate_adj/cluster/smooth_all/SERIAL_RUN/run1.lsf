@@ -1,6 +1,0 @@
-#!/bin/bash
-mkdir -p OUTPUT_FILES
-rm OUTPUT_FILES/*
-date
-bsub -q normal -W 1440 -n 168  < go1.bash
-date
