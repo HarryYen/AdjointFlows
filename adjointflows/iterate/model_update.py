@@ -106,13 +106,14 @@ def main():
     model_list = get_model_list_from_kernel_type(kernel_list)
     stage_initial_model = params['stage_initial_model']
     model_num = f"m{mrun:03d}"
+    model_next_num = f'm{mrun+1:03d}'
     dtype_int = np.int32
     
     old_model_dir = os.path.join(params['base_dir'], "TOMO", model_num,     "DATABASES_MPI")
     if line_search_flag:
         new_model_dir = os.path.join(params['base_dir'], "TOMO", f"mtest{mrun:03d}", "DATABASES_MPI")
     else:   
-        new_model_dir = os.path.join(params['base_dir'], "TOMO", model_num + 1, "DATABASES_MPI")
+        new_model_dir = os.path.join(params['base_dir'], "TOMO", model_next_num, "DATABASES_MPI")
     direction_dir = os.path.join(params['base_dir'], "TOMO", model_num, "KERNEL", "UPDATE")
 
     
