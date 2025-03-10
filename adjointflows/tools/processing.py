@@ -1,9 +1,10 @@
 from .job_utils import clean_and_initialize_directories, remove_path
+from .global_params import GLOBAL_PARAMS
 import os
 import shutil
 import logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+# logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 class FileManager:
     

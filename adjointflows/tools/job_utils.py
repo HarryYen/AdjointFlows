@@ -163,9 +163,34 @@ def move_files(src_dir, dst_dir, pattern):
     for file in src_path.glob(pattern): 
         try:
             shutil.move(str(file), str(dst_path / file.name))
-            debug_logger.info(f"Moved file: {file} to {dst_path}")
+            debug_logger.debug(f"Moved file: {file} to {dst_path}")
         except Exception as e:
             debug_logger.error(f"Failed to move {file} to {dst_path}: {e}")
+            
+def copy_files(src_dir, dst_dir, pattern):
+    """
+    Copy files from the source directory to the destination directory with the given pattern.
+    
+    Args:
+        src_dir (str): The source directory to copy files from.
+        dst_dir (str): The destination directory to copy files to.
+        pattern (str): The pattern to match the files to copy (e.g. '*.txt').
+    """
+    src_path = Path(src_dir)
+    dst_path = Path(dst_dir)
+
+    if not src_path.exists():
+        debug_logger.error(f"Source directory does not exist: {src_path}")
+        return
+    
+    dst_path.mkdir(parents=True, exist_ok=True)
+
+    for file in src_path.glob(pattern): 
+        try:
+            shutil.copy2(str(file), str(dst_path / file.name))  
+            debug_logger.debug(f"Copied file: {file} to {dst_path}")
+        except Exception as e:
+            debug_logger.error(f"Failed to copy {file} to {dst_path}: {e}")
             
 def check_dir_exists(dir_name):
     """

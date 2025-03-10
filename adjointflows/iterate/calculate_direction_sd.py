@@ -4,7 +4,6 @@ import json
 import logging
 from mpi4py import MPI
 
-debug_logger = logging.getLogger("debug_logger")
 
 def main():
     os.environ["OPENBLAS_NUM_THREADS"] = "1"
@@ -50,11 +49,10 @@ def main():
                                         dtype=get_data_type(params['dtype']))
         
         direction_kernel = gradient_kernel * -1
+        
         output_file = os.path.join(output_dir, f"proc{rank:06d}_{kernel_name}_kernel_smooth.bin")
         kernel_pad_and_output(kernel=direction_kernel, output_file=output_file, padding_num=padding_num)
-    
-    
-    
+
 
 if __name__ == "__main__":
 

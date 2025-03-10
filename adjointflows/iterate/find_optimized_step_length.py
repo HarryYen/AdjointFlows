@@ -40,8 +40,8 @@ class StepLengthOptimizer:
         self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evchk'))
         self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', config.get('data.list.stlst'))
         self.specfem_par_file    = os.path.join(self.specfem_dir, 'DATA', 'Par_file')
-        self.pbs_nodefile        = os.path.join(self.base_dir, 'adjointflows', 'nodefile')
-        self.iterate_dir         = os.path.join(self.base_dir, 'adjointflows', 'iterate')
+        self.adjflows_dir        = os.path.join(self.base_dir, 'adjointflows')
+        self.pbs_nodefile        = os.path.join(self.adjflows_dir, 'nodefile')
 
         
         self.step_interval       = config.get('line_search.step_interval')
@@ -74,13 +74,12 @@ class StepLengthOptimizer:
             self.setup_directory()
             self.make_symbolic_links()
             self.update_model(step_fac=step_length, lbfgs_flag=False)
-            
             os.chdir(self.specfem_dir)
             model_generator_line_search.model_setup(mesh_flag=False)
             self.preprocessing()
             self.process_each_event(index_evt_last=0)
             
-            os.chdir(self.iterate_dir)
+            os.chdir(self.adjflows_dir)
             
             if self.is_misfit_reduced():
                 self.give_current_best_step_length(step_length_tmp=step_length)
@@ -405,7 +404,7 @@ class StepLengthOptimizer:
             subprocess.run(command, shell=True, check=True)
         else:
             command = f'{self.py_mpirun_path} --hostfile {self.pbs_nodefile} -np {nproc} python {script_dir} {step_fac} {int(lbfgs_flag)} {int(line_search_flag)}'
-            subprocess.run('pwd', shell=True)
+            self.debug_logger.info(f"Command: {command}")
             subprocess.run(command, shell=True, check=True, env=env)
         
     # -----------------------------------------------
