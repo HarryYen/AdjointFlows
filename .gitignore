@@ -1,14 +1,13 @@
 __pycache__/
 *.pyc
 sync.sh
+*.log
 
 ./utils/
 
 ./DATA/evlst/*
 ./DATA/stlst/*
 ./DATA/wav/*
-
-./adjointflows/logger/*
 
 ./specfem3d_mine/
 
