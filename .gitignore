@@ -5,6 +5,7 @@ sync.sh
 
 ./utils/
 
+./DATA/
 ./DATA/evlst/*
 ./DATA/stlst/*
 ./DATA/wav/*
