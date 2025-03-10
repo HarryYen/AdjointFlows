@@ -17,9 +17,9 @@ inversion:
 
 data:
   list:
-    evlst: evt_test.txt # Path to event list
+    evlst: fwi_new_cat_version3_18.txt # Path to event list
     stlst: sta_bats_cwb_cwb24.txt # Path to station list
-    evchk: evt_test.txt  # Event list to check misfit in line search
+    evchk: fwi_new_cat_test_7.txt  # Event list to check misfit in line search
   seismogram:
     tbeg: -30              # Cutting time: start (seconds)
     tend: 150              # Cutting time: end (seconds)
@@ -38,11 +38,11 @@ kernel:
     dtype: float32
   smoothing:
     ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
-    SIGMA_H: 15000        # Horizontal smoothing width (m)
-    SIGMA_V: 7500         # Vertical smoothing width (m)
+    SIGMA_H: 10000        # Horizontal smoothing width (m)
+    SIGMA_V: 5000         # Vertical smoothing width (m)
   visualization:
     IVTKOUT: 1            # Output kernel VTK file (1: yes, 0: no)
 
 line_search:
-  step_interval: 0.02  # Step interval for steepest descent
-  step_max: 0.20          # Maximum step length
+  step_interval: 0.05  # Step interval for steepest descent
+  step_max: 0.5          # Maximum step length

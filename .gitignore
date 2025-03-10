@@ -3,4 +3,19 @@ __pycache__/
 sync.sh
 
 ./utils/
-./utils/*
+
+./DATA/evlst/*
+./DATA/stlst/*
+./DATA/wav/*
+
+./adjointflows/logger/*
+
+
+./specfem3d/*.bash
+./specfem3d/*.qbs
+
+./measure_adj/OUTPUT_FILES/*
+./measure_adj/PLOTS/ADJOINT_SOURCES/*
+./measure_adj/PLOTS/DATA/*
+./measure_adj/PLOTS/SYN/*
+./measure_adj/ADJOINT_SOURCES/*
