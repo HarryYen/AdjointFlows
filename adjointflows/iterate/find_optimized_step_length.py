@@ -383,7 +383,7 @@ class StepLengthOptimizer:
                 self.result_logger.error(error_message)
                 raise ValueError(error_message)
             else:
-                self.result_logger.info(f"LINE SEARCH: the misfit of mtest{self.step_index} is larger than mtest{self.step_index - 1}. We choose {self.step_index - 1} to be step length. Stop!")
+                self.result_logger.info(f"LINE SEARCH: the misfit of mtest{self.step_index} is larger than mtest{self.step_index - 1}. We choose index:{self.step_index - 1} / step fac: {self.get_current_best_step_length} to be step length. Stop!")
                 return False
     
     def update_model(self, step_fac, lbfgs_flag=False):
