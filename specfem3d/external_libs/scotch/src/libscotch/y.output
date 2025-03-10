@@ -1,0 +1,1240 @@
+終端機在文法中未使用
+
+   VALSTRAT
+   VALPARAM
+   VALTEST
+
+
+文法
+
+    0 $accept: STRAT $end
+
+    1 STRAT: STRATSELECT
+
+    2 STRATSELECT: STRATSELECT '|' STRATEMPTY
+    3            | STRATEMPTY
+
+    4 STRATEMPTY: STRATCONCAT
+    5           | %empty
+
+    6 STRATCONCAT: STRATCONCAT STRATTEST
+    7            | STRATTEST
+
+    8 $@1: %empty
+
+    9 $@2: %empty
+
+   10 STRATTEST: $@1 '/' TEST $@2 '?' STRATSELECT STRATTESTELSE ';'
+   11          | STRATGROUP
+
+   12 STRATTESTELSE: ':' STRATSELECT
+   13              | %empty
+
+   14 STRATGROUP: '(' STRATSELECT ')'
+   15           | STRATMETHOD
+
+   16 $@3: %empty
+
+   17 STRATMETHOD: METHODNAME $@3 METHODPARAM
+
+   18 $@4: %empty
+
+   19 $@5: %empty
+
+   20 METHODPARAM: $@4 '{' PARAMLIST $@5 '}'
+   21            | %empty
+
+   22 PARAMLIST: PARAMLIST ',' PARAMPARAM
+   23          | PARAMPARAM
+
+   24 @6: %empty
+
+   25 PARAMPARAM: PARAMNAME @6 '=' PARAMVAL
+
+   26 PARAMVAL: VALCASE
+   27         | VALSDOUBLE
+   28         | VALSINT
+   29         | VALSTRING
+
+   30 @7: %empty
+
+   31 PARAMVAL: @7 STRATSELECT
+   32         | error
+
+   33 TEST: TESTOR
+
+   34 TESTOR: TESTOR '|' TESTAND
+   35       | TESTAND
+
+   36 TESTAND: TESTAND '&' TESTNOT
+   37        | TESTNOT
+
+   38 TESTNOT: '!' TESTNOT
+   39        | '(' TESTOR ')'
+   40        | TESTREL
+
+   41 TESTREL: TESTEXPR1 TESTRELOP TESTEXPR1
+
+   42 TESTRELOP: '<'
+   43          | '='
+   44          | '>'
+
+   45 TESTEXPR1: TESTEXPR1 TESTEXPR1OP TESTEXPR2
+   46          | TESTEXPR2
+
+   47 TESTEXPR1OP: '+'
+   48            | '-'
+
+   49 TESTEXPR2: TESTEXPR2 TESTEXPR2OP TESTEXPR3
+   50          | TESTEXPR3
+
+   51 TESTEXPR2OP: '*'
+
+   52 TESTEXPR3: TESTEXPR3 TESTEXPR3OP TESTEXPR4
+   53          | TESTEXPR4
+
+   54 TESTEXPR3OP: '%'
+
+   55 TESTEXPR4: '(' TESTEXPR1 ')'
+   56          | TESTVAL
+   57          | TESTVAR
+
+   58 TESTVAL: VALSDOUBLE
+   59        | VALSINT
+
+   60 TESTVAR: PARAMNAME
+
+   61 VALSDOUBLE: TESTEXPR1OP VALDOUBLE
+   62           | VALDOUBLE
+
+   63 VALSINT: TESTEXPR1OP VALINT
+   64        | VALINT
+
+
+終結語詞，附有它們出現處的規則
+
+$end (0) 0
+'!' (33) 38
+'%' (37) 54
+'&' (38) 36
+'(' (40) 14 39 55
+')' (41) 14 39 55
+'*' (42) 51
+'+' (43) 47
+',' (44) 22
+'-' (45) 48
+'/' (47) 10
+':' (58) 12
+';' (59) 10
+'<' (60) 42
+'=' (61) 25 43
+'>' (62) 44
+'?' (63) 10
+'{' (123) 20
+'|' (124) 2 34
+'}' (125) 20
+error (256) 32
+METHODNAME (258) 17
+PARAMNAME (259) 25 60
+VALCASE (260) 26
+VALDOUBLE (261) 61 62
+VALINT (262) 63 64
+VALSTRING (263) 29
+VALSTRAT (264)
+VALPARAM (265)
+VALTEST (266)
+
+
+非終結語詞，附有它們出現處的規則
+
+$accept (31)
+    於左側： 0
+STRAT (32)
+    於左側： 1,於右側： 0
+STRATSELECT (33)
+    於左側： 2 3,於右側： 1 2 10 12 14 31
+STRATEMPTY (34)
+    於左側： 4 5,於右側： 2 3
+STRATCONCAT (35)
+    於左側： 6 7,於右側： 4 6
+STRATTEST (36)
+    於左側： 10 11,於右側： 6 7
+$@1 (37)
+    於左側： 8,於右側： 10
+$@2 (38)
+    於左側： 9,於右側： 10
+STRATTESTELSE (39)
+    於左側： 12 13,於右側： 10
+STRATGROUP (40)
+    於左側： 14 15,於右側： 11
+STRATMETHOD (41)
+    於左側： 17,於右側： 15
+$@3 (42)
+    於左側： 16,於右側： 17
+METHODPARAM (43)
+    於左側： 20 21,於右側： 17
+$@4 (44)
+    於左側： 18,於右側： 20
+$@5 (45)
+    於左側： 19,於右側： 20
+PARAMLIST (46)
+    於左側： 22 23,於右側： 20 22
+PARAMPARAM (47)
+    於左側： 25,於右側： 22 23
+@6 (48)
+    於左側： 24,於右側： 25
+PARAMVAL (49)
+    於左側： 26 27 28 29 31 32,於右側： 25
+@7 (50)
+    於左側： 30,於右側： 31
+TEST (51)
+    於左側： 33,於右側： 10
+TESTOR (52)
+    於左側： 34 35,於右側： 33 34 39
+TESTAND (53)
+    於左側： 36 37,於右側： 34 35 36
+TESTNOT (54)
+    於左側： 38 39 40,於右側： 36 37 38
+TESTREL (55)
+    於左側： 41,於右側： 40
+TESTRELOP (56)
+    於左側： 42 43 44,於右側： 41
+TESTEXPR1 (57)
+    於左側： 45 46,於右側： 41 45 55
+TESTEXPR1OP (58)
+    於左側： 47 48,於右側： 45 61 63
+TESTEXPR2 (59)
+    於左側： 49 50,於右側： 45 46 49
+TESTEXPR2OP (60)
+    於左側： 51,於右側： 49
+TESTEXPR3 (61)
+    於左側： 52 53,於右側： 49 50 52
+TESTEXPR3OP (62)
+    於左側： 54,於右側： 52
+TESTEXPR4 (63)
+    於左側： 55 56 57,於右側： 52 53
+TESTVAL (64)
+    於左側： 58 59,於右側： 56
+TESTVAR (65)
+    於左側： 60,於右側： 57
+VALSDOUBLE (66)
+    於左側： 61 62,於右側： 27 58
+VALSINT (67)
+    於左側： 63 64,於右側： 28 59
+
+
+狀態 0
+
+    0 $accept: . STRAT $end
+
+    METHODNAME  偏移，並進入狀態 1
+    '('         偏移，並進入狀態 2
+
+    '/'      使用規則 8 以縮減 ($@1)
+    $預設  使用規則 5 以縮減 (STRATEMPTY)
+
+    STRAT        進入狀態 3
+    STRATSELECT  進入狀態 4
+    STRATEMPTY   進入狀態 5
+    STRATCONCAT  進入狀態 6
+    STRATTEST    進入狀態 7
+    $@1          進入狀態 8
+    STRATGROUP   進入狀態 9
+    STRATMETHOD  進入狀態 10
+
+
+狀態 1
+
+   17 STRATMETHOD: METHODNAME . $@3 METHODPARAM
+
+    $預設  使用規則 16 以縮減 ($@3)
+
+    $@3  進入狀態 11
+
+
+狀態 2
+
+   14 STRATGROUP: '(' . STRATSELECT ')'
+
+    METHODNAME  偏移，並進入狀態 1
+    '('         偏移，並進入狀態 2
+
+    '/'      使用規則 8 以縮減 ($@1)
+    $預設  使用規則 5 以縮減 (STRATEMPTY)
+
+    STRATSELECT  進入狀態 12
+    STRATEMPTY   進入狀態 5
+    STRATCONCAT  進入狀態 6
+    STRATTEST    進入狀態 7
+    $@1          進入狀態 8
+    STRATGROUP   進入狀態 9
+    STRATMETHOD  進入狀態 10
+
+
+狀態 3
+
+    0 $accept: STRAT . $end
+
+    $end  偏移，並進入狀態 13
+
+
+狀態 4
+
+    1 STRAT: STRATSELECT .
+    2 STRATSELECT: STRATSELECT . '|' STRATEMPTY
+
+    '|'  偏移，並進入狀態 14
+
+    $預設  使用規則 1 以縮減 (STRAT)
+
+
+狀態 5
+
+    3 STRATSELECT: STRATEMPTY .
+
+    $預設  使用規則 3 以縮減 (STRATSELECT)
+
+
+狀態 6
+
+    4 STRATEMPTY: STRATCONCAT .
+    6 STRATCONCAT: STRATCONCAT . STRATTEST
+
+    METHODNAME  偏移，並進入狀態 1
+    '('         偏移，並進入狀態 2
+
+    '/'      使用規則 8 以縮減 ($@1)
+    $預設  使用規則 4 以縮減 (STRATEMPTY)
+
+    STRATTEST    進入狀態 15
+    $@1          進入狀態 8
+    STRATGROUP   進入狀態 9
+    STRATMETHOD  進入狀態 10
+
+
+狀態 7
+
+    7 STRATCONCAT: STRATTEST .
+
+    $預設  使用規則 7 以縮減 (STRATCONCAT)
+
+
+狀態 8
+
+   10 STRATTEST: $@1 . '/' TEST $@2 '?' STRATSELECT STRATTESTELSE ';'
+
+    '/'  偏移，並進入狀態 16
+
+
+狀態 9
+
+   11 STRATTEST: STRATGROUP .
+
+    $預設  使用規則 11 以縮減 (STRATTEST)
+
+
+狀態 10
+
+   15 STRATGROUP: STRATMETHOD .
+
+    $預設  使用規則 15 以縮減 (STRATGROUP)
+
+
+狀態 11
+
+   17 STRATMETHOD: METHODNAME $@3 . METHODPARAM
+
+    '{'      使用規則 18 以縮減 ($@4)
+    $預設  使用規則 21 以縮減 (METHODPARAM)
+
+    METHODPARAM  進入狀態 17
+    $@4          進入狀態 18
+
+
+狀態 12
+
+    2 STRATSELECT: STRATSELECT . '|' STRATEMPTY
+   14 STRATGROUP: '(' STRATSELECT . ')'
+
+    '|'  偏移，並進入狀態 14
+    ')'  偏移，並進入狀態 19
+
+
+狀態 13
+
+    0 $accept: STRAT $end .
+
+    $預設  接受
+
+
+狀態 14
+
+    2 STRATSELECT: STRATSELECT '|' . STRATEMPTY
+
+    METHODNAME  偏移，並進入狀態 1
+    '('         偏移，並進入狀態 2
+
+    '/'      使用規則 8 以縮減 ($@1)
+    $預設  使用規則 5 以縮減 (STRATEMPTY)
+
+    STRATEMPTY   進入狀態 20
+    STRATCONCAT  進入狀態 6
+    STRATTEST    進入狀態 7
+    $@1          進入狀態 8
+    STRATGROUP   進入狀態 9
+    STRATMETHOD  進入狀態 10
+
+
+狀態 15
+
+    6 STRATCONCAT: STRATCONCAT STRATTEST .
+
+    $預設  使用規則 6 以縮減 (STRATCONCAT)
+
+
+狀態 16
+
+   10 STRATTEST: $@1 '/' . TEST $@2 '?' STRATSELECT STRATTESTELSE ';'
+
+    PARAMNAME  偏移，並進入狀態 21
+    VALDOUBLE  偏移，並進入狀態 22
+    VALINT     偏移，並進入狀態 23
+    '('        偏移，並進入狀態 24
+    '!'        偏移，並進入狀態 25
+    '+'        偏移，並進入狀態 26
+    '-'        偏移，並進入狀態 27
+
+    TEST         進入狀態 28
+    TESTOR       進入狀態 29
+    TESTAND      進入狀態 30
+    TESTNOT      進入狀態 31
+    TESTREL      進入狀態 32
+    TESTEXPR1    進入狀態 33
+    TESTEXPR1OP  進入狀態 34
+    TESTEXPR2    進入狀態 35
+    TESTEXPR3    進入狀態 36
+    TESTEXPR4    進入狀態 37
+    TESTVAL      進入狀態 38
+    TESTVAR      進入狀態 39
+    VALSDOUBLE   進入狀態 40
+    VALSINT      進入狀態 41
+
+
+狀態 17
+
+   17 STRATMETHOD: METHODNAME $@3 METHODPARAM .
+
+    $預設  使用規則 17 以縮減 (STRATMETHOD)
+
+
+狀態 18
+
+   20 METHODPARAM: $@4 . '{' PARAMLIST $@5 '}'
+
+    '{'  偏移，並進入狀態 42
+
+
+狀態 19
+
+   14 STRATGROUP: '(' STRATSELECT ')' .
+
+    $預設  使用規則 14 以縮減 (STRATGROUP)
+
+
+狀態 20
+
+    2 STRATSELECT: STRATSELECT '|' STRATEMPTY .
+
+    $預設  使用規則 2 以縮減 (STRATSELECT)
+
+
+狀態 21
+
+   60 TESTVAR: PARAMNAME .
+
+    $預設  使用規則 60 以縮減 (TESTVAR)
+
+
+狀態 22
+
+   62 VALSDOUBLE: VALDOUBLE .
+
+    $預設  使用規則 62 以縮減 (VALSDOUBLE)
+
+
+狀態 23
+
+   64 VALSINT: VALINT .
+
+    $預設  使用規則 64 以縮減 (VALSINT)
+
+
+狀態 24
+
+   39 TESTNOT: '(' . TESTOR ')'
+   55 TESTEXPR4: '(' . TESTEXPR1 ')'
+
+    PARAMNAME  偏移，並進入狀態 21
+    VALDOUBLE  偏移，並進入狀態 22
+    VALINT     偏移，並進入狀態 23
+    '('        偏移，並進入狀態 24
+    '!'        偏移，並進入狀態 25
+    '+'        偏移，並進入狀態 26
+    '-'        偏移，並進入狀態 27
+
+    TESTOR       進入狀態 43
+    TESTAND      進入狀態 30
+    TESTNOT      進入狀態 31
+    TESTREL      進入狀態 32
+    TESTEXPR1    進入狀態 44
+    TESTEXPR1OP  進入狀態 34
+    TESTEXPR2    進入狀態 35
+    TESTEXPR3    進入狀態 36
+    TESTEXPR4    進入狀態 37
+    TESTVAL      進入狀態 38
+    TESTVAR      進入狀態 39
+    VALSDOUBLE   進入狀態 40
+    VALSINT      進入狀態 41
+
+
+狀態 25
+
+   38 TESTNOT: '!' . TESTNOT
+
+    PARAMNAME  偏移，並進入狀態 21
+    VALDOUBLE  偏移，並進入狀態 22
+    VALINT     偏移，並進入狀態 23
+    '('        偏移，並進入狀態 24
+    '!'        偏移，並進入狀態 25
+    '+'        偏移，並進入狀態 26
+    '-'        偏移，並進入狀態 27
+
+    TESTNOT      進入狀態 45
+    TESTREL      進入狀態 32
+    TESTEXPR1    進入狀態 33
+    TESTEXPR1OP  進入狀態 34
+    TESTEXPR2    進入狀態 35
+    TESTEXPR3    進入狀態 36
+    TESTEXPR4    進入狀態 37
+    TESTVAL      進入狀態 38
+    TESTVAR      進入狀態 39
+    VALSDOUBLE   進入狀態 40
+    VALSINT      進入狀態 41
+
+
+狀態 26
+
+   47 TESTEXPR1OP: '+' .
+
+    $預設  使用規則 47 以縮減 (TESTEXPR1OP)
+
+
+狀態 27
+
+   48 TESTEXPR1OP: '-' .
+
+    $預設  使用規則 48 以縮減 (TESTEXPR1OP)
+
+
+狀態 28
+
+   10 STRATTEST: $@1 '/' TEST . $@2 '?' STRATSELECT STRATTESTELSE ';'
+
+    $預設  使用規則 9 以縮減 ($@2)
+
+    $@2  進入狀態 46
+
+
+狀態 29
+
+   33 TEST: TESTOR .
+   34 TESTOR: TESTOR . '|' TESTAND
+
+    '|'  偏移，並進入狀態 47
+
+    $預設  使用規則 33 以縮減 (TEST)
+
+
+狀態 30
+
+   35 TESTOR: TESTAND .
+   36 TESTAND: TESTAND . '&' TESTNOT
+
+    '&'  偏移，並進入狀態 48
+
+    $預設  使用規則 35 以縮減 (TESTOR)
+
+
+狀態 31
+
+   37 TESTAND: TESTNOT .
+
+    $預設  使用規則 37 以縮減 (TESTAND)
+
+
+狀態 32
+
+   40 TESTNOT: TESTREL .
+
+    $預設  使用規則 40 以縮減 (TESTNOT)
+
+
+狀態 33
+
+   41 TESTREL: TESTEXPR1 . TESTRELOP TESTEXPR1
+   45 TESTEXPR1: TESTEXPR1 . TESTEXPR1OP TESTEXPR2
+
+    '='  偏移，並進入狀態 49
+    '<'  偏移，並進入狀態 50
+    '>'  偏移，並進入狀態 51
+    '+'  偏移，並進入狀態 26
+    '-'  偏移，並進入狀態 27
+
+    TESTRELOP    進入狀態 52
+    TESTEXPR1OP  進入狀態 53
+
+
+狀態 34
+
+   61 VALSDOUBLE: TESTEXPR1OP . VALDOUBLE
+   63 VALSINT: TESTEXPR1OP . VALINT
+
+    VALDOUBLE  偏移，並進入狀態 54
+    VALINT     偏移，並進入狀態 55
+
+
+狀態 35
+
+   46 TESTEXPR1: TESTEXPR2 .
+   49 TESTEXPR2: TESTEXPR2 . TESTEXPR2OP TESTEXPR3
+
+    '*'  偏移，並進入狀態 56
+
+    $預設  使用規則 46 以縮減 (TESTEXPR1)
+
+    TESTEXPR2OP  進入狀態 57
+
+
+狀態 36
+
+   50 TESTEXPR2: TESTEXPR3 .
+   52 TESTEXPR3: TESTEXPR3 . TESTEXPR3OP TESTEXPR4
+
+    '%'  偏移，並進入狀態 58
+
+    $預設  使用規則 50 以縮減 (TESTEXPR2)
+
+    TESTEXPR3OP  進入狀態 59
+
+
+狀態 37
+
+   53 TESTEXPR3: TESTEXPR4 .
+
+    $預設  使用規則 53 以縮減 (TESTEXPR3)
+
+
+狀態 38
+
+   56 TESTEXPR4: TESTVAL .
+
+    $預設  使用規則 56 以縮減 (TESTEXPR4)
+
+
+狀態 39
+
+   57 TESTEXPR4: TESTVAR .
+
+    $預設  使用規則 57 以縮減 (TESTEXPR4)
+
+
+狀態 40
+
+   58 TESTVAL: VALSDOUBLE .
+
+    $預設  使用規則 58 以縮減 (TESTVAL)
+
+
+狀態 41
+
+   59 TESTVAL: VALSINT .
+
+    $預設  使用規則 59 以縮減 (TESTVAL)
+
+
+狀態 42
+
+   20 METHODPARAM: $@4 '{' . PARAMLIST $@5 '}'
+
+    PARAMNAME  偏移，並進入狀態 60
+
+    PARAMLIST   進入狀態 61
+    PARAMPARAM  進入狀態 62
+
+
+狀態 43
+
+   34 TESTOR: TESTOR . '|' TESTAND
+   39 TESTNOT: '(' TESTOR . ')'
+
+    '|'  偏移，並進入狀態 47
+    ')'  偏移，並進入狀態 63
+
+
+狀態 44
+
+   41 TESTREL: TESTEXPR1 . TESTRELOP TESTEXPR1
+   45 TESTEXPR1: TESTEXPR1 . TESTEXPR1OP TESTEXPR2
+   55 TESTEXPR4: '(' TESTEXPR1 . ')'
+
+    ')'  偏移，並進入狀態 64
+    '='  偏移，並進入狀態 49
+    '<'  偏移，並進入狀態 50
+    '>'  偏移，並進入狀態 51
+    '+'  偏移，並進入狀態 26
+    '-'  偏移，並進入狀態 27
+
+    TESTRELOP    進入狀態 52
+    TESTEXPR1OP  進入狀態 53
+
+
+狀態 45
+
+   38 TESTNOT: '!' TESTNOT .
+
+    $預設  使用規則 38 以縮減 (TESTNOT)
+
+
+狀態 46
+
+   10 STRATTEST: $@1 '/' TEST $@2 . '?' STRATSELECT STRATTESTELSE ';'
+
+    '?'  偏移，並進入狀態 65
+
+
+狀態 47
+
+   34 TESTOR: TESTOR '|' . TESTAND
+
+    PARAMNAME  偏移，並進入狀態 21
+    VALDOUBLE  偏移，並進入狀態 22
+    VALINT     偏移，並進入狀態 23
+    '('        偏移，並進入狀態 24
+    '!'        偏移，並進入狀態 25
+    '+'        偏移，並進入狀態 26
+    '-'        偏移，並進入狀態 27
+
+    TESTAND      進入狀態 66
+    TESTNOT      進入狀態 31
+    TESTREL      進入狀態 32
+    TESTEXPR1    進入狀態 33
+    TESTEXPR1OP  進入狀態 34
+    TESTEXPR2    進入狀態 35
+    TESTEXPR3    進入狀態 36
+    TESTEXPR4    進入狀態 37
+    TESTVAL      進入狀態 38
+    TESTVAR      進入狀態 39
+    VALSDOUBLE   進入狀態 40
+    VALSINT      進入狀態 41
+
+
+狀態 48
+
+   36 TESTAND: TESTAND '&' . TESTNOT
+
+    PARAMNAME  偏移，並進入狀態 21
+    VALDOUBLE  偏移，並進入狀態 22
+    VALINT     偏移，並進入狀態 23
+    '('        偏移，並進入狀態 24
+    '!'        偏移，並進入狀態 25
+    '+'        偏移，並進入狀態 26
+    '-'        偏移，並進入狀態 27
+
+    TESTNOT      進入狀態 67
+    TESTREL      進入狀態 32
+    TESTEXPR1    進入狀態 33
+    TESTEXPR1OP  進入狀態 34
+    TESTEXPR2    進入狀態 35
+    TESTEXPR3    進入狀態 36
+    TESTEXPR4    進入狀態 37
+    TESTVAL      進入狀態 38
+    TESTVAR      進入狀態 39
+    VALSDOUBLE   進入狀態 40
+    VALSINT      進入狀態 41
+
+
+狀態 49
+
+   43 TESTRELOP: '=' .
+
+    $預設  使用規則 43 以縮減 (TESTRELOP)
+
+
+狀態 50
+
+   42 TESTRELOP: '<' .
+
+    $預設  使用規則 42 以縮減 (TESTRELOP)
+
+
+狀態 51
+
+   44 TESTRELOP: '>' .
+
+    $預設  使用規則 44 以縮減 (TESTRELOP)
+
+
+狀態 52
+
+   41 TESTREL: TESTEXPR1 TESTRELOP . TESTEXPR1
+
+    PARAMNAME  偏移，並進入狀態 21
+    VALDOUBLE  偏移，並進入狀態 22
+    VALINT     偏移，並進入狀態 23
+    '('        偏移，並進入狀態 68
+    '+'        偏移，並進入狀態 26
+    '-'        偏移，並進入狀態 27
+
+    TESTEXPR1    進入狀態 69
+    TESTEXPR1OP  進入狀態 34
+    TESTEXPR2    進入狀態 35
+    TESTEXPR3    進入狀態 36
+    TESTEXPR4    進入狀態 37
+    TESTVAL      進入狀態 38
+    TESTVAR      進入狀態 39
+    VALSDOUBLE   進入狀態 40
+    VALSINT      進入狀態 41
+
+
+狀態 53
+
+   45 TESTEXPR1: TESTEXPR1 TESTEXPR1OP . TESTEXPR2
+
+    PARAMNAME  偏移，並進入狀態 21
+    VALDOUBLE  偏移，並進入狀態 22
+    VALINT     偏移，並進入狀態 23
+    '('        偏移，並進入狀態 68
+    '+'        偏移，並進入狀態 26
+    '-'        偏移，並進入狀態 27
+
+    TESTEXPR1OP  進入狀態 34
+    TESTEXPR2    進入狀態 70
+    TESTEXPR3    進入狀態 36
+    TESTEXPR4    進入狀態 37
+    TESTVAL      進入狀態 38
+    TESTVAR      進入狀態 39
+    VALSDOUBLE   進入狀態 40
+    VALSINT      進入狀態 41
+
+
+狀態 54
+
+   61 VALSDOUBLE: TESTEXPR1OP VALDOUBLE .
+
+    $預設  使用規則 61 以縮減 (VALSDOUBLE)
+
+
+狀態 55
+
+   63 VALSINT: TESTEXPR1OP VALINT .
+
+    $預設  使用規則 63 以縮減 (VALSINT)
+
+
+狀態 56
+
+   51 TESTEXPR2OP: '*' .
+
+    $預設  使用規則 51 以縮減 (TESTEXPR2OP)
+
+
+狀態 57
+
+   49 TESTEXPR2: TESTEXPR2 TESTEXPR2OP . TESTEXPR3
+
+    PARAMNAME  偏移，並進入狀態 21
+    VALDOUBLE  偏移，並進入狀態 22
+    VALINT     偏移，並進入狀態 23
+    '('        偏移，並進入狀態 68
+    '+'        偏移，並進入狀態 26
+    '-'        偏移，並進入狀態 27
+
+    TESTEXPR1OP  進入狀態 34
+    TESTEXPR3    進入狀態 71
+    TESTEXPR4    進入狀態 37
+    TESTVAL      進入狀態 38
+    TESTVAR      進入狀態 39
+    VALSDOUBLE   進入狀態 40
+    VALSINT      進入狀態 41
+
+
+狀態 58
+
+   54 TESTEXPR3OP: '%' .
+
+    $預設  使用規則 54 以縮減 (TESTEXPR3OP)
+
+
+狀態 59
+
+   52 TESTEXPR3: TESTEXPR3 TESTEXPR3OP . TESTEXPR4
+
+    PARAMNAME  偏移，並進入狀態 21
+    VALDOUBLE  偏移，並進入狀態 22
+    VALINT     偏移，並進入狀態 23
+    '('        偏移，並進入狀態 68
+    '+'        偏移，並進入狀態 26
+    '-'        偏移，並進入狀態 27
+
+    TESTEXPR1OP  進入狀態 34
+    TESTEXPR4    進入狀態 72
+    TESTVAL      進入狀態 38
+    TESTVAR      進入狀態 39
+    VALSDOUBLE   進入狀態 40
+    VALSINT      進入狀態 41
+
+
+狀態 60
+
+   25 PARAMPARAM: PARAMNAME . @6 '=' PARAMVAL
+
+    $預設  使用規則 24 以縮減 (@6)
+
+    @6  進入狀態 73
+
+
+狀態 61
+
+   20 METHODPARAM: $@4 '{' PARAMLIST . $@5 '}'
+   22 PARAMLIST: PARAMLIST . ',' PARAMPARAM
+
+    ','  偏移，並進入狀態 74
+
+    $預設  使用規則 19 以縮減 ($@5)
+
+    $@5  進入狀態 75
+
+
+狀態 62
+
+   23 PARAMLIST: PARAMPARAM .
+
+    $預設  使用規則 23 以縮減 (PARAMLIST)
+
+
+狀態 63
+
+   39 TESTNOT: '(' TESTOR ')' .
+
+    $預設  使用規則 39 以縮減 (TESTNOT)
+
+
+狀態 64
+
+   55 TESTEXPR4: '(' TESTEXPR1 ')' .
+
+    $預設  使用規則 55 以縮減 (TESTEXPR4)
+
+
+狀態 65
+
+   10 STRATTEST: $@1 '/' TEST $@2 '?' . STRATSELECT STRATTESTELSE ';'
+
+    METHODNAME  偏移，並進入狀態 1
+    '('         偏移，並進入狀態 2
+
+    '/'      使用規則 8 以縮減 ($@1)
+    $預設  使用規則 5 以縮減 (STRATEMPTY)
+
+    STRATSELECT  進入狀態 76
+    STRATEMPTY   進入狀態 5
+    STRATCONCAT  進入狀態 6
+    STRATTEST    進入狀態 7
+    $@1          進入狀態 8
+    STRATGROUP   進入狀態 9
+    STRATMETHOD  進入狀態 10
+
+
+狀態 66
+
+   34 TESTOR: TESTOR '|' TESTAND .
+   36 TESTAND: TESTAND . '&' TESTNOT
+
+    '&'  偏移，並進入狀態 48
+
+    $預設  使用規則 34 以縮減 (TESTOR)
+
+
+狀態 67
+
+   36 TESTAND: TESTAND '&' TESTNOT .
+
+    $預設  使用規則 36 以縮減 (TESTAND)
+
+
+狀態 68
+
+   55 TESTEXPR4: '(' . TESTEXPR1 ')'
+
+    PARAMNAME  偏移，並進入狀態 21
+    VALDOUBLE  偏移，並進入狀態 22
+    VALINT     偏移，並進入狀態 23
+    '('        偏移，並進入狀態 68
+    '+'        偏移，並進入狀態 26
+    '-'        偏移，並進入狀態 27
+
+    TESTEXPR1    進入狀態 77
+    TESTEXPR1OP  進入狀態 34
+    TESTEXPR2    進入狀態 35
+    TESTEXPR3    進入狀態 36
+    TESTEXPR4    進入狀態 37
+    TESTVAL      進入狀態 38
+    TESTVAR      進入狀態 39
+    VALSDOUBLE   進入狀態 40
+    VALSINT      進入狀態 41
+
+
+狀態 69
+
+   41 TESTREL: TESTEXPR1 TESTRELOP TESTEXPR1 .
+   45 TESTEXPR1: TESTEXPR1 . TESTEXPR1OP TESTEXPR2
+
+    '+'  偏移，並進入狀態 26
+    '-'  偏移，並進入狀態 27
+
+    $預設  使用規則 41 以縮減 (TESTREL)
+
+    TESTEXPR1OP  進入狀態 53
+
+
+狀態 70
+
+   45 TESTEXPR1: TESTEXPR1 TESTEXPR1OP TESTEXPR2 .
+   49 TESTEXPR2: TESTEXPR2 . TESTEXPR2OP TESTEXPR3
+
+    '*'  偏移，並進入狀態 56
+
+    $預設  使用規則 45 以縮減 (TESTEXPR1)
+
+    TESTEXPR2OP  進入狀態 57
+
+
+狀態 71
+
+   49 TESTEXPR2: TESTEXPR2 TESTEXPR2OP TESTEXPR3 .
+   52 TESTEXPR3: TESTEXPR3 . TESTEXPR3OP TESTEXPR4
+
+    '%'  偏移，並進入狀態 58
+
+    $預設  使用規則 49 以縮減 (TESTEXPR2)
+
+    TESTEXPR3OP  進入狀態 59
+
+
+狀態 72
+
+   52 TESTEXPR3: TESTEXPR3 TESTEXPR3OP TESTEXPR4 .
+
+    $預設  使用規則 52 以縮減 (TESTEXPR3)
+
+
+狀態 73
+
+   25 PARAMPARAM: PARAMNAME @6 . '=' PARAMVAL
+
+    '='  偏移，並進入狀態 78
+
+
+狀態 74
+
+   22 PARAMLIST: PARAMLIST ',' . PARAMPARAM
+
+    PARAMNAME  偏移，並進入狀態 60
+
+    PARAMPARAM  進入狀態 79
+
+
+狀態 75
+
+   20 METHODPARAM: $@4 '{' PARAMLIST $@5 . '}'
+
+    '}'  偏移，並進入狀態 80
+
+
+狀態 76
+
+    2 STRATSELECT: STRATSELECT . '|' STRATEMPTY
+   10 STRATTEST: $@1 '/' TEST $@2 '?' STRATSELECT . STRATTESTELSE ';'
+
+    '|'  偏移，並進入狀態 14
+    ':'  偏移，並進入狀態 81
+
+    $預設  使用規則 13 以縮減 (STRATTESTELSE)
+
+    STRATTESTELSE  進入狀態 82
+
+
+狀態 77
+
+   45 TESTEXPR1: TESTEXPR1 . TESTEXPR1OP TESTEXPR2
+   55 TESTEXPR4: '(' TESTEXPR1 . ')'
+
+    ')'  偏移，並進入狀態 64
+    '+'  偏移，並進入狀態 26
+    '-'  偏移，並進入狀態 27
+
+    TESTEXPR1OP  進入狀態 53
+
+
+狀態 78
+
+   25 PARAMPARAM: PARAMNAME @6 '=' . PARAMVAL
+
+    error      偏移，並進入狀態 83
+    VALCASE    偏移，並進入狀態 84
+    VALDOUBLE  偏移，並進入狀態 22
+    VALINT     偏移，並進入狀態 23
+    VALSTRING  偏移，並進入狀態 85
+    '+'        偏移，並進入狀態 26
+    '-'        偏移，並進入狀態 27
+
+    METHODNAME  使用規則 30 以縮減 (@7)
+    '|'         使用規則 30 以縮減 (@7)
+    '/'         使用規則 30 以縮減 (@7)
+    '('         使用規則 30 以縮減 (@7)
+    '}'         使用規則 30 以縮減 (@7)
+    ','         使用規則 30 以縮減 (@7)
+
+    PARAMVAL     進入狀態 86
+    @7           進入狀態 87
+    TESTEXPR1OP  進入狀態 34
+    VALSDOUBLE   進入狀態 88
+    VALSINT      進入狀態 89
+
+
+狀態 79
+
+   22 PARAMLIST: PARAMLIST ',' PARAMPARAM .
+
+    $預設  使用規則 22 以縮減 (PARAMLIST)
+
+
+狀態 80
+
+   20 METHODPARAM: $@4 '{' PARAMLIST $@5 '}' .
+
+    $預設  使用規則 20 以縮減 (METHODPARAM)
+
+
+狀態 81
+
+   12 STRATTESTELSE: ':' . STRATSELECT
+
+    METHODNAME  偏移，並進入狀態 1
+    '('         偏移，並進入狀態 2
+
+    '/'      使用規則 8 以縮減 ($@1)
+    $預設  使用規則 5 以縮減 (STRATEMPTY)
+
+    STRATSELECT  進入狀態 90
+    STRATEMPTY   進入狀態 5
+    STRATCONCAT  進入狀態 6
+    STRATTEST    進入狀態 7
+    $@1          進入狀態 8
+    STRATGROUP   進入狀態 9
+    STRATMETHOD  進入狀態 10
+
+
+狀態 82
+
+   10 STRATTEST: $@1 '/' TEST $@2 '?' STRATSELECT STRATTESTELSE . ';'
+
+    ';'  偏移，並進入狀態 91
+
+
+狀態 83
+
+   32 PARAMVAL: error .
+
+    $預設  使用規則 32 以縮減 (PARAMVAL)
+
+
+狀態 84
+
+   26 PARAMVAL: VALCASE .
+
+    $預設  使用規則 26 以縮減 (PARAMVAL)
+
+
+狀態 85
+
+   29 PARAMVAL: VALSTRING .
+
+    $預設  使用規則 29 以縮減 (PARAMVAL)
+
+
+狀態 86
+
+   25 PARAMPARAM: PARAMNAME @6 '=' PARAMVAL .
+
+    $預設  使用規則 25 以縮減 (PARAMPARAM)
+
+
+狀態 87
+
+   31 PARAMVAL: @7 . STRATSELECT
+
+    METHODNAME  偏移，並進入狀態 1
+    '('         偏移，並進入狀態 2
+
+    '/'      使用規則 8 以縮減 ($@1)
+    $預設  使用規則 5 以縮減 (STRATEMPTY)
+
+    STRATSELECT  進入狀態 92
+    STRATEMPTY   進入狀態 5
+    STRATCONCAT  進入狀態 6
+    STRATTEST    進入狀態 7
+    $@1          進入狀態 8
+    STRATGROUP   進入狀態 9
+    STRATMETHOD  進入狀態 10
+
+
+狀態 88
+
+   27 PARAMVAL: VALSDOUBLE .
+
+    $預設  使用規則 27 以縮減 (PARAMVAL)
+
+
+狀態 89
+
+   28 PARAMVAL: VALSINT .
+
+    $預設  使用規則 28 以縮減 (PARAMVAL)
+
+
+狀態 90
+
+    2 STRATSELECT: STRATSELECT . '|' STRATEMPTY
+   12 STRATTESTELSE: ':' STRATSELECT .
+
+    '|'  偏移，並進入狀態 14
+
+    $預設  使用規則 12 以縮減 (STRATTESTELSE)
+
+
+狀態 91
+
+   10 STRATTEST: $@1 '/' TEST $@2 '?' STRATSELECT STRATTESTELSE ';' .
+
+    $預設  使用規則 10 以縮減 (STRATTEST)
+
+
+狀態 92
+
+    2 STRATSELECT: STRATSELECT . '|' STRATEMPTY
+   31 PARAMVAL: @7 STRATSELECT .
+
+    '|'  偏移，並進入狀態 14
+
+    $預設  使用規則 31 以縮減 (PARAMVAL)
