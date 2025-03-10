@@ -19,3 +19,13 @@ sync.sh
 ./measure_adj/PLOTS/DATA/*
 ./measure_adj/PLOTS/SYN/*
 ./measure_adj/ADJOINT_SOURCES/*
+./measure_adj/CMTSOLUTION_9818433
+./measure_adj/HY_PARFILE
+
+./flexwin/HY_PARFILE/
+./flexwin/*ps
+./flexwin/PACK_test
+./flexwin/PAR_FILE_*
+./flexwin/t0*
+./flexwin/t1*
+./flexwin/t2*
