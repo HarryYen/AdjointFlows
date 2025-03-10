@@ -1,0 +1,19 @@
+name: adjflows
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - numpy
+  - pandas
+  - scipy
+  - mpi4py
+  - openmpi
+  - pip
+  - python-dateutil
+  - pytz
+  - pyyaml
+  - setuptools
+  - wheel
+  - pip:
+      - matplotlib
