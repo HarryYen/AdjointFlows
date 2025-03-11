@@ -11,7 +11,9 @@ sync.sh
 ./DATA/evlst/*
 ./DATA/stlst/*
 ./DATA/wav/*
-
+!./DATA/evlst/.gitkeep
+!./DATA/stlst/.gitkeep
+!./DATA/wav/.gitkeep
 
 ./adjointflows/logger/*
 
