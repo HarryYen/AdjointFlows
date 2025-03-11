@@ -9,7 +9,7 @@
 SIMULATION_TYPE                 = 1
 # 0 = earthquake simulation,  1/2/3 = three steps in noise simulation
 NOISE_TOMOGRAPHY                = 0
-SAVE_FORWARD                    = .false.
+SAVE_FORWARD                    = .true.
 
 # solve a full FWI inverse problem from a single calling program with no I/Os, storing everything in memory,
 # or run a classical forward or adjoint problem only and save the seismograms and/or sensitivity kernels to disk (with costlier I/Os)
@@ -19,15 +19,15 @@ INVERSE_FWI_FULL_PROBLEM        = .false.
 # Use a negative zone number for the Southern hemisphere:
 # The Northern hemisphere corresponds to zones +1 to +60,
 # The Southern hemisphere corresponds to zones -1 to -60.
-UTM_PROJECTION_ZONE             = 11
-SUPPRESS_UTM_PROJECTION         = .true.
+UTM_PROJECTION_ZONE             = 50
+SUPPRESS_UTM_PROJECTION         = .false.
 
 # number of MPI processors
-NPROC                           = 4
+NPROC                           = 1
 
 # time step parameters
-NSTEP                           = 5000
-DT                              = 0.05
+NSTEP                           = 4616
+DT                              = 0.0325d0
 
 # set to true to use local-time stepping (LTS)
 LTS_MODE                        = .false.
@@ -63,12 +63,12 @@ NGNOD                           = 8
 #   1d_prem,1d_socal,1d_cascadia
 # 3D models available are:
 #   aniso,external,gll,salton_trough,tomo,SEP,coupled,...
-MODEL                           = default
+MODEL                           = tomo
 
 # path for external tomographic models files
-TOMOGRAPHY_PATH                 = DATA/tomo_files/
+TOMOGRAPHY_PATH                 = ./DATA/
 # if you are using a SEP model (oil-industry format)
-SEP_MODEL_DIRECTORY             = DATA/my_SEP_model/
+SEP_MODEL_DIRECTORY             = ./DATA/my_SEP_model/
 
 #-----------------------------------------------------------
 
@@ -80,7 +80,7 @@ ANISOTROPY                      = .false.
 GRAVITY                         = .false.
 
 # in case of attenuation, reference frequency in Hz at which the velocity values in the velocity model are given (unused otherwise)
-ATTENUATION_f0_REFERENCE        = 18.d0
+ATTENUATION_f0_REFERENCE        = 0.33333d0
 
 # attenuation period range over which we try to mimic a constant Q factor
 MIN_ATTENUATION_PERIOD          = 999999998.d0
@@ -107,7 +107,7 @@ PML_CONDITIONS                  = .false.
 PML_INSTEAD_OF_FREE_SURFACE     = .false.
 
 # C-PML dominant frequency
-f0_FOR_PML                      = 0.05555
+f0_FOR_PML                      = 12.7
 
 # parameters used to rotate C-PML boundary conditions by a given angle (not completed yet)
 # ROTATE_PML_ACTIVATE           = .false.
@@ -163,10 +163,10 @@ HDUR_MOVIE                      = 0.0
 SAVE_MESH_FILES                 = .true.
 
 # path to store the local database file on each node
-LOCAL_PATH                      = OUTPUT_FILES/DATABASES_MPI
+LOCAL_PATH                      = ./DATABASES_MPI
 
 # interval at which we output time step info and max of norm of displacement
-NTSTEP_BETWEEN_OUTPUT_INFO      = 500
+NTSTEP_BETWEEN_OUTPUT_INFO      = 100
 
 #-----------------------------------------------------------
 #
@@ -227,8 +227,8 @@ NTSTEP_BETWEEN_OUTPUT_SAMPLE    = 1
 
 # decide if we save displacement, velocity, acceleration and/or pressure in forward runs (they can be set to true simultaneously)
 # currently pressure seismograms are implemented in acoustic (i.e. fluid) elements only
-SAVE_SEISMOGRAMS_DISPLACEMENT   = .true.
-SAVE_SEISMOGRAMS_VELOCITY       = .false.
+SAVE_SEISMOGRAMS_DISPLACEMENT   = .false.
+SAVE_SEISMOGRAMS_VELOCITY       = .true.
 SAVE_SEISMOGRAMS_ACCELERATION   = .false.
 SAVE_SEISMOGRAMS_PRESSURE       = .false.   # currently implemented in acoustic (i.e. fluid) elements only
 
@@ -238,7 +238,7 @@ SAVE_SEISMOGRAMS_STRAIN         = .false.
 
 # save seismograms also when running the adjoint runs for an inverse problem
 # (usually they are unused and not very meaningful, leave this off in almost all cases)
-SAVE_SEISMOGRAMS_IN_ADJOINT_RUN = .true.
+SAVE_SEISMOGRAMS_IN_ADJOINT_RUN = .false.
 
 # save seismograms in binary or ASCII format (binary is smaller but may not be portable between machines)
 USE_BINARY_FOR_SEISMOGRAMS      = .false.
@@ -307,7 +307,7 @@ SAVE_TRANSVERSE_KL              = .false.
 ANISOTROPIC_VELOCITY_KL         = .false.
 
 # outputs approximate Hessian for preconditioning
-APPROXIMATE_HESS_KL             = .false.
+APPROXIMATE_HESS_KL             = .true.
 
 # save Moho mesh and compute Moho boundary kernels
 SAVE_MOHO_MESH                  = .false.
@@ -320,7 +320,7 @@ SAVE_MOHO_MESH                  = .false.
 COUPLE_WITH_INJECTION_TECHNIQUE = .false.
 INJECTION_TECHNIQUE_TYPE        = 3   # 1 = DSM, 2 = AxiSEM, 3 = FK
 MESH_A_CHUNK_OF_THE_EARTH       = .false.
-TRACTION_PATH                   = DATA/AxiSEM_tractions/3/
+TRACTION_PATH                   = ./DATA/AxiSEM_tractions/3/
 FKMODEL_FILE                    = FKmodel
 RECIPROCITY_AND_KH_INTEGRAL     = .false.   # does not work yet
 
@@ -375,12 +375,12 @@ NUMBER_OF_SIMULTANEOUS_RUNS     = 1
 # In that case there is no need to duplicate the mesh and model file database (the content of the DATABASES_MPI
 # directories) in each of the run0001, run0002,... directories, it is sufficient to have one in run0001
 # and the code will broadcast it to the others)
-BROADCAST_SAME_MESH_AND_MODEL   = .true.
+BROADCAST_SAME_MESH_AND_MODEL   = .false.
 
 #-----------------------------------------------------------
 
 # set to true to use GPUs
-GPU_MODE                        = .false.
+GPU_MODE                        = .true.
 
 # ADIOS Options for I/Os
 ADIOS_ENABLED                   = .false.

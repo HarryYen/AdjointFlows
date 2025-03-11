@@ -24,8 +24,11 @@ sync.sh
 /specfem3d/obj/
 /specfem3d/setup/
 /specfem3d/bin/
-/specfem3d/DATA/
 !/specfem3d/bin/.gitkeep
+
+/specfem3d/DATA/tomography_model.xyz
+/specfem3d/DATA/meshfem3D_files/topo.xyz
+
 
 /measure_adj/check_adj_src
 /measure_adj/measure_adj
