@@ -17,6 +17,7 @@ sync.sh
 !./DATA/wav/.gitkeep
 
 /adjointflows/logger/*
+!/adjointflows/logger/.gitkeep
 
 
 /specfem3d/*.bash
