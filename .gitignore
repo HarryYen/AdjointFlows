@@ -5,48 +5,48 @@ __pycache__/
 *.ps
 sync.sh
 
-./utils/
-./SYN
+/utils/
+/SYN
 
-./DATA/evlst/*
-./DATA/stlst/*
-./DATA/wav/*
+/DATA/evlst/
+/DATA/stlst/
+/DATA/wav/
 !./DATA/evlst/.gitkeep
 !./DATA/stlst/.gitkeep
 !./DATA/wav/.gitkeep
 
-./adjointflows/logger/*
+/adjointflows/logger/*
 
 
 
-./specfem3d/*.bash
-./specfem3d/*.qbs
-./specfem3d/obj/
-./specfem3d/setup/
-./specfem3d/bin/
-./specfem3d/DATA/
+/specfem3d/*.bash
+/specfem3d/*.qbs
+/specfem3d/obj/
+/specfem3d/setup/
+/specfem3d/bin/
+/specfem3d/DATA/
 
-./measure_adj/OUTPUT_FILES/*
-./measure_adj/PLOTS/ADJOINT_SOURCES/*
-./measure_adj/PLOTS/DATA/*
-./measure_adj/PLOTS/SYN/*
-./measure_adj/ADJOINT_SOURCES/*
-./measure_adj/CMTSOLUTION_9818433
-./measure_adj/HY_PARFILE
-./measure_adj/CMTSOLUTION
-./measure_adj/PACK/
+/measure_adj/OUTPUT_FILES/*
+/measure_adj/PLOTS/ADJOINT_SOURCES/*
+/measure_adj/PLOTS/DATA/*
+/measure_adj/PLOTS/SYN/*
+/measure_adj/ADJOINT_SOURCES/*
+/measure_adj/CMTSOLUTION_9818433
+/measure_adj/HY_PARFILE
+/measure_adj/CMTSOLUTION
+/measure_adj/PACK/
 
-./flexwin/HY_PARFILE/
-./flexwin/*ps
-./flexwin/PACK_test
-./flexwin/PAR_FILE_*
-./flexwin/t0*
-./flexwin/t1*
-./flexwin/t2*
-./flexwin/ttimes_mod/*.hed
-./flexwin/ttimes_mod/*.tbl
-./flexwin/ttimes_mod/*.a
-./flexwin/ttimes_mod/remodl
-./flexwin/ttimes_mod/setbrn
-./flexwin/ttimes_mod/*.lis
-./flexwin/test_data/
+/flexwin/HY_PARFILE/
+/flexwin/*ps
+/flexwin/PACK_test
+/flexwin/PAR_FILE_*
+/flexwin/t0*
+/flexwin/t1*
+/flexwin/t2*
+/flexwin/ttimes_mod/*.hed
+/flexwin/ttimes_mod/*.tbl
+/flexwin/ttimes_mod/*.a
+/flexwin/ttimes_mod/remodl
+/flexwin/ttimes_mod/setbrn
+/flexwin/ttimes_mod/*.lis
+/flexwin/test_data/
