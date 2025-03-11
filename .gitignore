@@ -1,19 +1,28 @@
 __pycache__/
 *.pyc
+*.sac
+*.sac.tomo
+*.ps
 sync.sh
-*.log
 
 ./utils/
+./SYN
 
-./DATA/
 ./DATA/evlst/*
 ./DATA/stlst/*
 ./DATA/wav/*
 
-./specfem3d_mine/
+
+./adjointflows/logger/*
+
+
 
 ./specfem3d/*.bash
 ./specfem3d/*.qbs
+./specfem3d/obj/
+./specfem3d/setup/
+./specfem3d/bin/
+./specfem3d/DATA/
 
 ./measure_adj/OUTPUT_FILES/*
 ./measure_adj/PLOTS/ADJOINT_SOURCES/*
@@ -22,7 +31,8 @@ sync.sh
 ./measure_adj/ADJOINT_SOURCES/*
 ./measure_adj/CMTSOLUTION_9818433
 ./measure_adj/HY_PARFILE
-./measure_adj/PACK
+./measure_adj/CMTSOLUTION
+./measure_adj/PACK/
 
 ./flexwin/HY_PARFILE/
 ./flexwin/*ps
@@ -31,4 +41,10 @@ sync.sh
 ./flexwin/t0*
 ./flexwin/t1*
 ./flexwin/t2*
-./flexwin/PACK
+./flexwin/ttimes_mod/*.hed
+./flexwin/ttimes_mod/*.tbl
+./flexwin/ttimes_mod/*.a
+./flexwin/ttimes_mod/remodl
+./flexwin/ttimes_mod/setbrn
+./flexwin/ttimes_mod/*.lis
+./flexwin/test_data/
