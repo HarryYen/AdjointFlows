@@ -111,19 +111,19 @@
 /* #undef PTHREAD_CREATE_JOINABLE */
 
 /* Define GIT branch for package source. */
-#define SPECFEM3D_GIT_BRANCH "devel"
+#define SPECFEM3D_GIT_BRANCH "unknown"
 
 /* Define date of GIT commit for package source. */
-#define SPECFEM3D_GIT_DATE "2023-07-18 10:19:13 +0200"
+#define SPECFEM3D_GIT_DATE "unknown"
 
 /* Define GIT hash for package source. */
-#define SPECFEM3D_GIT_HASH "d2105bb86f9a57085bec59f34877cf0ffbe52bac"
+#define SPECFEM3D_GIT_HASH "unknown"
 
 /* Define git revision commit for package source. */
-#define SPECFEM3D_GIT_REVISION "v4.0.0-93-gd2105bb8"
+#define SPECFEM3D_GIT_REVISION "unknown"
 
 /* Set to 0 if source is from GIT, 1 otherwise. */
-#define SPECFEM3D_RELEASE_VERSION 0
+#define SPECFEM3D_RELEASE_VERSION 1
 
 /* Define SPECFEM3D version */
 #define SPECFEM3D_VERSION "4.0.0"

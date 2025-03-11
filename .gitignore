@@ -3,6 +3,7 @@ __pycache__/
 *.sac
 *.sac.tomo
 *.ps
+*.log
 sync.sh
 
 /utils/
@@ -16,7 +17,6 @@ sync.sh
 !./DATA/wav/.gitkeep
 
 /adjointflows/logger/*
-
 
 
 /specfem3d/*.bash
@@ -50,3 +50,8 @@ sync.sh
 /flexwin/ttimes_mod/setbrn
 /flexwin/ttimes_mod/*.lis
 /flexwin/test_data/
+
+
+specfem3d/config.log
+specfem3d/config.status
+specfem3d/Makefile

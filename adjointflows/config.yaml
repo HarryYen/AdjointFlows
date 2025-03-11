@@ -9,7 +9,7 @@ setup:
 
 preprocessing:
   IMOD: 1                   # Establish model and database for simulation (1: establish, 0: read directly)
-  ICHK: 1                   # Check existing files for a continuous run (1: check, 0: start over)
+  ICHK: 0                   # Check existing files for a continuous run (1: check, 0: start over)
 
 inversion:
   n_store_lbfgs: 5          # Number of models used for approximating Hessian
@@ -17,7 +17,7 @@ inversion:
 
 data:
   list:
-    evlst: fwi_new_cat_version3_18.txt # Path to event list
+    evlst: fwi_new_cat_test_7.txt # Path to event list
     stlst: sta_bats_cwb_cwb24.txt # Path to station list
     evchk: fwi_new_cat_test_7.txt  # Event list to check misfit in line search
   seismogram:
@@ -38,11 +38,11 @@ kernel:
     dtype: float32
   smoothing:
     ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
-    SIGMA_H: 10000        # Horizontal smoothing width (m)
-    SIGMA_V: 5000         # Vertical smoothing width (m)
+    SIGMA_H: 20000        # Horizontal smoothing width (m)
+    SIGMA_V: 10000         # Vertical smoothing width (m)
   visualization:
     IVTKOUT: 1            # Output kernel VTK file (1: yes, 0: no)
 
 line_search:
-  step_interval: 0.05  # Step interval for steepest descent
-  step_max: 0.5          # Maximum step length
+  step_interval: 0.025  # Step interval for steepest descent
+  step_max: 0.2          # Maximum step length

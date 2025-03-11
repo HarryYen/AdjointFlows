@@ -34,7 +34,7 @@
 ! for ADIOS header informations
 
 ! configuration flags to be saved in the adios output file.
-#define CONFIGURE_FLAGS "FC=gfortran FCFLAGS=-g -O2"
+#define CONFIGURE_FLAGS "FC=/cluster/nvidia/hpc_sdk/Linux_x86_64/24.11/compilers/bin/nvfortran FCFLAGS=-g"
 
 ! Define to the full name and version of this package.
 #define PACKAGE_STRING "Specfem3D 4.0.0"
