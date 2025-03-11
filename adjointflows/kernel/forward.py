@@ -227,7 +227,7 @@ class ForwardGenerator:
         self.result_logger.info(f"Starting xspecfem3D on {nproc} processors...")
 
         if nproc == 1:
-            subprocess.run(["./bin/specfem3D"], check=True, env=os.environ)
+            subprocess.run(["./bin/xspecfem3D"], check=True, env=os.environ)
         else:
             subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xspecfem3D'], 
                            check=True, env=os.environ)
