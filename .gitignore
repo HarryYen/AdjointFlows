@@ -27,6 +27,9 @@ sync.sh
 /specfem3d/DATA/
 !/specfem3d/bin/.gitkeep
 
+/measure_adj/check_adj_src
+/measure_adj/measure_adj
+/measure_adj/rotate_adj_src
 /measure_adj/OUTPUT_FILES/*
 /measure_adj/PLOTS/ADJOINT_SOURCES/*
 /measure_adj/PLOTS/DATA/*
@@ -36,6 +39,8 @@ sync.sh
 /measure_adj/HY_PARFILE
 /measure_adj/CMTSOLUTION
 /measure_adj/PACK/
+/measure_adj/obj/
+!/measure_adj/obj/.gitkeep
 
 /flexwin/HY_PARFILE/
 /flexwin/*ps
