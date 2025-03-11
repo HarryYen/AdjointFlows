@@ -44,6 +44,10 @@ sync.sh
 /flexwin/t0*
 /flexwin/t1*
 /flexwin/t2*
+/flexwin/iasp91.hed
+/flexwin/iasp91.tbl
+/flexwin/flexwin
+/flexwin/libmeasure2.a
 /flexwin/ttimes_mod/*.hed
 /flexwin/ttimes_mod/*.tbl
 /flexwin/ttimes_mod/*.a
