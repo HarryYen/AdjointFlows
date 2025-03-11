@@ -25,6 +25,7 @@ sync.sh
 /specfem3d/setup/
 /specfem3d/bin/
 /specfem3d/DATA/
+!/specfem3d/bin/.gitkeep
 
 /measure_adj/OUTPUT_FILES/*
 /measure_adj/PLOTS/ADJOINT_SOURCES/*
