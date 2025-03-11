@@ -1,13 +1,13 @@
-PDE  1999 01 01 00 00 00.00  67000 67000 -25000 4.2 4.2 homog_test
-event name:       homog_test
-time shift:       0.0000
-half duration:    5.0
-latorUTM:       67000.0
-longorUTM:      67000.0
-depth:          30.0
-Mrr:      -7.600000e+27
-Mtt:       7.700000e+27
-Mpp:      -2.000000e+26
-Mrt:      -2.500000e+28
-Mrp:       4.000000e+26
-Mtp:      -2.500000e+27
+PDE 2014 10 26  4 47  0.00 24.780 122.240 96.0 4.5 4.5 201410260447
+event name: 201410260447
+time shift: 0.0
+half duration: 0.0
+latitude: 24.780
+longitude: 122.240
+depth:  96.00
+Mrr:  4.261000e+22
+Mtt: -2.590000e+22
+Mpp: -1.971000e+22
+Mrt: -7.230000e+21
+Mrp: -4.464000e+22
+Mtp: -3.668000e+22

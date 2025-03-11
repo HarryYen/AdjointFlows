@@ -77,12 +77,12 @@ def main():
 
     while not misfit_reduced and attempt < MAX_ATTEMPTS:
         attempt += 1
-        # workflow_controller.setup_dir()
+        workflow_controller.setup_dir()
         workflow_controller.move_to_other_directory(folder_to_move='specfem')
 
         workflow_controller.generate_model(mesh_flag=do_mesh)
         
-        # workflow_controller.run_forward()
+        workflow_controller.run_forward()
         if workflow_controller.misfit_check():
             misfit_reduced = True
         else:
@@ -93,7 +93,7 @@ def main():
         sys.exit(0)
 
         
-    # workflow_controller.create_misfit_kernel()
+    workflow_controller.create_misfit_kernel()
     workflow_controller.move_to_other_directory(folder_to_move='adjointflows')
     workflow_controller.do_iteration()
     # workflow_controller.move_to_other_directory(folder_to_move='iterate')

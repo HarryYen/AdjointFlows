@@ -4,10 +4,14 @@ __pycache__/
 *.sac.tomo
 *.ps
 *.log
+error*
 sync.sh
 
 /utils/
 /SYN
+
+/TOMO/
+!/TOMO/.gitkeep
 
 /DATA/evlst/
 /DATA/stlst/
@@ -20,10 +24,19 @@ sync.sh
 !/adjointflows/logger/.gitkeep
 
 
+
 /specfem3d/*.bash
 /specfem3d/*.qbs
+/specfem3d/DATABASES_MPI
+/specfem3d/env_vars.txt
+
 /specfem3d/obj/
 /specfem3d/setup/
+/specfem3d/OUTPUT_FILES/
+/specfem3d/KERNEL
+/specfem3d/MOD
+
+!/specfem3d/OUTPUT_FILES/.gitkeep
 /specfem3d/bin/
 !/specfem3d/bin/.gitkeep
 
@@ -39,15 +52,16 @@ sync.sh
 /measure_adj/PLOTS/DATA/*
 /measure_adj/PLOTS/SYN/*
 /measure_adj/ADJOINT_SOURCES/*
-/measure_adj/CMTSOLUTION_9818433
+/measure_adj/CMTSOLUTION*
 /measure_adj/HY_PARFILE
 /measure_adj/CMTSOLUTION
-/measure_adj/PACK/
+/measure_adj/PACK
 /measure_adj/obj/
 !/measure_adj/obj/.gitkeep
 
 /flexwin/HY_PARFILE/
 /flexwin/*ps
+/flexwin/PACK
 /flexwin/PACK_test
 /flexwin/PAR_FILE_*
 /flexwin/t0*
