@@ -223,7 +223,7 @@ def main():
     # move the mesh files to the new_dir so we don't need to mesh again
     if rank == 0:
         debug_logger.debug(f"Moving {old_model_dir} to {new_model_dir}...")
-        copy_files(src_dir=old_model_dir, dst_dir=new_model_dir, pattern='*_Database.bin')
+        copy_files(src_dir=old_model_dir, dst_dir=new_model_dir, pattern='*_Database')
     
 if __name__ == "__main__":
 

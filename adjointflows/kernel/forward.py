@@ -258,7 +258,7 @@ class ForwardGenerator:
             subprocess.run(['bash', 'run_win.bash', f'{event_name}'])
         else:
             subprocess.run(['bash', 'ini_proc.bash', f'{event_name}'])
-            initial_model_dir = f'{self.stage_initial_model:03d}'
+            initial_model_dir = f'm{self.stage_initial_model:03d}'
             shutil.copy(f"../TOMO/{initial_model_dir}/MEASURE/adjoints/{event_name}/MEASUREMENT.WINDOWS", "../measure_adj")
             os.chdir(self.measure_adj_dir)
             subprocess.run(['bash', 'run_adj.bash', f'{event_name}'])

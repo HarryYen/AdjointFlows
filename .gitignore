@@ -4,6 +4,10 @@ __pycache__/
 *.sac.tomo
 *.ps
 *.log
+*.OUTPUT_FILES
+*.tmp
+*_FILTERED
+*.out
 error*
 sync.sh
 
@@ -56,8 +60,10 @@ sync.sh
 /measure_adj/HY_PARFILE
 /measure_adj/CMTSOLUTION
 /measure_adj/PACK
+/measure_adj/MEASUREMENT.WINDOWS
 /measure_adj/obj/
 !/measure_adj/obj/.gitkeep
+/measure_adj/PLOTS/MEASUREMENT.WINDOWS
 
 /flexwin/HY_PARFILE/
 /flexwin/*ps
@@ -70,6 +76,7 @@ sync.sh
 /flexwin/iasp91.hed
 /flexwin/iasp91.tbl
 /flexwin/flexwin
+/flexwin/MEASUREMENT.WINDOWS
 /flexwin/libmeasure2.a
 /flexwin/ttimes_mod/*.hed
 /flexwin/ttimes_mod/*.tbl
