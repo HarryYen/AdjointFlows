@@ -111,7 +111,7 @@ class ForwardGenerator:
         self.debug_logger.info(f'We start from event {index_evt_last}')
         for evt_i in np.arange(index_evt_last, evt_df.shape[0]):
             event_info = evt_df.iloc[evt_i]
-            event_name = event_info[0]
+            event_name = event_info.iloc[0]
             
             self.debug_logger.info(f"Processing event {event_name}")
             self.write_cmt_file(event_info)
