@@ -129,6 +129,7 @@ class WorkflowController:
         # Use L-BFGS for inversion 
         # --------------------------------------    
         else:
+            step_fac = 1.
             iteration_process.calculate_direction_lbfgs()
 
             iteration_process.update_model(step_fac=step_fac, lbfgs_flag=True)

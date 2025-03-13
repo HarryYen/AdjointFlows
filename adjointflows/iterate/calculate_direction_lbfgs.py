@@ -4,7 +4,27 @@ import json
 import logging
 from mpi4py import MPI
 
-debug_logger = logging.getLogger("debug_logger")
+def setup_logging():
+    # -----------------------------------------------------
+    # Debug Logger (Recorded in both debug.log and terminal)
+    # -----------------------------------------------------
+    debug_logger = logging.getLogger("lbfgs_debug_logger")
+    debug_logger.setLevel(logging.DEBUG)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter("[%(levelname)s] %(message)s")
+    console_handler.setFormatter(console_formatter)
+
+    debug_file_handler = logging.FileHandler("logger/lbfgs.log", mode="w")
+    debug_file_handler.setLevel(logging.DEBUG)
+    debug_file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    debug_file_handler.setFormatter(debug_file_formatter)
+
+    debug_logger.addHandler(console_handler)
+    debug_logger.addHandler(debug_file_handler)
+
+    debug_logger.propagate = False
 
 
 def get_range_lbfgs_memory(iter_currnet, n_store, mstart_min):
@@ -21,7 +41,6 @@ def get_range_lbfgs_memory(iter_currnet, n_store, mstart_min):
         iter_range = range(iter_currnet - n_store, iter_currnet)
     iter_range = [i for i in iter_range if i >= mstart_min]
     
-    debug_logger.info(f'LBFGS: the range of memory models is {iter_range}')
     return iter_range
 
 
@@ -58,6 +77,11 @@ def main():
     # --------------------------------------------------------------------------------------------
     # Set up some variables
     # --------------------------------------------------------------------------------
+    if rank == 0:
+        setup_logging()
+        debug_logger = logging.getLogger("lbfgs_debug_logger")
+
+    
     output_inner_product_file = 'output_inner_product.txt'
     
     mrun = params['current_model_num']
@@ -80,7 +104,8 @@ def main():
     lbfgs_memory_range = get_range_lbfgs_memory(iter_currnet=mrun, 
                                                 n_store=n_store_lbfgs, 
                                                 mstart_min=stage_initial_model)
-    
+    if rank == 0:
+        debug_logger.info(f'LBFGS: the range of memory models is {lbfgs_memory_range}')
     # --------------------------------------------------------------------------------------------
     # Calculations & Processing
     # --------------------------------------------------------------------------------------------
@@ -100,10 +125,10 @@ def main():
         base_dir=params['base_dir'], 
         NGLLX=NGLLX, NGLLY=NGLLY, NGLLZ=NGLLZ, 
         NSPEC=NSPEC, NGLOB=NGLOB, ibool_arr=ibool_kernel, 
-        kernel_list=kernel_list, dtype=get_data_type(params['dtype'])
+        dtype=get_data_type(params['dtype'])
     )
     
-    current_gradient = get_gradient(**common_params, rank=rank, model_num=mrun)
+    current_gradient = get_gradient(**common_params, rank=rank, model_num=mrun, kernel_list=kernel_list)
 
         
     q_vector = current_gradient
@@ -119,10 +144,10 @@ def main():
         model_1 = iter + 1
         model_0 = iter
 
-        gradient1_arr = get_gradient(**common_params, rank=rank, model_num=model_1)
-        model1_arr    = get_model(**common_params, rank=rank, model_num=model_1)
-        gradient0_arr = get_gradient(**common_params, rank=rank, model_num=model_0)
-        model0_arr    = get_model(**common_params, rank=rank, model_num=model_0)
+        gradient1_arr = get_gradient(**common_params, rank=rank, model_num=model_1, kernel_list=kernel_list)
+        model1_arr    = get_model(**common_params, rank=rank, model_num=model_1, model_list=model_list)
+        gradient0_arr = get_gradient(**common_params, rank=rank, model_num=model_0, kernel_list=kernel_list)
+        model0_arr    = get_model(**common_params, rank=rank, model_num=model_0, model_list=model_list)
         
         grad_diff = gradient1_arr - gradient0_arr
         model_diff = model1_arr - model0_arr
@@ -134,11 +159,11 @@ def main():
         # MPI COUMMUNICATION 
         # -----------------------------------------------------------
         p_tmp_sum_local = np.sum(p_tmp)
-        p_sum = np.array(0.0)
+        p_sum = np.zeros_like(p_tmp_sum_local)
         comm.Allreduce(p_tmp_sum_local, p_sum, op=MPI.SUM)
         
         a_tmp_sum_local = np.sum(a_tmp)
-        a_sum = np.array(0.0)
+        a_sum = np.zeros_like(a_tmp_sum_local)
         comm.Allreduce(a_tmp_sum_local, a_sum, op=MPI.SUM)
         # -----------------------------------------------------------
         if rank == 0:
@@ -147,7 +172,7 @@ def main():
             
             if np.abs(p_sum) < epsilon:
                 logging.error(f"Warning: p_sum ({p_sum}) is too small at iteration {iter}, skipping update.")
-            
+
         # broadcast the p_dict and a_dict
         p_dict = comm.bcast(p_dict, root=0)
         a_dict = comm.bcast(a_dict, root=0)
@@ -156,10 +181,10 @@ def main():
     
     iter = mrun - 1
     
-    gradient1_arr = get_gradient(**common_params, rank=rank, model_num=iter+1)
-    model1_arr    = get_model(**common_params, rank=rank, model_num=iter+1)
-    gradient0_arr = get_gradient(**common_params, rank=rank, model_num=iter)
-    model0_arr    = get_model(**common_params, rank=rank, model_num=iter)
+    gradient1_arr = get_gradient(**common_params, rank=rank, model_num=iter+1, kernel_list=kernel_list)
+    model1_arr    = get_model(**common_params, rank=rank, model_num=iter+1, model_list=model_list)
+    gradient0_arr = get_gradient(**common_params, rank=rank, model_num=iter, kernel_list=kernel_list)
+    model0_arr    = get_model(**common_params, rank=rank, model_num=iter, model_list=model_list)
     
     grad_diff = gradient1_arr - gradient0_arr
     model_diff = model1_arr - model0_arr
@@ -170,17 +195,21 @@ def main():
     # MPI COUMMUNICATION 
     # -----------------------------------------------------------
     p_k_up_tmp_sum_local = np.sum(p_k_up)
-    p_k_up_sum = np.array(0.0)
+    p_k_up_sum = np.zeros_like(p_k_up_tmp_sum_local)
     comm.Allreduce(p_k_up_tmp_sum_local, p_k_up_sum, op=MPI.SUM)
     
     p_k_down_tmp_sum_local = np.sum(p_k_down)
-    p_k_down_sum = np.array(0.0)
+    p_k_down_sum = np.zeros_like(p_k_down_tmp_sum_local)
     comm.Allreduce(p_k_down_tmp_sum_local, p_k_down_sum, op=MPI.SUM)
      # -----------------------------------------------------------
     if rank == 0:
         p_k = p_k_up_sum / p_k_down_sum
+    else:
+        p_k = None
     # broadcast the p_dict and a_dict
     p_k = comm.bcast(p_k, root=0)
+
+
     # -----------------------------------------------------------
     r_vector = q_vector * p_k
     
@@ -189,10 +218,10 @@ def main():
         model_1 = iter + 1
         model_0 = iter
     
-        gradient1_arr = get_gradient(**common_params, rank=rank, model_num=model_1)
-        model1_arr    = get_model(**common_params, rank=rank, model_num=model_1)
-        gradient0_arr = get_gradient(**common_params, rank=rank, model_num=model_0)
-        model0_arr    = get_model(**common_params, rank=rank, model_num=model_0)
+        gradient1_arr = get_gradient(**common_params, rank=rank, model_num=model_1, kernel_list=kernel_list)
+        model1_arr    = get_model(**common_params, rank=rank, model_num=model_1, model_list=model_list)
+        gradient0_arr = get_gradient(**common_params, rank=rank, model_num=model_0, kernel_list=kernel_list)
+        model0_arr    = get_model(**common_params, rank=rank, model_num=model_0, model_list=model_list)
 
         grad_diff = gradient1_arr - gradient0_arr
         model_diff = model1_arr - model0_arr
@@ -202,11 +231,13 @@ def main():
         # MPI COUMMUNICATION 
         # -----------------------------------------------------------
         b_tmp_sum_local = np.sum(b_tmp)
-        b_sum = np.array(0.0)
+        b_sum = np.zeros_like(b_tmp_sum_local)
         comm.Allreduce(b_tmp_sum_local, b_sum, op=MPI.SUM)
         # -----------------------------------------------------------
         if rank == 0:
             b_value = b_sum * p_dict[iter]
+        else:
+            b_value = None
         # broadcast the p_dict and a_dict
         b_value = comm.bcast(b_value, root=0)
         # -----------------------------------------------------------
@@ -218,7 +249,7 @@ def main():
     # -----------------------------------------------------------
     # MPI COUMMUNICATION 
     # -----------------------------------------------------------
-    g_dot_p, g_dot_g, p_dot_p = np.array(0.0), np.array(0.0), np.array(0.0)
+    g_dot_p, g_dot_g, p_dot_p = np.zeros_like(gp_local), np.zeros_like(gg_local), np.zeros_like(pp_local)
     comm.Allreduce(gp_local, g_dot_p, op=MPI.SUM)
     comm.Allreduce(gg_local, g_dot_g, op=MPI.SUM)
     comm.Allreduce(pp_local, p_dot_p, op=MPI.SUM)
@@ -230,7 +261,8 @@ def main():
     # ----------------------------------------------------------------------------------------------
     vector = create_final_gradient(gradient=r_vector, 
                                    NGLOB=NGLOB, NGLLX=NGLLX, NGLLY=NGLLY, NGLLZ=NGLLZ, 
-                                   NSPEC=NSPEC, kernel_list=kernel_list, ibool_arr=ibool_kernel)
+                                   NSPEC=NSPEC, kernel_list=kernel_list, ibool_arr=ibool_kernel,
+                                   dtype=get_data_type(params['dtype']))
     for iker, kernel_name in enumerate(kernel_list):
         output_file = f'{output_dir}/proc{rank:06d}_{kernel_name}_kernel_smooth.bin'
         output_arr = vector[iker, :, :, :, :].flatten()

@@ -211,6 +211,7 @@ def create_final_gradient(gradient, NGLOB, NGLLX, NGLLY, NGLLZ, NSPEC, kernel_li
         NSPEC (int): the number of spectral elements
         kernel_list (list): the list of the kernel names
         ibool_arr (np.array): the array of the boolean index
+        dtype (np.dtype): np.float32 or np.float64
     """
     
     vector_gll = gradient.reshape((len(kernel_list), NGLOB))
