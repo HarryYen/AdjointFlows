@@ -146,6 +146,53 @@ class ForwardGenerator:
             self.result_logger.info("kernel constructed and collected!")
             
             
+    def process_each_event_for_tuning_flexwin(self, index_evt_last, do_forward):
+        """
+        This is a side function for tuning the flexwin parameters.
+        You can choose if you want to do forward simulation (do_forward).
+        If you turn do_forward to False, it will skip the forward simulation.
+        Then you can tune the flexwin parameters with a short time period.
+        
+        Args:
+            index_evt_last (int): The index of the event we will start here
+            do_forward (bool): If True, do forward simulation.
+        """
+        evt_df = pd.read_csv(self.evlst, sep='\s+', 
+                             names=['name', 'date', 'time', 'lon', 'lat', 'dep',
+                                    'strike1', 'dip1', 'rake1', 'strike2', 'dip2', 'rake2',
+                                    'Mw', 'MR', 'mrr', 'mtt', 'mpp', 'mrt', 'mrp', 'mtp'])
+        sta_df = pd.read_csv(self.stlst, sep='\s+',
+                             names=['sta', 'lon', 'lat', 'elev'])
+        self.debug_logger.info(f'We start from event {index_evt_last}')
+        for evt_i in np.arange(index_evt_last, evt_df.shape[0]):
+            event_info = evt_df.iloc[evt_i]
+            event_name = event_info.iloc[0]
+            
+            self.debug_logger.info(f"Processing event {event_name}")
+            self.write_cmt_file(event_info)
+            self.write_station_file(sta_df)
+            
+            time.sleep(2)
+            
+            # -----------------------
+            # forward modeling
+            # -----------------------
+            if do_forward:
+                subprocess.run('./utils/change_simulation_type.pl -F', shell=True)
+                remove_files_with_pattern('OUTPUT_FILES/*.sem?')
+                self.run_simulator()
+                self.debug_logger.info(f'Done {event_name} forward simulation')
+            else:
+                self.debug_logger.info(f'TUNING FLEXWIN: Skip forward modeling!')          
+            self.select_windows_for_tuning_flexwin(event_name=event_name)
+            
+            os.chdir(self.specfem_dir)
+            time.sleep(2)
+            
+            self.result_logger.info("kernel constructed and collected!")
+            self.result_logger.info("Finish testing FLEXWIN!")
+            
+            
             
     def write_cmt_file(self, event_info):
         """
@@ -262,3 +309,12 @@ class ForwardGenerator:
             shutil.copy(f"../TOMO/{initial_model_dir}/MEASURE/adjoints/{event_name}/MEASUREMENT.WINDOWS", "../measure_adj")
             os.chdir(self.measure_adj_dir)
             subprocess.run(['bash', 'run_adj.bash', f'{event_name}'])
+    
+    def select_windows_for_tuning_flexwin(self, event_name):
+        """
+        Run flexwin for tuning the flexwin parameters
+        """
+        os.chdir(self.flexwin_dir)
+        subprocess.run(['bash', 'run_win_for_tune_par.bash', f'{event_name}'])
+
+            

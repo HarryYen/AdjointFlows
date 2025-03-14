@@ -190,7 +190,7 @@ class StepLengthOptimizer:
         self.debug_logger.info(f'We start from event {index_evt_last}')
         for evt_i in np.arange(index_evt_last, evt_df.shape[0]):
             event_info = evt_df.iloc[evt_i]
-            event_name = event_info[0]
+            event_name = event_info.iloc[0]
             self.debug_logger.info(f"Processing event {event_name}")
             self.write_cmt_file(event_info)
             self.write_station_file(sta_df)
@@ -306,7 +306,7 @@ class StepLengthOptimizer:
         self.result_logger.info(f"Starting xspecfem3D on {nproc} processors...")
 
         if nproc == 1:
-            subprocess.run(["./bin/specfem3D", ], env=env, check=True)
+            subprocess.run(["./bin/xspecfem3D", ], env=env, check=True)
         else:
             subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xspecfem3D'], env=env, check=True)
     

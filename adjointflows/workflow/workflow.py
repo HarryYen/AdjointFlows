@@ -78,6 +78,16 @@ class WorkflowController:
         index_evt_last = forward_generator.check_last_event()
         forward_generator.process_each_event(index_evt_last)
         
+    def run_forward_for_tuning_flexwin(self, do_forward):
+        """
+        Run the adjoint tomography processes
+        """
+        forward_generator = ForwardGenerator(current_model_num=self.current_model_num, config=self.config)        
+        forward_generator.preprocessing()
+        forward_generator.output_vars_file()
+        index_evt_last = forward_generator.check_last_event()
+        forward_generator.process_each_event_for_tuning_flexwin(index_evt_last=index_evt_last, do_forward=do_forward)
+        
         
     def misfit_check(self):
         model_evaluator = ModelEvaluator(current_model_num=self.current_model_num, config=self.config)

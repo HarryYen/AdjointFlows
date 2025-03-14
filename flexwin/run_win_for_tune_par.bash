@@ -1,7 +1,6 @@
 #!/bin/bash
 # --------------------------------------------------------------------------------------------
-# This script is only for the test of tuning the parameters of flexwin.
-# Hung-Yu Yen
+# This script is to pair the observations and synthetics and make the input file for flexwin
 # --------------------------------------------------------------------------------------------
 # check arguments and print usage
 if [ "$#" -ne 1 ]; then
@@ -12,22 +11,24 @@ fi
 echo $1    # evt_dir
 
 # set path to event list
-evlst=`grep EVLST ../tomo_tune.par | gawk '{print $3}'`  # path to event list
-comp=`grep COMP ../tomo_tune.par | gawk '{print $3}'`    # synthetic component to use
-en2rt=`grep EN2RT ../tomo_tune.par | gawk '{print $3}'`  # rotate the E & N component to R & T
+par_file=../adjointflows/config.yaml
+evlst=`grep evlst $par_file | gawk '{print $2}'`  # path to event list
+evlst=`echo ../DATA/evlst/$evlst`
+comp=`grep COMP $par_file  | gawk '{print $2}'`    # synthetic component to use
+en2rt=`grep EN2RT $par_file  | gawk '{print $2}'`  # rotate the E & N comp onent to R & T
 echo $evlst $comp
 
-evlst=../DATA/$evlst
 
 # make observations and synthetics under the same conditions prior to running flexwin
 bash ini_proc.bash $1
 
-mkdir -p PACK_test
-rm -rf PACK_test/$1
-mkdir PACK_test/$1
+mkdir -p PACK
+rm -rf PACK/$1
+mkdir PACK/$1
 rm -f MEASURE/*
 for cmt in `gawk '{print $1"/"$2"/"$3"/"$4"/"$5"/"$6"/"$7"/"$8"/"$9"/"$13"/"$14}' $evlst`
 do
+
    dir=`echo $cmt | gawk -F[:/] '{print $1}'`
    yy=`echo $cmt | gawk -F[:/] '{print $2}'`
    mm=`echo $cmt | gawk -F[:/] '{print $3}'`
@@ -42,16 +43,17 @@ do
       fi
    fi
 
-   if [ -d ../DATA/$dir -a -d ../SYN/$dir ]; then
+   if [ -d ../DATA/wav/$dir -a -d ../SYN/$dir ]; then
       echo $dir" match!"
 #      np=`ls ../DATA/$dir | gawk -F. '{print $1"."$2}' | uniq | wc -l`
-      ls ../DATA/$dir/*.tomo | gawk -F[./] '{print $6"."$7"."$8}' > pairs.tmp
+      ls ../DATA/wav/$dir/*.tomo | gawk -F[./] '{print $7"."$8"."$9}' > pairs.tmp
 
 #      echo $np > input
+
       for pair in `cat pairs.tmp`
       do
          echo 1 > input
-         echo ../DATA/$dir/$pair.sac.tomo >> input
+         echo ../DATA/wav/$dir/$pair.sac.tomo >> input
          echo ../SYN/$dir/$pair.$comp.sac.tomo >> input
          echo $pair | gawk '{print "MEASURE/"$1}' >> input
          ./flexwin < input
@@ -71,10 +73,16 @@ do
    ./extract_event_windowing_stats.sh MEASURE $en2rt
 
    # pack results by event
-   mv MEASURE/*.ps PACK_test/$1
-   mv MEASURE/*.eps PACK_test/$1
-   cp PAR_FILE PACK_test/$1
-   cp MEASUREMENT.WINDOWS PACK_test/$1
+   cd MEASURE
+   for psfile in `ls *ps`;
+   do
+      gs -sDEVICE=pngalpha -o $psfile.png $psfile
+   done
+   cd ..
+   # mv MEASURE/*.ps PACK/$1
+   # mv MEASURE/*.eps PACK/$1
+   rm MEASURE/*ps
+   mv MEASURE/*.png PACK/$1
 
 done
 

@@ -73,11 +73,18 @@ do
    ./extract_event_windowing_stats.sh MEASURE $en2rt
 
    # pack results by event
-   mv MEASURE/*.ps PACK/$1
-   mv MEASURE/*.eps PACK/$1
+   cd MEASURE
+   for psfile in `ls *ps`;
+   do
+      gs -sDEVICE=pngalpha -o $psfile.png $psfile
+   done
+   cd ..
+   # mv MEASURE/*.ps PACK/$1
+   # mv MEASURE/*.eps PACK/$1
+   rm MEASURE/*ps
+   mv MEASURE/*.png PACK/$1
 
    #ir+=`ls M export matched windows to measure_adj
    cd ../measure_adj
    bash run_adj.bash $1
 done
-
