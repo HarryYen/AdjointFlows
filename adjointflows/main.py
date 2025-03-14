@@ -47,13 +47,10 @@ def setup_logging():
 
 
 def main():
-    """
-    1. if the current model number is the initial model number, do meshing.
-       But meshing is only for the first round.
-    """
-    # -------------------------------
+
+    # --------------------------------------------------------------------------
     # Settings
-    # -------------------------------
+    # --------------------------------------------------------------------------
     
     setup_logging()
     debug_logger = logging.getLogger("debug_logger")
@@ -66,16 +63,40 @@ def main():
     MAX_ATTEMPTS = config.get('inversion.max_fail')
     current_model_num = config.get('setup.model.current_model_num')
     stage_initial_model = config.get('setup.stage.stage_initial_model')
+    which_step = config.get('setup.workflow.start_step')
+    
     attempt = 0
     misfit_reduced = False
     do_mesh = current_model_num == stage_initial_model
-    # -------------------------------
+    # ---------------------------------------------------------------------------
     
     workflow_controller = WorkflowController(config=config, global_params=GLOBAL_PARAMS)
     workflow_controller.setup_for_fail()
 
-
-    while not misfit_reduced and attempt < MAX_ATTEMPTS:
+    # ---------------------------------------------------------------------------
+    # determine which step to start
+    # ---------------------------------------------------------------------------
+    step_name_list = [
+        'forward',
+        'post_processing',
+        'inversion',
+    ]
+    
+    result_logger.info(f"Workflow: User choose to start from {step_name_list[which_step]}")
+    # ---------------------------------------------------------------------------
+    """
+    Main loop
+    FLOW:
+        1. Run forward simulation and adjoint simulation.
+        2. check misfit comparing to the previous model.
+        3. If the following conditions are met, go to the next step.
+            - Misfit is reduced.
+            - Maximum attempts are not reached.
+        4. create misfit kernel (post-processing).
+        5. do inversion (Steepest descent or L-BFGS)
+    """
+    
+    while not misfit_reduced and attempt < MAX_ATTEMPTS and which_step <= step_name_list.index('forward'):
         attempt += 1
         workflow_controller.setup_dir()
         workflow_controller.move_to_other_directory(folder_to_move='specfem')
@@ -92,16 +113,14 @@ def main():
         result_logger.warning("STOP: Reached max attempts without reducing misfit.")
         sys.exit(0)
 
+    if which_step <= step_name_list.index('post_processing'):
+        workflow_controller.create_misfit_kernel()
+    if which_step <= step_name_list.index('inversion'):
+        workflow_controller.move_to_other_directory(folder_to_move='adjointflows')
+        workflow_controller.do_iteration()
+
         
-    workflow_controller.create_misfit_kernel()
-    workflow_controller.move_to_other_directory(folder_to_move='adjointflows')
-    workflow_controller.do_iteration()
-    # workflow_controller.move_to_other_directory(folder_to_move='iterate')
-        
-    
-    
-    
-    
+
 if __name__ == '__main__':
     
     main()	
