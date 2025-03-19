@@ -14,11 +14,12 @@ class IterationProcess:
         self.base_dir            = GLOBAL_PARAMS['base_dir']
         self.mpirun_path         = GLOBAL_PARAMS['mpirun_python_path']
         self.specfem_dir         = os.path.join(self.base_dir, 'specfem3d')
+        self.adjflows_dir        = os.path.join(self.base_dir, 'adjointflows')
         self.current_model_num   = current_model_num
         self.specfem_par_file    = os.path.join(self.specfem_dir, 'DATA', 'Par_file')
         self.model_generate_file = os.path.join(self.specfem_dir, 'OUTPUT_FILES', 'output_generate_databases.txt')
-        self.gradient_file       = os.path.join(self.base_dir, 'adjointflows', 'iterate', 'output_inner_product.txt')
-        self.pbs_nodefile        = os.path.join(self.base_dir, 'adjointflows', 'nodefile')
+        self.gradient_file       = os.path.join(self.adjflows_dir, 'output_inner_product.txt')
+        self.pbs_nodefile        = os.path.join(self.adjflows_dir, 'nodefile')
         
         self.kernel_list         = config.get('kernel.type.list')
         self.dtype               = config.get('kernel.type.dtype')
@@ -54,7 +55,7 @@ class IterationProcess:
             'NGLLY': self.NGLLY,
             'NGLLZ': self.NGLLZ    
         }
-        with open(f'{self.base_dir}/adjointflows/params.json', 'w') as f:
+        with open(f'{self.adjflows_dir}/params.json', 'w') as f:
             json.dump(params, f)
     
     
@@ -128,6 +129,7 @@ class IterationProcess:
         env = os.environ.copy()
         nproc = self.nproc
         self.result_logger.info(f"Starting updating model on {nproc} processors...")
+        os.chdir(self.adjflows_dir)
         
         script_dir = "iterate/model_update.py"
         line_search_flag = False
@@ -139,7 +141,7 @@ class IterationProcess:
             command = f'{self.mpirun_path} --hostfile {self.pbs_nodefile} -np {nproc} python {script_dir} {step_fac} {int(lbfgs_flag)} {int(line_search_flag)}'
             subprocess.run(command, shell=True, check=True, env=env)
 
-        self.result_logger.info("Done L-BFGS method!")
+        self.result_logger.info("Done Updating Model!")
     
     def get_gradient_info(self, param_name):
         """
@@ -152,3 +154,19 @@ class IterationProcess:
                 if param_name in line:
                     return float(line.split()[1])
         return None
+    
+    def save_polynomial_to_json(self, misfit_list, step_list, g_dot_p):
+        """
+        Save the polynomial to the json file
+        Args:
+            misfit_list (list): The list of misfit values
+            step_list (list): The list of step values
+            g_dot_p (float): The gradient dot product
+        """
+        params = {
+            'misfit_list': misfit_list,
+            'step_list': step_list,
+            'g_dot_p': [g_dot_p]
+        }
+        with open(f'{self.adjflows_dir}/polynomial.json', 'w') as f:
+            json.dump(params, f, indent=4)

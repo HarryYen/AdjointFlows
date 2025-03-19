@@ -23,6 +23,8 @@ class StepLengthOptimizer:
             current_model_num (int): The current model number
         """
         self.step_index        = 0
+        self.optimized_step_length = 0.
+        
         
         self.base_dir          = GLOBAL_PARAMS['base_dir']
         self.mpirun_path       = GLOBAL_PARAMS['mpirun_path']
@@ -395,6 +397,7 @@ class StepLengthOptimizer:
         env = os.environ.copy()
         nproc = self.nproc
         self.result_logger.info(f"Line Search: Starting updating model on {nproc} processors...")
+        os.chdir(self.adjflows_dir)
         
         script_dir = "iterate/model_update.py"
         line_search_flag = True

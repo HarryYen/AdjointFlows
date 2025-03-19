@@ -157,11 +157,11 @@ class ForwardGenerator:
             index_evt_last (int): The index of the event we will start here
             do_forward (bool): If True, do forward simulation.
         """
-        evt_df = pd.read_csv(self.evlst, sep='\s+', 
+        evt_df = pd.read_csv(self.evlst, sep=r'\s+', 
                              names=['name', 'date', 'time', 'lon', 'lat', 'dep',
                                     'strike1', 'dip1', 'rake1', 'strike2', 'dip2', 'rake2',
                                     'Mw', 'MR', 'mrr', 'mtt', 'mpp', 'mrt', 'mrp', 'mtp'])
-        sta_df = pd.read_csv(self.stlst, sep='\s+',
+        sta_df = pd.read_csv(self.stlst, sep=r'\s+',
                              names=['sta', 'lon', 'lat', 'elev'])
         self.debug_logger.info(f'We start from event {index_evt_last}')
         for evt_i in np.arange(index_evt_last, evt_df.shape[0]):

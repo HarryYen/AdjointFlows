@@ -205,7 +205,7 @@ def main():
         new_global_mean = new_global_sum / new_global_count
         
         # print global model diff
-        model_diff_local_min, model_diff_local_max = find_minmax(np.abs(model_diff))
+        model_diff_local_min, model_diff_local_max = find_minmax(model_diff)
         model_diff_global_min = comm.allreduce(model_diff_local_min, op=MPI.MIN)
         model_diff_global_max = comm.allreduce(model_diff_local_max, op=MPI.MAX)
         

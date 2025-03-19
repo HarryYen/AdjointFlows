@@ -67,7 +67,8 @@ def main():
     
     attempt = 0
     misfit_reduced = False
-    do_mesh = current_model_num == stage_initial_model
+    # do_mesh = current_model_num == stage_initial_model
+    do_mesh = bool(config.get('setup.model.do_mesh'))
     # ---------------------------------------------------------------------------
     
     workflow_controller = WorkflowController(config=config, global_params=GLOBAL_PARAMS)
@@ -109,6 +110,8 @@ def main():
         else:
             workflow_controller.reupdate_model_if_misfit_not_reduced()
         do_mesh = False
+        
+        
     if not misfit_reduced and attempt == MAX_ATTEMPTS:
         result_logger.warning("STOP: Reached max attempts without reducing misfit.")
         sys.exit(0)

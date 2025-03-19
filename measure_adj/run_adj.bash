@@ -34,6 +34,13 @@ grep SYN MEASUREMENT.WINDOWS | gawk -F. '{print "cp .."$3"."$4"*tomo PLOTS/SYN"}
 rm -f PLOTS/DATA/*
 grep DATA MEASUREMENT.WINDOWS | gawk -F. '{print "cp .."$3"."$4"*tomo PLOTS/DATA"}' | sh
 
+# # Geographic weighting
+# python apply_geographic_weighting.py $1
+# rm -f OUTPUT_FILES/*adj
+# cp ADJOINT_SOURCES_tmp/* OUTPUT_FILES
+
+
+
 rm -f PLOTS/ADJOINT_SOURCES/*
 cp OUTPUT_FILES/*adj PLOTS/ADJOINT_SOURCES
 rm -f PLOTS/RECON/*
@@ -49,6 +56,7 @@ if [ $en2rt -eq 1 ]; then
 else
 ./prepare_adj_src.pl -m CMTSOLUTION -s PLOTS/STATIONS_FILTERED -z BH -o ADJOINT_SOURCES -i OUTPUT_FILES/*adj
 fi
+
 rm -f PLOTS/STATIONS_ADJOINT
 cp STATIONS_ADJOINT PLOTS
 rm -f PLOTS/MEASUREMENT.WINDOWS
@@ -70,16 +78,28 @@ else
 fi
 cd ..
 
+# trasfer ps into png
+cd PLOTS
+for psfile in `ls *.ps`;
+do
+   gs -sDEVICE=pngalpha -o $psfile.png $psfile
+   rm $psfile
+done
+
+cd ..
+
+
 # pack results by event
 cp CMTSOLUTION PACK/$1
 cp PLOTS/*.ps PACK/$1
 cp PLOTS/*.pdf PACK/$1
-cp PLOTS/*.jpg PACK/$1
+cp PLOTS/*.png PACK/$1
 cp PLOTS/MEASUREMENT.WINDOWS PACK/$1
 cp PLOTS/window_* PACK/$1
 cp PLOTS/STATIONS* PACK/$1
 
 rm PLOTS/*.ps
+rm PLOTS/*.png
 
 # triggering the next forward simulation
 rm -f ../specfem3d/DATA/STATIONS_ADJOINT
