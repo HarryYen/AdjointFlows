@@ -62,7 +62,7 @@ def main():
     # IMPORT TOOLS
     # --------------------------------------------------------------------------------------------
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    from tools.matrix_utils import read_bin, kernel_pad_and_output, get_data_type, get_gradient, get_model, get_model_list_from_kernel_type, write_inner_product, compute_inner_product, create_final_gradient
+    from tools.matrix_utils import read_bin, kernel_pad_and_output, get_data_type, get_gradient, get_model, get_model_list_from_kernel_type, write_inner_product, compute_inner_product, create_final_gradient, restore_vector
     from tools.job_utils import check_dir_exists
     import numpy as np
     # --------------------------------------------------------------------------------------------
@@ -139,7 +139,7 @@ def main():
     else:
         p_dict = None
         a_dict = None
-        
+    
     for iter in reversed(lbfgs_memory_range):
         model_1 = iter + 1
         model_0 = iter
@@ -178,7 +178,7 @@ def main():
         a_dict = comm.bcast(a_dict, root=0)
         # -----------------------------------------------------------
         q_vector = q_vector - a_dict[iter] * grad_diff
-    
+        
     iter = mrun - 1
     
     gradient1_arr = get_gradient(**common_params, rank=rank, model_num=iter+1, kernel_list=kernel_list)
@@ -194,13 +194,13 @@ def main():
     # -----------------------------------------------------------
     # MPI COUMMUNICATION 
     # -----------------------------------------------------------
-    p_k_up_tmp_sum_local = np.sum(p_k_up)
-    p_k_up_sum = np.zeros_like(p_k_up_tmp_sum_local)
-    comm.Allreduce(p_k_up_tmp_sum_local, p_k_up_sum, op=MPI.SUM)
+    p_k_up_sum_local = np.sum(p_k_up)
+    p_k_up_sum = np.zeros_like(p_k_up_sum_local)
+    comm.Allreduce(p_k_up_sum_local, p_k_up_sum, op=MPI.SUM)
     
-    p_k_down_tmp_sum_local = np.sum(p_k_down)
-    p_k_down_sum = np.zeros_like(p_k_down_tmp_sum_local)
-    comm.Allreduce(p_k_down_tmp_sum_local, p_k_down_sum, op=MPI.SUM)
+    p_k_down_sum_local = np.sum(p_k_down)
+    p_k_down_sum = np.zeros_like(p_k_down_sum_local)
+    comm.Allreduce(p_k_down_sum_local, p_k_down_sum, op=MPI.SUM)
      # -----------------------------------------------------------
     if rank == 0:
         p_k = p_k_up_sum / p_k_down_sum
@@ -208,7 +208,6 @@ def main():
         p_k = None
     # broadcast the p_dict and a_dict
     p_k = comm.bcast(p_k, root=0)
-
 
     # -----------------------------------------------------------
     r_vector = q_vector * p_k
@@ -244,6 +243,7 @@ def main():
         r_vector = r_vector + (a_dict[iter] - b_value) * model_diff
     
     r_vector = -1. * r_vector
+    
 
     gp_local, gg_local, pp_local = compute_inner_product(vector1=current_gradient, vector2=r_vector)
     # -----------------------------------------------------------
@@ -259,13 +259,14 @@ def main():
     # ----------------------------------------------------------------------------------------------
     # output
     # ----------------------------------------------------------------------------------------------
-    vector = create_final_gradient(gradient=r_vector, 
-                                   NGLOB=NGLOB, NGLLX=NGLLX, NGLLY=NGLLY, NGLLZ=NGLLZ, 
-                                   NSPEC=NSPEC, kernel_list=kernel_list, ibool_arr=ibool_kernel,
-                                   dtype=get_data_type(params['dtype']))
     for iker, kernel_name in enumerate(kernel_list):
+        gll_arr = r_vector[iker*NGLOB:(iker+1)*NGLOB]
+        vector = restore_vector(gll_arr=gll_arr, ibool_arr=ibool_kernel, 
+                                NGLLX=NGLLX, NGLLY=NGLLY, NGLLZ=NGLLZ, NSPEC=NSPEC, 
+                                dtype=get_data_type(params['dtype']))
         output_file = f'{output_dir}/proc{rank:06d}_{kernel_name}_kernel_smooth.bin'
-        output_arr = vector[iker, :, :, :, :].flatten()
+        output_arr = vector.flatten(order='F')
+        
         kernel_pad_and_output(kernel=output_arr, output_file=output_file, padding_num=_padding_num)
     
 if __name__ == "__main__":

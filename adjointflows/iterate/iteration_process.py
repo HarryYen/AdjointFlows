@@ -7,6 +7,7 @@ import sys
 import logging
 import subprocess
 import json
+import shutil
 
 class IterationProcess:
     def __init__(self, current_model_num, config):
@@ -20,6 +21,7 @@ class IterationProcess:
         self.model_generate_file = os.path.join(self.specfem_dir, 'OUTPUT_FILES', 'output_generate_databases.txt')
         self.gradient_file       = os.path.join(self.adjflows_dir, 'output_inner_product.txt')
         self.pbs_nodefile        = os.path.join(self.adjflows_dir, 'nodefile')
+        self.tomo_dir            = os.path.join(self.base_dir, 'TOMO', f'm{self.current_model_num:03d}')
         
         self.kernel_list         = config.get('kernel.type.list')
         self.dtype               = config.get('kernel.type.dtype')
@@ -57,6 +59,7 @@ class IterationProcess:
         }
         with open(f'{self.adjflows_dir}/params.json', 'w') as f:
             json.dump(params, f)
+        shutil.copy(f'{self.adjflows_dir}/params.json', f'{self.tomo_dir}/params.json')
     
     
     def hess_times_kernel(self):
@@ -136,7 +139,7 @@ class IterationProcess:
         
         if nproc == 1:
             command = f"python {script_dir} {step_fac} {int(lbfgs_flag)} {int(line_search_flag)}"
-            subprocess.run(command, shell=True, check=True)
+            subprocess.run(command, shell=True, check=True, env=env)
         else:
             command = f'{self.mpirun_path} --hostfile {self.pbs_nodefile} -np {nproc} python {script_dir} {step_fac} {int(lbfgs_flag)} {int(line_search_flag)}'
             subprocess.run(command, shell=True, check=True, env=env)

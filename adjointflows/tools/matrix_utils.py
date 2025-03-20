@@ -199,31 +199,6 @@ def compute_inner_product(vector1, vector2):
     v2_v2 = np.sum(vector2 * vector2)
     return v1_v2, v1_v1, v2_v2
 
-def create_final_gradient(gradient, NGLOB, NGLLX, NGLLY, NGLLZ, NSPEC, kernel_list, ibool_arr, dtype):
-    """
-    organize the gradient into the final gradient array which can output to the binary file.
-    Args:
-        gradient (np.array): the gradient array
-        NGLOB (int): the number of global points
-        NGLLX (int): the number of GLL points in the x direction
-        NGLLY (int): the number of GLL points in the y direction
-        NGLLZ (int): the number of GLL points in the z direction
-        NSPEC (int): the number of spectral elements
-        kernel_list (list): the list of the kernel names
-        ibool_arr (np.array): the array of the boolean index
-        dtype (np.dtype): np.float32 or np.float64
-    """
-    
-    vector_gll = gradient.reshape((len(kernel_list), NGLOB))
-    ibool_arr = ibool_arr.reshape((NGLLX, NGLLY, NGLLZ, NSPEC), order='F')
-    vector = np.zeros((len(kernel_list), NGLLX, NGLLY, NGLLZ, NSPEC), dtype=dtype)
-    for iker in range(len(kernel_list)):
-        for ispec in range(NSPEC):
-            indices = ibool_arr[:, :, :, ispec] - 1
-            vector[iker, :, :, :, ispec] = vector_gll[iker, indices]
-    return vector
-
-
 def find_minmax(vector):
     min_val = np.min(vector)
     max_val = np.max(vector)
@@ -242,3 +217,29 @@ def check_model_threshold(new_model_arr, vp_min, vp_max, vs_min, vs_max):
     new_model_arr[2, :] = rho
     
     return new_model_arr
+
+
+def restore_vector(gll_arr, ibool_arr, NGLLX, NGLLY, NGLLZ, NSPEC, dtype):
+    """
+    Restore the gradient array back to the original vector format.
+    
+    Args:
+        gradient_arr (np.array): The gradient array combined from all kernels.
+        ibool_arr (np.array): The boolean index array.
+        NGLLX (int): The number of GLL points in the x direction.
+        NGLLY (int): The number of GLL points in the y direction.
+        NGLLZ (int): The number of GLL points in the z direction.
+        NSPEC (int): The number of spectral elements.
+        kernel_list (list): The list of kernel names.
+        dtype (type): The type of the array (np.float32 or np.float64).
+
+    Returns:
+        restored_vector (np.array): The restored vector in the shape (NGLLX, NGLLY, NGLLZ, NSPEC, len(kernel_list)).
+    """
+    restored_vector = np.zeros((NGLLX, NGLLY, NGLLZ, NSPEC), dtype=dtype)
+    ibool_arr = ibool_arr.reshape((NGLLX, NGLLY, NGLLZ, NSPEC), order='F')
+    for ispec in range(NSPEC):
+        indices = ibool_arr[:, :, :, ispec] - 1
+        restored_vector[:,:,:, ispec] = gll_arr[indices]
+    
+    return restored_vector
