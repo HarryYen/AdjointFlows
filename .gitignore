@@ -8,8 +8,13 @@ __pycache__/
 *.tmp
 *_FILTERED
 *.out
+*.adj
 error*
 sync.sh
+*.json
+*.grd
+smooth_model_bin
+
 
 /utils/
 /SYN
@@ -48,6 +53,8 @@ sync.sh
 /specfem3d/DATA/meshfem3D_files/topo.xyz
 
 
+/measure_adj/window_chi*
+/measure_adj/window_index
 /measure_adj/check_adj_src
 /measure_adj/measure_adj
 /measure_adj/rotate_adj_src
@@ -61,9 +68,20 @@ sync.sh
 /measure_adj/CMTSOLUTION
 /measure_adj/PACK
 /measure_adj/MEASUREMENT.WINDOWS
+/measure_adj/STATIONS_ADJOINT
 /measure_adj/obj/
 !/measure_adj/obj/.gitkeep
 /measure_adj/PLOTS/MEASUREMENT.WINDOWS
+/measure_adj/PLOTS/STATIONS_ADJOINT
+/measure_adj/PLOTS/window_chi*
+/measure_adj/PLOTS/window_index
+/measure_adj/PLOTS/pssac2
+/measure_adj/UTIL/pssac2/config.status
+/measure_adj/UTIL/pssac2/pssac2
+/measure_adj/UTIL/pssac2/pssac2.o
+/measure_adj/UTIL/pssac2/sacio.o
+/measure_adj/UTIL/pssac2/jb.o
+
 
 /flexwin/HY_PARFILE/
 /flexwin/*ps
@@ -85,6 +103,7 @@ sync.sh
 /flexwin/ttimes_mod/setbrn
 /flexwin/ttimes_mod/*.lis
 /flexwin/test_data/
+/flexwin/MEASURE/*
 
 
 specfem3d/config.log

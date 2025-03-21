@@ -3,9 +3,11 @@ from tools import GLOBAL_PARAMS
 from workflow import WorkflowController
 import sys
 import logging
+import datetime
 
 def setup_logging():
 
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     # -----------------------------------------------------
     # Debug Logger (Recorded in both debug.log and terminal)
     # -----------------------------------------------------
@@ -17,7 +19,7 @@ def setup_logging():
     console_formatter = logging.Formatter("[%(levelname)s] %(message)s")
     console_handler.setFormatter(console_formatter)
 
-    debug_file_handler = logging.FileHandler("logger/debug.log", mode="w")
+    debug_file_handler = logging.FileHandler(f"logger/debug_{timestamp}.log", mode="w")
     debug_file_handler.setLevel(logging.DEBUG)
     debug_file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     debug_file_handler.setFormatter(debug_file_formatter)
@@ -31,7 +33,7 @@ def setup_logging():
     result_logger = logging.getLogger("result_logger")
     result_logger.setLevel(logging.INFO)
 
-    result_file_handler = logging.FileHandler("logger/result.log", mode="w")
+    result_file_handler = logging.FileHandler(f"logger/result_{timestamp}.log", mode="w")
     result_file_handler.setLevel(logging.INFO)
     result_file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     result_file_handler.setFormatter(result_file_formatter)

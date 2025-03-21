@@ -62,7 +62,7 @@ def main():
     # IMPORT TOOLS
     # --------------------------------------------------------------------------------------------
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    from tools.matrix_utils import read_bin, kernel_pad_and_output, get_data_type, get_gradient, get_model, get_model_list_from_kernel_type, write_inner_product, compute_inner_product, create_final_gradient, restore_vector
+    from tools.matrix_utils import read_bin, kernel_pad_and_output, get_data_type, get_gradient, get_model, get_model_list_from_kernel_type, write_inner_product, compute_inner_product, restore_vector
     from tools.job_utils import check_dir_exists
     import numpy as np
     # --------------------------------------------------------------------------------------------
