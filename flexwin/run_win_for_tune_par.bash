@@ -45,10 +45,10 @@ do
 
    if [ -d ../DATA/wav/$dir -a -d ../SYN/$dir ]; then
       echo $dir" match!"
-#      np=`ls ../DATA/$dir | gawk -F. '{print $1"."$2}' | uniq | wc -l`
+   #   np=`ls ../DATA/$dir | gawk -F. '{print $1"."$2}' | uniq | wc -l`
       ls ../DATA/wav/$dir/*.tomo | gawk -F[./] '{print $7"."$8"."$9}' > pairs.tmp
 
-#      echo $np > input
+   #   echo $np > input
 
       for pair in `cat pairs.tmp`
       do
@@ -76,12 +76,13 @@ do
    cd MEASURE
    for psfile in `ls *ps`;
    do
-      gs -sDEVICE=pngalpha -o $psfile.png $psfile
+      echo $psfile
+      /usr/bin/gs -sDEVICE=pngalpha -o $psfile.png $psfile
    done
    cd ..
    # mv MEASURE/*.ps PACK/$1
    # mv MEASURE/*.eps PACK/$1
-   rm MEASURE/*ps
+   # rm MEASURE/*ps
    mv MEASURE/*.png PACK/$1
 
 done

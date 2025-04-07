@@ -12,7 +12,9 @@ class ModelEvaluator:
         self.current_model_num   = current_model_num
         self.previous_model_num  = current_model_num - 1
         self.stage_initial_model = self.config.get('setup.stage.stage_initial_model')
-        
+    
+    def set_current_model_num(self, current_model_num):
+        self.current_model_num = current_model_num
 
     def misfit_calculation(self, m_num):
         """
@@ -20,7 +22,8 @@ class ModelEvaluator:
         Args:
             m_num (int): The model number
         Return:
-            misfit (float): The misfit value
+            total_misfit (float): The total misfit value
+            average_misfit (float): The misfit value
         """
         measure_dir = f'{self.base_dir}/TOMO/m{m_num:03d}/MEASURE/adjoints'
     
@@ -32,9 +35,12 @@ class ModelEvaluator:
             tmp_df = pd.read_csv(chi_file, header=None, sep=r'\s+')
             chi_df = pd.concat([chi_df, tmp_df])
         
-        misfit = round(chi_df[28].sum() / len(chi_df), 5)
-        logging.info(f'Misfit: {misfit}')
-        return misfit
+        chi_filtered_df = chi_df[(chi_df[28] != 0.) | (chi_df[29] != 0.)]
+        total_misfit = chi_filtered_df[28].sum()
+        win_num = len(chi_filtered_df)
+        average_misfit = round(total_misfit / win_num, 5)
+        logging.info(f'Misfit: {average_misfit}')
+        return average_misfit
     
     def is_misfit_reduced(self):
         """

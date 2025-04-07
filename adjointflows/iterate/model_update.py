@@ -55,7 +55,7 @@ def main():
     # IMPORT TOOLS
     # --------------------------------------------------------------------------------------------
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    from tools.matrix_utils import find_minmax, read_bin, kernel_pad_and_output, get_data_type, get_model_list_from_kernel_type, check_model_threshold
+    from tools.matrix_utils import find_minmax, read_bin, kernel_pad_and_output, get_data_type, get_model_list_from_kernel_type, check_model_threshold, check_model_poisson_ratio
     from tools.job_utils import check_dir_exists, copy_files
     import numpy as np
     
@@ -65,6 +65,9 @@ def main():
     use_threshold_flag = True
     vp_min, vp_max = 2600, 9500
     vs_min, vs_max = 1500, 5500
+    
+    # poisson ratio
+    nu_min, nu_max = -0.8, 0.45
     # ----------------------------------------  
     # Check Args
     # ----------------------------------------
@@ -172,6 +175,8 @@ def main():
     
     if use_threshold_flag:
         new_model_arr = check_model_threshold(new_model_arr, vp_min, vp_max, vs_min, vs_max)
+    
+    new_model_arr = check_model_poisson_ratio(new_model_arr, nu_min=nu_min, nu_max=nu_max)
     
     for iker, kernel_name in enumerate(kernel_list):
         old_model = old_model_arr[iker, :]

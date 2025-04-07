@@ -1,8 +1,8 @@
 from tools.matrix_utils import get_param_from_specfem_file
 from tools.job_utils import check_dir_exists
 from vtk.util.numpy_support import vtk_to_numpy
-from plotting_modules import utm_to_lonlat, get_values_by_kdtree, lonlat_to_utm
-from horizontal_slices import plot_horizontal_slices_pert, plot_horizontal_slices_abs
+from plotting_modules import utm_to_lonlat, get_values_by_kdtree, lonlat_to_utm, get_points_by_projection
+from horizontal_slices import plot_horizontal_slices_pert, plot_horizontal_slices_abs, plot_horizontal_slices_gradient, plot_horizontal_slices_updated
 import os
 import json
 import subprocess
@@ -144,17 +144,21 @@ class TomographyVisualizer:
         for specified_dep in self.query_dep_arr:
             print(specified_dep)
             specified_dep_meter = specified_dep * 1E+03
-            double_dep_interval = self.dep_interval * 2 * 1E+03
-            dep_filter = (given_dep >= specified_dep_meter - double_dep_interval)&(given_dep <= specified_dep_meter + double_dep_interval)
-            query_dep = np.ones_like(query_x) * specified_dep_meter
-            given_dep_filter = given_dep[dep_filter]
+            # double_dep_interval = self.dep_interval * 2 * 1E+03
+            # dep_filter = (given_dep >= specified_dep_meter - double_dep_interval)&(given_dep <= specified_dep_meter + double_dep_interval)
+            dep_filter = (given_dep >= specified_dep_meter - 200)&(given_dep <= specified_dep_meter + 200)
+            # query_dep = np.ones_like(query_x) * specified_dep_meter
+            # given_dep_filter = given_dep[dep_filter]
             given_x_filter = given_x[dep_filter]
             given_y_filter = given_y[dep_filter]
             data_array_filter = data_array[dep_filter]
             
-            interp_arr = get_values_by_kdtree(query_lon=query_x, query_lat=query_y, query_dep=query_dep,
-                                            given_lon=given_x_filter, given_lat=given_y_filter, given_dep=given_dep_filter,
-                                            data_arr=data_array_filter, max_distance=max_distance)
+            # interp_arr = get_values_by_kdtree(query_lon=query_x, query_lat=query_y, query_dep=query_dep,
+            #                                 given_lon=given_x_filter, given_lat=given_y_filter, given_dep=given_dep_filter,
+            #                                 data_arr=data_array_filter, max_distance=max_distance)
+            interp_arr = get_points_by_projection(query_x=query_x, query_y=query_y, 
+                                                  given_x=given_x_filter, given_y=given_y_filter, 
+                                                  data_arr=data_array_filter)
             mean_in_this_dep = np.nanmean(interp_arr)
             data_values_pert_arr = (interp_arr - mean_in_this_dep) / mean_in_this_dep * 1E+02
             abs_list.append(interp_arr)
@@ -165,7 +169,7 @@ class TomographyVisualizer:
         
         return abs_arr, pert_arr
     
-    def output_txt_file(self, output_file_name, v1_abs, v1_pert, v2_abs, v2_pert, v3_abs, v3_pert):
+    def output_model_txt_file(self, output_file_name, v1_abs, v1_pert, v2_abs, v2_pert, v3_abs, v3_pert):
         """
         Output the txt file for the visualization
         """
@@ -198,6 +202,45 @@ class TomographyVisualizer:
 
         output_file = os.path.join(self.output_dir, output_file_name)
         np.savetxt(output_file, output_data, fmt='%.3f', header=header_info, comments='')
+        
+        
+    def output_kernel_txt_file(self, output_file_name, v1_abs, v1_pert, v2_abs, v2_pert, v3_abs, v3_pert):
+        """
+        Output the txt file for the visualization
+        """
+        query_lon_arr = self.query_lon_arr
+        query_lat_arr = self.query_lat_arr
+        query_dep_arr = self.query_dep_arr
+        query_dep, query_lon, query_lat = np.meshgrid(query_dep_arr, query_lon_arr, query_lat_arr, indexing='ij')
+        query_dep = query_dep.flatten()
+        query_lon = query_lon.flatten()
+        query_lat = query_lat.flatten()
+        nlon, nlat, ndep = query_lon_arr.size, query_lat_arr.size, query_dep_arr.size
+        
+        query_lon_min, query_lon_max = np.nanmin(query_lon), np.nanmax(query_lon)
+        query_lat_min, query_lat_max = np.nanmin(query_lat), np.nanmax(query_lat)
+        query_dep_min, query_dep_max = np.nanmin(query_dep), np.nanmax(query_dep)
+        
+        v1_abs_min, v1_abs_max = np.nanmin(v1_abs), np.nanmax(v1_abs)
+        v2_abs_min, v2_abs_max = np.nanmin(v2_abs), np.nanmax(v2_abs)
+        v3_abs_min, v3_abs_max = np.nanmin(v3_abs), np.nanmax(v3_abs)
+        v1_pert_min, v1_pert_max = np.nanmin(v1_pert), np.nanmax(v1_pert)
+        v2_pert_min, v2_pert_max = np.nanmin(v2_pert), np.nanmax(v2_pert)
+        v3_pert_min, v3_pert_max = np.nanmin(v3_pert), np.nanmax(v3_pert)
+        
+        output_data = np.column_stack((query_lon, query_lat, query_dep, v1_abs, v2_abs, v3_abs, v1_pert, v2_pert, v3_pert))
+        header_info =  f'{query_lon_min:.3f} {query_lat_min:.3f} {query_dep_min:.3f} {query_lon_max:.3f} {query_lat_max:.3f} {query_dep_max:.3f}\n'
+        header_info += f' {self.lon_interval:.3f} {self.lat_interval:.3f} {self.dep_interval:.3f}\n'
+        header_info += f' {nlon:4d} {nlat:4d} {ndep:4d}\n'
+        header_info += f' {v1_abs_min:.4e} {v1_abs_max:.4e} {v2_abs_min:.4e} {v2_abs_max:.4e} {v3_abs_min:.4e} {v3_abs_max:.4e}\n'
+        header_info += f' {v1_pert_min:.1f} {v1_pert_max:.1f} {v2_pert_min:.1f} {v2_pert_max:.1f} {v3_pert_min:.1f} {v3_pert_max:.1f}'
+
+        fmt = ['%.3f', '%.3f', '%.3f',  # lon, lat, dep
+               '%.4e', '%.4e', '%.4e',  # v1_abs, v2_abs, v3_abs 
+               '%.1f', '%.1f', '%.1f']  # v1_pert, v2_pert, v3_pert
+
+        output_file = os.path.join(self.output_dir, output_file_name)
+        np.savetxt(output_file, output_data, fmt=fmt, header=header_info, comments='')
 
         
 
@@ -217,6 +260,23 @@ class TomographyVisualizer:
         fig_output_dir = os.path.join(self.output_dir, 'fig')
         plot_horizontal_slices_abs(map_region=[self.lon_range[0], self.lon_range[1], self.lat_range[0], self.lat_range[1]], 
                                     base_dir=self.base_dir, input_dir=self.output_dir, output_dir=fig_output_dir)
+        
+    def plot_horizontal_slices_3x3_gradient(self):
+        """
+        Plot the horizontal slice of the 3x3 gradient
+        """
+        fig_output_dir = os.path.join(self.output_dir, 'fig')
+        plot_horizontal_slices_gradient(map_region=[self.lon_range[0], self.lon_range[1], self.lat_range[0], self.lat_range[1]], 
+                                    base_dir=self.base_dir, input_dir=self.output_dir, output_dir=fig_output_dir)
+    
+    
+    def plot_horizontal_slices_3x3_updated(self, model_ref_num):
+        """
+        Plot the horizontal slice of the 3x3 updated amount
+        """
+        fig_output_dir = os.path.join(self.output_dir, 'fig')
+        plot_horizontal_slices_updated(map_region=[self.lon_range[0], self.lon_range[1], self.lat_range[0], self.lat_range[1]], 
+                                    base_dir=self.base_dir, model_ref_num=model_ref_num, input_dir=self.output_dir, output_dir=fig_output_dir)
     
     def plot_vertical_profile(self):
         """

@@ -76,7 +76,7 @@ do
    cd MEASURE
    for psfile in `ls *ps`;
    do
-      gs -sDEVICE=pngalpha -o $psfile.png $psfile
+      /usr/bin/gs -sDEVICE=pngalpha -o $psfile.png $psfile
    done
    cd ..
    # mv MEASURE/*.ps PACK/$1

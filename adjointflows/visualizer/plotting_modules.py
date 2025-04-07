@@ -1,9 +1,10 @@
 from pyproj import Proj
 from scipy.spatial import cKDTree
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator, griddata
 import numpy as np
 import pandas as pd
 import xarray as xr
+import sys
 
 
 def utm_to_lonlat(x, y, utm_zone=50, is_north_hemisphere=True):
@@ -53,6 +54,13 @@ def get_values_by_kdtree(query_lon, query_lat, query_dep, given_lon, given_lat, 
     
     return interp_arr_reshaped
 
+def get_points_by_projection(query_x, query_y, given_x, given_y, data_arr):
+
+    given_points = np.vstack([given_x, given_y]).T
+    grid_values = griddata(given_points, data_arr, (query_x, query_y), method='linear')
+
+    return grid_values
+    
 # ----------------------------------------------------------------------------------------------------
 def find_minmax_from_xyz_file(input_file):
     with open(input_file, 'r') as f:

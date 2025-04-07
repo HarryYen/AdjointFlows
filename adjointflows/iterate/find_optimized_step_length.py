@@ -359,10 +359,12 @@ class StepLengthOptimizer:
             chi_file = f'{adjoints_dir}/window_chi'
             tmp_df = pd.read_csv(chi_file, header=None, sep=r'\s+')
             chi_df = pd.concat([chi_df, tmp_df])
-        
-        misfit = round(chi_df[28].sum() / len(chi_df), 5)
-        self.result_logger.info(f'Misfit: {misfit}')
-        return misfit
+            
+        chi_filtered_df = chi_df[(chi_df[28] != 0.) | (chi_df[29] != 0.)]
+        total_misfit = chi_filtered_df[28].sum()
+        win_num = len(chi_filtered_df)
+        average_misfit = round(total_misfit / win_num, 5)
+        return total_misfit
     
     def is_misfit_reduced(self):
         """
@@ -415,10 +417,36 @@ class StepLengthOptimizer:
     # -----------------------------------------------
     
     def quadratic_interpolation(self, phi_o, phi0, alpha, phi_grad):
-        return - ( phi_grad * alpha ** 2 ) / ( 2 * ( phi0 - phi_o - alpha * phi_grad ) )
+        """
+        Calculating a new step length by quadratic interpolation
+        Args:
+            phi_o (float): The misfit of the previous model
+            phi0 (float): The misfit of the current model
+            alpha (float): The step length
+            phi_grad (float): The gradient of the misfit
+        """
+        numerator = phi_grad * alpha ** 2
+        denomintor = 2 * (phi0 - phi_o - alpha * phi_grad)
+        return - numerator / denomintor
 
     def cubic_interpolation(self, phi_o, phi0, phi1, alpha0, alpha1, phi_grad):
+        """
+        Calculating a new step length by cubic interpolation
+        Args:
+            phi_o (float): The misfit of the previous model
+            phi0 (float): The misfit of the model tried 2 steps ago
+            phi1 (float): The misfit of the model tried 1 step ago
+            alpha0 (float): The step length of the model 2 steps ago
+            alpha1 (float): The step length of the model 1 step ago
+            phi_grad (float): The gradient of the misfit
+        """
+        
         denomimator = (alpha0 ** 2) * (alpha1 ** 2) * (alpha1 - alpha0)
         a = ( (alpha0 ** 2) * (phi1 - phi_o - phi_grad * alpha1 ) - ( alpha1 ** 2 ) * (phi0 - phi_o - phi_grad * alpha0) ) / denomimator
         b = (-(alpha0 ** 3) * (phi1 - phi_o - phi_grad * alpha1 ) + ( alpha1 ** 3 ) * (phi0 - phi_o - phi_grad * alpha0) ) / denomimator
-        return -b + np.sqrt(b ** 2 - 3 * a * phi_grad) / (3 * a)
+        
+        discriminant = b ** 2 - 3 * a * phi_grad
+        if discriminant < 0 or a == 0:
+            return alpha1 / 2
+        else:
+            return (-b + np.sqrt(discriminant)) / (3 * a)

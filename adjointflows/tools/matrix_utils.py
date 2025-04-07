@@ -219,6 +219,34 @@ def check_model_threshold(new_model_arr, vp_min, vp_max, vs_min, vs_max):
     return new_model_arr
 
 
+def check_model_poisson_ratio(new_model_arr, nu_min=0.0, nu_max=0.45):
+    vp = new_model_arr[0, :]
+    vs = new_model_arr[1, :]
+    rho = new_model_arr[2, :]
+
+    nu = (vp**2 - 2 * vs**2) / (2 * (vp**2 - vs**2))
+    # show the min/max of original poisson's ratio
+    nu_min_orig, nu_max_orig = find_minmax(nu)
+    debug_logger.info(f"Original poisson's ratio min: {nu_min_orig}, max: {nu_max_orig}")
+
+    mask_low = nu < nu_min
+    mask_high = nu > nu_max
+
+    # correcting vp if nu < min
+    vs_low = vs[mask_low]
+    vp[mask_low] = vs_low * np.sqrt((2 * (1 - nu_min)) / (1 - 2 * nu_min)) 
+
+    # correcting vp if nu < max
+    vs_high = vs[mask_high]
+    vp[mask_high] = vs_high * np.sqrt((2 * (1 - nu_max)) / (1 - 2 * nu_max))
+
+    new_model_arr[0, :] = vp
+    new_model_arr[1, :] = vs
+    new_model_arr[2, :] = rho
+
+    return new_model_arr
+
+
 def restore_vector(gll_arr, ibool_arr, NGLLX, NGLLY, NGLLZ, NSPEC, dtype):
     """
     Restore the gradient array back to the original vector format.

@@ -104,7 +104,7 @@ class WorkflowController:
         is_misfit_reduced = model_evaluator.is_misfit_reduced()
         
         if not is_misfit_reduced:
-            if self.stage_initial_model == self.current_model_num: 
+            if self.stage_initial_model == self.current_model_num - 1: 
                 error_message = "STOP: [Steepest Descent] Misfit is not reduced!"
                 self.debug_logger.error(error_message)
                 raise ValueError(error_message)
