@@ -13,7 +13,11 @@ error*
 sync.sh
 *.json
 *.grd
+*.vtu
+*.mesh
 smooth_model_bin
+kernels_list.txt
+/TOMO_bk
 
 
 /utils/
@@ -69,7 +73,7 @@ smooth_model_bin
 /measure_adj/PACK
 /measure_adj/MEASUREMENT.WINDOWS
 /measure_adj/STATIONS_ADJOINT
-/measure_adj/obj/
+/measure_adj/obj/*
 !/measure_adj/obj/.gitkeep
 /measure_adj/PLOTS/MEASUREMENT.WINDOWS
 /measure_adj/PLOTS/STATIONS_ADJOINT
@@ -81,7 +85,7 @@ smooth_model_bin
 /measure_adj/UTIL/pssac2/pssac2.o
 /measure_adj/UTIL/pssac2/sacio.o
 /measure_adj/UTIL/pssac2/jb.o
-
+/measure_adj/parfile_recored
 
 /flexwin/HY_PARFILE/
 /flexwin/*ps
@@ -104,6 +108,8 @@ smooth_model_bin
 /flexwin/ttimes_mod/*.lis
 /flexwin/test_data/
 /flexwin/MEASURE/*
+/flexwin/parfile_recored
+
 
 
 specfem3d/config.log
