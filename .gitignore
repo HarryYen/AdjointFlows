@@ -108,6 +108,7 @@ kernels_list.txt
 /flexwin/ttimes_mod/*.lis
 /flexwin/test_data/
 /flexwin/MEASURE/*
+!/flexwin/MEASURE/.gitkeep
 /flexwin/parfile_recored
 
 
