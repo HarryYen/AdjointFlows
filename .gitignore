@@ -67,6 +67,7 @@ kernels_list.txt
 /measure_adj/PLOTS/DATA/*
 /measure_adj/PLOTS/SYN/*
 /measure_adj/ADJOINT_SOURCES/*
+!/measure_adj/ADJOINT_SOURCES/.gitkeep
 /measure_adj/CMTSOLUTION*
 /measure_adj/HY_PARFILE
 /measure_adj/CMTSOLUTION
