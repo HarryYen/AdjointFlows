@@ -1,11 +1,12 @@
 setup:
   workflow:
-    start_step: 2               # which step you start (0: forward, 1: post_processing, 2: inversion)
+    start_step: 0               # which step you start (0: forward, 1: post_processing, 2: inversion)
   model:
-    current_model_num: 0                 # The model number that you choose to start (start from 0) 
+    current_model_num: 9                 # The model number that you choose to start (start from 0) 
+    do_mesh: 0                           # Generate mesh (1: yes, 0: no)
   stage: 
-    current_stage_num: 1                 # Which leg (stage) you start (start from 1)
-    stage_initial_model: 0               # First model in this period (leg), determines SD or LBFGS
+    current_stage_num: 2                 # Which leg (stage) you start (start from 1)
+    stage_initial_model: 6               # First model in this period (leg), determines SD or LBFGS
   flexwin:
     FLEXWIN_FLAG: 0         # Re-pick flexwin windows during the same leg (1: every iteration, 0: only first iteration)
 
@@ -15,7 +16,7 @@ preprocessing:
 
 inversion:
   n_store_lbfgs: 5          # Number of models used for approximating Hessian
-  max_fail: 5               # Maximum allowed failures to reduce the misfit
+  max_fail: 3               # Maximum allowed failures to reduce the misfit
 
 data:
   list:
@@ -28,8 +29,8 @@ data:
     tcor: 0.0              # Systematic time shift to correct (if any)
     dt: 0.0325             # Resampling rate for both data and synthetics
     filter:
-      P1: 10               # Lower bound of period filtering band
-      P2: 50               # Upper bound of period filtering band
+      P1: 8               # Lower bound of period filtering band
+      P2: 30               # Upper bound of period filtering band
     component:
       COMP: semv           # Synthetic component to use
       EN2RT: 0             # Rotate E & N to R & T (1: yes, 0: no)
@@ -40,11 +41,11 @@ kernel:
     dtype: float32
   smoothing:
     ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
-    SIGMA_H: 20000        # Horizontal smoothing width (m)
-    SIGMA_V: 10000         # Vertical smoothing width (m)
+    SIGMA_H: 10000        # Horizontal smoothing width (m)
+    SIGMA_V: 4000         # Vertical smoothing width (m)
   visualization:
-    IVTKOUT: 1            # Output kernel VTK file (1: yes, 0: no)
+    IVTKOUT: 0            # Output kernel VTK file (1: yes, 0: no)
 
 line_search:
-  step_interval: 0.02  # Step interval for steepest descent
+  step_interval: 0.01  # Step interval for steepest descent
   step_max: 0.5          # Maximum step length
