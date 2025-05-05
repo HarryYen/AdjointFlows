@@ -128,6 +128,7 @@ def get_gradient(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, i
         gradient_arr (np.array): the gradient array combined from all the kernels
     """
     model_num = f"m{model_num:03d}"
+    print(NGLOB)
     kernel_dir = os.path.join(base_dir, "TOMO", model_num, "KERNEL", "PRECOND")
     vector_gll = np.zeros((len(kernel_list), NGLOB), dtype=dtype)
     for iker, kernel_name in enumerate(kernel_list):
@@ -218,6 +219,18 @@ def check_model_threshold(new_model_arr, vp_min, vp_max, vs_min, vs_max):
     
     return new_model_arr
 
+def check_final_threshold(new_model_arr, vp_min, vp_max, vs_min, vs_max):
+    vp = new_model_arr[0, :]
+    vs = new_model_arr[1, :]
+    rho = new_model_arr[2, :]
+
+    # check if the model is in the range
+    if np.any(vp < vp_min) or np.any(vp > vp_max):
+        raise ValueError("Vp out of acceptable range. Stopping execution.")
+    if np.any(vs < vs_min) or np.any(vs > vs_max):
+        raise ValueError("Vs out of acceptable range. Stopping execution.")
+
+
 
 def check_model_poisson_ratio(new_model_arr, nu_min=0.0, nu_max=0.45):
     vp = new_model_arr[0, :]
@@ -227,7 +240,10 @@ def check_model_poisson_ratio(new_model_arr, nu_min=0.0, nu_max=0.45):
     nu = (vp**2 - 2 * vs**2) / (2 * (vp**2 - vs**2))
     # show the min/max of original poisson's ratio
     nu_min_orig, nu_max_orig = find_minmax(nu)
-    debug_logger.info(f"Original poisson's ratio min: {nu_min_orig}, max: {nu_max_orig}")
+    # debug_logger.info(f"Original poisson's ratio min: {nu_min_orig}, max: {nu_max_orig}")
+
+    if np.any(nu < nu_min) or np.any(nu > nu_max):
+        raise ValueError("Poisson's ratio out of acceptable range. Stopping execution.")
 
     mask_low = nu < nu_min
     mask_high = nu > nu_max
@@ -245,6 +261,26 @@ def check_model_poisson_ratio(new_model_arr, nu_min=0.0, nu_max=0.45):
     new_model_arr[2, :] = rho
 
     return new_model_arr
+
+
+def check_model_vpvs_ratio(new_model_arr, min=1.15, max=2.8):
+    vp = new_model_arr[0, :]
+    vs = new_model_arr[1, :]
+
+    vpvs = vp / vs
+    vpvs_smaller = vpvs < min
+    vpvs_greater = vpvs > max
+    
+    # correcting vs if vpvs < min
+    vs[vpvs_smaller] = vp[vpvs_smaller] / min
+    vs[vpvs_greater] = vp[vpvs_greater] / max
+
+    new_model_arr[0, :] = vp
+    new_model_arr[1, :] = vs
+
+    return new_model_arr
+
+
 
 
 def restore_vector(gll_arr, ibool_arr, NGLLX, NGLLY, NGLLZ, NSPEC, dtype):

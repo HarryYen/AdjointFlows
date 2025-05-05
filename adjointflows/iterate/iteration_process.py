@@ -1,13 +1,15 @@
 from tools.job_utils import remove_file, remove_files_with_pattern, make_symlink, move_files
-from tools.matrix_utils import get_param_from_specfem_file, read_bin, kernel_pad_and_output
+from tools.matrix_utils import get_param_from_specfem_file, read_bin, kernel_pad_and_output, get_data_type
 from tools.global_params import GLOBAL_PARAMS
 from pathlib import Path
+import numpy as np
 import os
 import sys
 import logging
 import subprocess
 import json
 import shutil
+
 
 class IterationProcess:
     def __init__(self, current_model_num, config):
@@ -22,6 +24,7 @@ class IterationProcess:
         self.gradient_file       = os.path.join(self.adjflows_dir, 'output_inner_product.txt')
         self.pbs_nodefile        = os.path.join(self.adjflows_dir, 'nodefile')
         self.tomo_dir            = os.path.join(self.base_dir, 'TOMO', f'm{self.current_model_num:03d}')
+        self.direction_dir       = os.path.join(self.tomo_dir, 'KERNEL', 'UPDATE')
         
         self.kernel_list         = config.get('kernel.type.list')
         self.dtype               = config.get('kernel.type.dtype')
@@ -158,6 +161,50 @@ class IterationProcess:
                     return float(line.split()[1])
         return None
     
+    def adjust_step_length_by_minmax(self, max_update_amount=250):
+        """
+        Adjust the step length by the min and max values of the direction (by the L-BFGS method)
+        We will use [max_update_amount / max_val_lbfgs_direction] to be the factor to adjust the step length
+        Args:
+            max_update_amount (float): The maximum update amount for the model (m/s and g/cm^3)
+        """
+        max_list = []
+        for kernel_name in self.kernel_list:
+            for rank in range(self.nproc):
+                # Read the kernel file
+                kernel_file = os.path.join(self.direction_dir, f"proc{rank:06d}_{kernel_name}_kernel_smooth.bin")
+                direction_kernel, padding_num = read_bin(file_name=kernel_file, 
+                                            NGLLX=self.NGLLX, 
+                                            NGLLY=self.NGLLY, 
+                                            NGLLZ=self.NGLLZ, 
+                                            NSPEC=self.nspec, 
+                                            dtype=get_data_type(self.dtype))
+                max_val = np.max(np.abs(direction_kernel))
+                max_list.append(max_val)
+        max_val = np.max(max_list)
+        if max_val < max_update_amount:
+            step_length = 1.
+        else:
+            step_length = max_update_amount / max_val
+        self.result_logger.info(f"Step length adjusted by max value: {step_length}")
+        return step_length
+            
+    
+            
+    def save_last_step_length_to_json(self, step_length):
+        """
+        Save the last step length to the json file
+        Args:
+            step_length (float): The last step length
+        """
+        params = {
+            'step_length': float(step_length)
+        }
+        with open(f'{self.adjflows_dir}/step_length.json', 'w') as f:
+            json.dump(params, f, indent=4)
+    
+        
+        
     def save_polynomial_to_json(self, misfit_list, step_list, g_dot_p):
         """
         Save the polynomial to the json file
@@ -173,3 +220,4 @@ class IterationProcess:
         }
         with open(f'{self.adjflows_dir}/polynomial.json', 'w') as f:
             json.dump(params, f, indent=4)
+        

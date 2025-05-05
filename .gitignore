@@ -15,9 +15,13 @@ sync.sh
 *.grd
 *.vtu
 *.mesh
+proc*.bin
 smooth_model_bin
 kernels_list.txt
-/TOMO_bk
+MEASUREMENT.PAR_*
+PAR_FILE_*
+nohup*
+/TOMO_*
 
 
 /utils/
@@ -35,6 +39,9 @@ kernels_list.txt
 
 /adjointflows/logger/*
 !/adjointflows/logger/.gitkeep
+/adjointflows/main_for_tune.py
+/adjointflows/plot_grad_main.py
+/adjointflows/output_inner_product.txt
 
 
 
@@ -86,7 +93,7 @@ kernels_list.txt
 /measure_adj/UTIL/pssac2/pssac2.o
 /measure_adj/UTIL/pssac2/sacio.o
 /measure_adj/UTIL/pssac2/jb.o
-/measure_adj/parfile_recored
+/measure_adj/parfile_recored/*
 
 /flexwin/HY_PARFILE/
 /flexwin/*ps
@@ -110,7 +117,7 @@ kernels_list.txt
 /flexwin/test_data/
 /flexwin/MEASURE/*
 !/flexwin/MEASURE/.gitkeep
-/flexwin/parfile_recored
+/flexwin/parfile_recored/*
 
 
 

@@ -69,12 +69,15 @@ def main():
     
     attempt = 0
     misfit_reduced = False
-    # do_mesh = current_model_num == stage_initial_model
+    lbfgs_flag = current_model_num != stage_initial_model
     do_mesh = bool(config.get('setup.model.do_mesh'))
+    test_flexwin = bool(config.get('setup.workflow.testing_mode.test_flexwin'))
+    test_forward_flag = bool(config.get('setup.workflow.testing_mode.test_forward_flag'))
     # ---------------------------------------------------------------------------
     
     workflow_controller = WorkflowController(config=config, global_params=GLOBAL_PARAMS)
-    workflow_controller.setup_for_fail()
+    if lbfgs_flag:
+        workflow_controller.setup_for_fail()
 
     # ---------------------------------------------------------------------------
     # determine which step to start
@@ -106,23 +109,32 @@ def main():
 
         workflow_controller.generate_model(mesh_flag=do_mesh)
         
-        workflow_controller.run_forward()
+        if test_flexwin:
+            workflow_controller.run_forward_for_tuning_flexwin(do_forward=test_forward_flag)
+            sys.exit()
+        else:
+            workflow_controller.run_forward()
+        
+        
         if workflow_controller.misfit_check():
             misfit_reduced = True
         else:
             workflow_controller.reupdate_model_if_misfit_not_reduced()
         do_mesh = False
         
-        
     if not misfit_reduced and attempt == MAX_ATTEMPTS:
         result_logger.warning("STOP: Reached max attempts without reducing misfit.")
         sys.exit(0)
 
+    
     if which_step <= step_name_list.index('post_processing'):
+        workflow_controller.move_to_other_directory(folder_to_move='specfem')
         workflow_controller.create_misfit_kernel()
     if which_step <= step_name_list.index('inversion'):
         workflow_controller.move_to_other_directory(folder_to_move='adjointflows')
         workflow_controller.do_iteration()
+
+        workflow_controller.cleanup_after_inversion()
 
         
 

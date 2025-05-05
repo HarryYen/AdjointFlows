@@ -1,0 +1,46 @@
+
+vertical_slice:
+    general_map:
+        map_region: [119, 123.5, 21.5, 26.] # [lon_min, lon_max, lat_min, lat_max]
+        dep_range: [0, 200] # e.g. [0, 200] means 0-200 km
+        dep_interval_for_interp: 4
+        interval_for_profile: 4
+        width_profile: [-20, 20] # e.g. [-20, 20] means +- 20 km
+        width_for_projecting_eq: [-10, 10] # e.g. [-10, 10] means +- 10 km
+        topo_range_for_plot: [-8000, 4000] # e.g. [-8000, 4000] means -8000 to 4000 m
+        surface_spacing: 1
+    general_flag:
+        plot_eq: True # 1: plot eq, 0: not plot eq
+        plot_mapview: True # 1: plot mapview, 0: not plot mapview
+    general_file:
+        topo_grd: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/taiwan_topo.grd
+        profile_input: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/profile.input
+        eq_file: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/87_simple.txt
+    fine_tune_perturb:
+        scalar_list: ['dvp', 'dvs'] # ['dvp', 'dvs', 'drho']
+        scalar_range: [-25, 25] # e.g. [-10, 10] means +- 10%
+        cmap: '/home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/Vp_ptb.cpt'
+        reverse_cmap: False
+
+    fine_tune_abs:
+        scalar_list: ['vp', 'vs']
+        scalar_range_list: [[2.6, 9.5], [1.4, 5.5]]  # each element is a list corresponding to the scalar_list 
+        cbar_label_list: ['Vp (km/s)', 'Vs (km/s)'] # the number of elements should be the same with scalar_list
+        cmap: 'turbo'
+        reverse_cmap: True # True or False
+        contour:
+            plot_contour: True
+            line_interval: 0.5   # unit
+            annotation_interval: 1.0 # unit
+    
+    fine_tune_updated:
+        scalar_list: ['vp', 'vs']
+        scalar_range_list: [[-20, 20], [-30, 30]]  # each element is a list corresponding to the scalar_list 
+        cbar_label_list: ['Vp ln(Mnew/Mold))', 'Vs (ln(Mnew/Mold))'] # the number of elements should be the same with scalar_list
+        cmap: 'polar'
+        reverse_cmap: True # True or False
+        contour:
+            plot_contour: False
+            line_interval: 0.5   # unit
+            annotation_interval: 1.0 # unit
+        

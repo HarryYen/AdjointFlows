@@ -1,4 +1,4 @@
-from .job_utils import clean_and_initialize_directories, remove_path
+from .job_utils import copy_files, clean_and_initialize_directories, remove_path, remove_files_with_pattern
 from .global_params import GLOBAL_PARAMS
 import os
 import shutil
@@ -101,3 +101,8 @@ class FileManager:
             target = target_directories[index]
             link = link_directories[index]
             os.symlink(target, link)
+
+    def remove_files_after_inversion(self):
+        
+        remove_files_with_pattern(f'{self.current_model_dir}/DATABASES_MPI/*vtk')
+        remove_files_with_pattern(f'{self.current_model_dir}/DATABASES_MPI/*absorb_field.bin')

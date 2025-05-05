@@ -1,11 +1,11 @@
 from tools import FileManager, ModelEvaluator
-from tools.job_utils import remove_file, wait_for_launching
+from tools.job_utils import remove_file, wait_for_launching, copy_files
 from kernel import ModelGenerator, ForwardGenerator, PostProcessing
 from iterate import IterationProcess, StepLengthOptimizer
 import os
 import sys
 import logging
-
+import json
 
 class WorkflowController:
     def __init__(self, config, global_params):
@@ -19,8 +19,15 @@ class WorkflowController:
         self.stage_initial_model = self.config.get('setup.stage.stage_initial_model')
         self.ichk                = self.config.get('preprocessing.ICHK')
         self.max_fail            = self.config.get('inversion.max_fail')
+        self.max_model_update    = self.config.get('inversion.max_model_update')
         
+        self.tomo_dir     = os.path.join(self.base_dir, 'TOMO', f'm{self.model_num:03d}')
+
         self.debug_logger = logging.getLogger("debug_logger")
+
+        # initialize file_manager
+        file_manager = FileManager()
+        file_manager.set_model_number(current_model_num=self.current_model_num)
         
     def construct_misfit_list(self):
         """
@@ -35,10 +42,20 @@ class WorkflowController:
     def construct_step_length_list(self):
         """
         Construct a list to store the step length values
-        The first element is 1
+        The first element is the step length when the current model was updated
         This is for the L-BFGS method
         """
-        self.step_length_list = [1.0]
+        json_path = os.path.join(self.adjointflows_dir, 'step_length.json')
+        try:
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+            first_step_length = data.get('step_length')
+        except FileNotFoundError:
+            warning_message = f"File not found: {json_path}, we just use 1.0"
+            self.debug_logger.error(warning_message)
+            first_step_length = 1.0
+        
+        self.step_length_list = [first_step_length]
 
     def setup_dir(self):
         """
@@ -47,13 +64,13 @@ class WorkflowController:
         remove_flag = lambda num: num == 0
         clear_dir_flag = remove_flag(self.ichk)
         # if the L-BFGS fail number is NOT 0, remove the directories
-        if self.lbfgs_fail_num != 0:
-            clear_dir_flag = True
+        if self.current_model_num != self.stage_initial_model:
+            if self.lbfgs_fail_num != 0:
+                clear_dir_flag = True
         
-        file_manager = FileManager()
-        file_manager.set_model_number(current_model_num=self.current_model_num)
-        file_manager.setup_directory(clear_directories=clear_dir_flag)
-        file_manager.make_symbolic_links()
+
+        self.file_manager.setup_directory(clear_directories=clear_dir_flag)
+        self.file_manager.make_symbolic_links()
     
     def setup_for_fail(self):
         """
@@ -145,9 +162,9 @@ class WorkflowController:
         # Use L-BFGS for inversion 
         # --------------------------------------    
         else:
-            step_fac = 1.
             iteration_process.calculate_direction_lbfgs()
-
+            step_fac = iteration_process.adjust_step_length_by_minmax(max_update_amount=self.max_model_update)
+            iteration_process.save_last_step_length_to_json(step_fac)
             iteration_process.update_model(step_fac=step_fac, lbfgs_flag=True)
             
     def reupdate_model_if_misfit_not_reduced(self):
@@ -215,4 +232,13 @@ class WorkflowController:
         
     def add_fail_num(self):
         self.lbfgs_fail_num += 1
+    
+
+    def cleanup_after_inversion(self):
+        self.file_manager.remove_files_after_inversion()
+        copy_files(src_dir = self.adjointflows_dir,
+                   dst_dir = self.tomo_dir, 
+                   pattern = 'params.json')
+        
+
     

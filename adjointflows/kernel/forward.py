@@ -31,7 +31,9 @@ class ForwardGenerator:
         
         self.stage_initial_model = config.get('setup.stage.stage_initial_model')
         self.ichk                = config.get('preprocessing.ICHK')
-        self.flexwin_flag        = config.get('setup.flexwin.FLEXWIN_FLAG')
+        # self.flexwin_flag        = config.get('setup.flexwin.FLEXWIN_FLAG')
+        self.flexwin_mode        = config.get('setup.flexwin.flexwin_mode')
+        self.flexwin_user_dir    = config.get('setup.flexwin.flexwin_user_dir')
         
         self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
         self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', config.get('data.list.stlst'))
@@ -39,7 +41,7 @@ class ForwardGenerator:
         
         self.nproc               = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
         self.pbs_nodefile      = os.path.join(self.base_dir, 'adjointflows', 'nodefile')
-        
+
         self.debug_logger      = logging.getLogger("debug_logger")
         self.result_logger     = logging.getLogger("result_logger")
         
@@ -182,6 +184,7 @@ class ForwardGenerator:
                 remove_files_with_pattern('OUTPUT_FILES/*.sem?')
                 self.run_simulator()
                 self.debug_logger.info(f'Done {event_name} forward simulation')
+                self.prepare_adjoint_simulation(event_name)
             else:
                 self.debug_logger.info(f'TUNING FLEXWIN: Skip forward modeling!')          
             self.select_windows_for_tuning_flexwin(event_name=event_name)
@@ -301,12 +304,16 @@ class ForwardGenerator:
         """
         os.chdir(self.flexwin_dir)
         
-        if (self.stage_initial_model == self.current_model_num) or (self.flexwin_flag == 1):
+        if (self.flexwin_mode == 'every_stage' and (self.stage_initial_model == self.current_model_num)) or (self.flexwin_mode == 'every_iter'):
             subprocess.run(['bash', 'run_win.bash', f'{event_name}'])
         else:
             subprocess.run(['bash', 'ini_proc.bash', f'{event_name}'])
             initial_model_dir = f'm{self.stage_initial_model:03d}'
-            shutil.copy(f"../TOMO/{initial_model_dir}/MEASURE/adjoints/{event_name}/MEASUREMENT.WINDOWS", "../measure_adj")
+            if self.flexwin_mode == 'user':
+                windows_dir = f"../TOMO/{self.flexwin_user_dir}/MEASURE/windows/{event_name}/MEASUREMENT.WINDOWS"
+            else:
+                windows_dir = f"../TOMO/{initial_model_dir}/MEASURE/adjoints/{event_name}/MEASUREMENT.WINDOWS"
+            shutil.copy(windows_dir, "../measure_adj")
             os.chdir(self.measure_adj_dir)
             subprocess.run(['bash', 'run_adj.bash', f'{event_name}'])
     
@@ -316,5 +323,10 @@ class ForwardGenerator:
         """
         os.chdir(self.flexwin_dir)
         subprocess.run(['bash', 'run_win_for_tune_par.bash', f'{event_name}'])
+        
+        put_windows_file_dir = os.path.join(f'{self.flexwin_dir}', 'PACK', f'{event_name}')
+        move_files(src_dir = f'{self.flexwin_dir}', 
+                       dst_dir = f'{put_windows_file_dir}', 
+                       pattern = 'MEASUREMENT.WINDOWS')
 
             
