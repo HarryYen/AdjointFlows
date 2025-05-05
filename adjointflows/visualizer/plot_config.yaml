@@ -1,3 +1,39 @@
+work_flow:
+    do_preprocessing: False
+    plot_horizontal_slices: True
+    plot_vertical_slices: True
+
+pre_processing:
+    model_num: 0
+    lon_range: [119.0, 123.0]
+    lat_range: [21.0, 26.0]
+    dep_range: [0., 200]
+    lon_interval: 0.08
+    lat_interval: 0.08
+    dep_interval: 5
+
+
+horizontal_slice:
+    general_map:
+        depth_list: [6, 10, 15, 20, 30, 50, 80, 120, 150]
+    fine_tune_perturb:
+        scalar_list: ['dvp', 'dvs', 'drho']
+        scalar_range: [[-20, 20], [-35, 35], [-20, 20]]
+        cmap: '/home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/Vp_ptb.cpt'
+        reverse_cmap: False
+    
+    fine_tune_abs:
+        scalar_list: ['vp', 'vs', 'rho']
+        unit_list: ['km/s', 'km/s', 'g/cm^3']
+        cmap: 'vik'
+        reverse_cmap: True
+
+    fine_tune_updated:
+        scalar_list: ['dvp','dvs','drho']
+        unit_list: ['%', '%', '%']
+        cmap: 'jet'
+        reverse_cmap: True
+
 
 vertical_slice:
     general_map:
@@ -16,6 +52,7 @@ vertical_slice:
         topo_grd: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/taiwan_topo.grd
         profile_input: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/profile.input
         eq_file: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/87_simple.txt
+    
     fine_tune_perturb:
         scalar_list: ['dvp', 'dvs'] # ['dvp', 'dvs', 'drho']
         scalar_range: [-25, 25] # e.g. [-10, 10] means +- 10%

@@ -7,18 +7,27 @@ import numpy as np
 import sys
 import os
 import xarray as xr
+import yaml
 
 
 def plot_horizontal_slices_pert(map_region, base_dir, input_dir, output_dir):    
 
-    
-    scalar_list = ['dvp','dvs','drho']
-    depth_list = [6, 10, 15, 20, 30, 50, 80, 120, 150]
-    vp_range = [-20, 20]
-    vs_range = [-35, 35]
-    rho_range = [-20, 20]
-
-
+    current_dir = os.path.dirname(__file__)
+    with open(os.path.join(current_dir, 'plot_config.yaml'), 'r') as file:
+        config = yaml.safe_load(file)
+    # ----------------------------------------------------------------------
+    # Load the configuration
+    # ----------------------------------------------------------------------
+    config_horizontal = config['horizontal_slice']
+    scalar_list = config_horizontal['fine_tune_perturb']['scalar_list']
+    scalar_range = config_horizontal['fine_tune_perturb']['scalar_range']
+    depth_list = config_horizontal['general_map']['depth_list']
+    vp_range = scalar_range[0]
+    vs_range = scalar_range[1]
+    rho_range = scalar_range[2]
+    cmap = config_horizontal['fine_tune_perturb']['cmap']
+    reverse_cmap = config_horizontal['fine_tune_perturb']['reverse_cmap']
+    # -----------------------------------------------------------------------
 
     input_file = os.path.join(input_dir, 'model.xyz')
     nx, ny, nz = find_nxnynz_from_xyz_file(input_file)
@@ -42,7 +51,7 @@ def plot_horizontal_slices_pert(map_region, base_dir, input_dir, output_dir):
     for ii, scalar in enumerate(scalar_list):
         print(f'======>{scalar}')
         fig = pygmt.Figure()
-        pygmt.makecpt(cmap=f'{base_dir}/adjointflows/visualizer/Vp_ptb.cpt', series=cpt_range_list[ii], reverse=False)
+        pygmt.makecpt(cmap=cmap, series=cpt_range_list[ii], reverse=reverse_cmap)
         pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="plain")
 
         
@@ -78,13 +87,20 @@ def plot_horizontal_slices_pert(map_region, base_dir, input_dir, output_dir):
 
 def plot_horizontal_slices_abs(map_region, base_dir, input_dir, output_dir):    
 
+    current_dir = os.path.dirname(__file__)
+    with open(os.path.join(current_dir, 'plot_config.yaml'), 'r') as file:
+        config = yaml.safe_load(file)
+    # ----------------------------------------------------------------------
+    # Load the configuration
+    # ----------------------------------------------------------------------
+    config_horizontal = config['horizontal_slice']
+    scalar_list = config_horizontal['fine_tune_abs']['scalar_list']
+    unit_list = config_horizontal['fine_tune_abs']['unit_list']
+    depth_list = config_horizontal['general_map']['depth_list']
+    cmap = config_horizontal['fine_tune_abs']['cmap']
+    reverse_cmap = config_horizontal['fine_tune_abs']['reverse_cmap']
+    # -----------------------------------------------------------------------
     
-    scalar_list = ['vp','vs','rho']
-    unit_list = ['km/s', 'km/s', 'g/cm^3']
-    depth_list = [6, 10, 15, 20, 30, 50, 80, 120, 150]
-
-
-
     input_file = os.path.join(input_dir, 'model.xyz')
     nx, ny, nz = find_nxnynz_from_xyz_file(input_file)
     lon_min, lon_max, lat_min, lat_max, dep_min, dep_max = find_minmax_from_xyz_file(input_file)
@@ -128,7 +144,7 @@ def plot_horizontal_slices_abs(map_region, base_dir, input_dir, output_dir):
                                     verbose='q')
 
                     with fig.set_panel(panel=index):  # sets the current panel
-                        pygmt.makecpt(cmap='vik', series=cpt_range, reverse=True)
+                        pygmt.makecpt(cmap=cmap, series=cpt_range, reverse=reverse_cmap)
                         fig.grdimage(grid='tmp_fine.grd', cmap=True, region=map_region, projection='M?', frame=True)
                         fig.coast(shorelines=True)
                         fig.text(text=f"dep: {depth_list[index]:3d}km", font="12p,Helvetica-Bold", position="BR", frame=True)
@@ -218,10 +234,19 @@ def plot_horizontal_slices_gradient(map_region, base_dir, input_dir, output_dir)
 
 def plot_horizontal_slices_updated(map_region, base_dir, model_ref_num, input_dir, output_dir):    
 
-    
-    scalar_list = ['dvp','dvs','drho']
-    unit_list = ['%', '%', '%']
-    depth_list = [6, 10, 15, 20, 30, 50, 80, 120, 150]
+    current_dir = os.path.dirname(__file__)
+    with open(os.path.join(current_dir, 'plot_config.yaml'), 'r') as file:
+        config = yaml.safe_load(file)
+    # ----------------------------------------------------------------------
+    # Load the configuration
+    # ----------------------------------------------------------------------
+    config_horizontal = config['horizontal_slice']
+    scalar_list = config_horizontal['fine_tune_updated']['scalar_list']
+    unit_list = config_horizontal['fine_tune_updated']['unit_list']
+    depth_list = config_horizontal['general_map']['depth_list']
+    cmap = config_horizontal['fine_tune_updated']['cmap']
+    reverse_cmap = config_horizontal['fine_tune_updated']['reverse_cmap']
+    # -----------------------------------------------------------------------
 
     input_file_ref = os.path.join(base_dir, 'TOMO', f'm{model_ref_num:03d}', 'OUTPUT', 'model.xyz')
     input_file_current = os.path.join(input_dir, 'model.xyz')
@@ -269,7 +294,8 @@ def plot_horizontal_slices_updated(map_region, base_dir, model_ref_num, input_di
                     model_arr = model_arr_list[ii]
                     selected_df = interp_2d_in_specific_dep(lon_arr_uniq, lat_arr_uniq, dep_arr_uniq, model_arr, dep)
                     
-                    cpt_range = [selected_df['scalar'].min() - 0.3, selected_df['scalar'].max() + 0.3, 0.025]
+                    abs_max = np.nanmax(np.abs(selected_df['scalar']))
+                    cpt_range = [-1*abs_max - 0.3, abs_max + 0.3, 0.025]
                     pygmt.xyz2grd(data=selected_df, 
                                 outgrid='tmp.grd', 
                                 region=grd_range, 
@@ -280,13 +306,13 @@ def plot_horizontal_slices_updated(map_region, base_dir, model_ref_num, input_di
                                     verbose='q')
 
                     with fig.set_panel(panel=index):  # sets the current panel
-                        pygmt.makecpt(cmap='jet', series=cpt_range, reverse=True)
+                        pygmt.makecpt(cmap=cmap, series=cpt_range, reverse=reverse_cmap)
                         fig.grdimage(grid='tmp_fine.grd', cmap=True, region=map_region, projection='M?', frame=True)
                         fig.coast(shorelines=True)
                         fig.text(text=f"dep: {depth_list[index]:3d}km", font="12p,Helvetica-Bold", position="BR", frame=True)
                         pygmt.config(FONT_ANNOT_PRIMARY='20p,Helvetica')
                         pygmt.config(FONT_LABEL='20p,Helvetica')
-                        fig.colorbar(frame=f'a5f5+l{scalar}({unit_list[ii]})', position='JBC+w3.5c/0.3c+v+o3.5c/-3.5c')
+                        fig.colorbar(frame=f'a2f1+l{scalar}({unit_list[ii]})', position='JBC+w3.5c/0.3c+v+o3.5c/-3.5c')
             check_dir_exists(output_dir)
 
             

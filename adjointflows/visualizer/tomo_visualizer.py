@@ -3,6 +3,7 @@ from tools.job_utils import check_dir_exists
 from vtk.util.numpy_support import vtk_to_numpy
 from plotting_modules import utm_to_lonlat, get_values_by_kdtree, lonlat_to_utm, get_points_by_projection
 from horizontal_slices import plot_horizontal_slices_pert, plot_horizontal_slices_abs, plot_horizontal_slices_gradient, plot_horizontal_slices_updated
+from vertical_slices import plot_vertical_slices_pert, plot_vertical_slices_abs, plot_vertical_slices_updated
 import os
 import json
 import subprocess
@@ -100,7 +101,7 @@ class TomographyVisualizer:
         
     
     
-    def project_gll_to_regular(self, kernel_name, utm_zone, is_north_hemisphere, max_distance):
+    def project_gll_to_regular(self, kernel_name, utm_zone, is_north_hemisphere):
         """
         Input the GLL table and output the values array based on regular coordinates
         Include absolute value and perturbation
@@ -153,9 +154,6 @@ class TomographyVisualizer:
             given_y_filter = given_y[dep_filter]
             data_array_filter = data_array[dep_filter]
             
-            # interp_arr = get_values_by_kdtree(query_lon=query_x, query_lat=query_y, query_dep=query_dep,
-            #                                 given_lon=given_x_filter, given_lat=given_y_filter, given_dep=given_dep_filter,
-            #                                 data_arr=data_array_filter, max_distance=max_distance)
             interp_arr = get_points_by_projection(query_x=query_x, query_y=query_y, 
                                                   given_x=given_x_filter, given_y=given_y_filter, 
                                                   data_arr=data_array_filter)
@@ -278,8 +276,25 @@ class TomographyVisualizer:
         plot_horizontal_slices_updated(map_region=[self.lon_range[0], self.lon_range[1], self.lat_range[0], self.lat_range[1]], 
                                     base_dir=self.base_dir, model_ref_num=model_ref_num, input_dir=self.output_dir, output_dir=fig_output_dir)
     
-    def plot_vertical_profile(self):
+    def plot_vertical_profile_pert(self):
         """
-        Plot the vertical profile of the kernel
+        Plot the vertical profile of the kernel (perturbation)
         """
-        pass
+        plot_vertical_slices_pert(input_dir=self.output_dir, output_dir=self.output_dir)
+    
+    def plot_vertical_profile_abs(self):
+        """
+        Plot the vertical profile of the kernel (absolute values)
+        """
+        plot_vertical_slices_abs(input_dir=self.output_dir, output_dir=self.output_dir)
+    
+    def plot_vertical_profile_updated(self, model_ref_n):
+        """
+        Plot the vertical profile of the kernel (updated values)
+        Args:
+            model_ref_n (int) : the reference model number
+        """
+        input_dir_ref = os.path.join(self.base_dir, 'TOMO', f'm{model_ref_n:03d}', 'OUTPUT')
+        plot_vertical_slices_updated(input_dir=self.output_dir, input_dir_ref=input_dir_ref, output_dir=self.output_dir,
+                                     model_n=self.model_num, model_ref_n=model_ref_n)
+        

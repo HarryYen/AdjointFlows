@@ -36,7 +36,8 @@ def check_if_output_dir_exist(output_dir):
     
 
 def plot_vertical_slices_pert(input_dir, output_dir):
-    with open('plot_config.yaml', 'r') as file:
+    current_dir = os.path.dirname(__file__)
+    with open(os.path.join(current_dir, 'plot_config.yaml'), 'r') as file:
         config = yaml.safe_load(file)
     # ----------------------------------------------------------------------
     # Load the configuration
@@ -238,7 +239,8 @@ def plot_vertical_slices_pert(input_dir, output_dir):
 
 
 def plot_vertical_slices_abs(input_dir, output_dir):
-    with open('plot_config.yaml', 'r') as file:
+    current_dir = os.path.dirname(__file__)
+    with open(os.path.join(current_dir, 'plot_config.yaml'), 'r') as file:
         config = yaml.safe_load(file)
     # ----------------------------------------------------------------------
     # Load the configuration
@@ -455,7 +457,8 @@ def plot_vertical_slices_abs(input_dir, output_dir):
 
 
 def plot_vertical_slices_updated(input_dir, input_dir_ref, output_dir, model_n, model_ref_n):
-    with open('plot_config.yaml', 'r') as file:
+    current_dir = os.path.dirname(__file__)
+    with open(os.path.join(current_dir, 'plot_config.yaml'), 'r') as file:
         config = yaml.safe_load(file)
     # ----------------------------------------------------------------------
     # Load the configuration

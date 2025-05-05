@@ -109,3 +109,43 @@ def to_xarray_2d(data, lon_arr_uniq, lat_arr_uniq, name):
 )
     return data_array
 
+
+# -----------------------------------------------------------------------
+# For Vertical Cross-section Plots
+# -----------------------------------------------------------------------
+def read_profile_input_file(file='profile.input.agu'):
+    df = pd.read_csv(file, header=None, sep='\s+', 
+                     names=['clon', 'clat', 'angle', 'lmin', 'lmax', 'profile_name'])
+    return df
+
+def find_minmax_from_df(df):
+    lon_min, lon_max = df['lon'].min(), df['lon'].max()
+    lat_min, lat_max = df['lat'].min(), df['lat'].max()
+    dep_min, dep_max = df['dep'].min(), df['dep'].max()
+    
+    return lon_min, lon_max, lat_min, lat_max, dep_min, dep_max
+
+def create_target_grid(lon_arr, lat_arr, dep_arr):
+
+    lon_lat = np.column_stack([lon_arr, lat_arr])
+    lon_lat_expand = np.repeat(lon_lat, len(dep_arr), axis=0)
+    dep_arr_expand = np.tile(dep_arr, len(lon_lat))
+
+    return np.column_stack([lon_lat_expand, dep_arr_expand])
+
+def interp_from_array_to_profile(points, values, profile_points):
+    interp_values = griddata(points, values, profile_points, method='linear')
+    
+    return interp_values
+
+def calculate_profile_division_points(total_points_number, divide_num):
+    total_points_number = int(total_points_number)
+    divide_num = int(divide_num)
+    division_points = []
+    for i in np.arange(1, divide_num):
+        division_points.append(int(total_points_number / divide_num * i))
+    return division_points
+
+def grab_earthqaukes(file):
+    df = pd.read_csv(file, sep='\s+', header=0)
+    return df
