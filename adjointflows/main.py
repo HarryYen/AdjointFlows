@@ -102,9 +102,10 @@ def main():
         5. do inversion (Steepest descent or L-BFGS)
     """
     
+    workflow_controller.setup_dir()
     while not misfit_reduced and attempt < MAX_ATTEMPTS and which_step <= step_name_list.index('forward'):
         attempt += 1
-        workflow_controller.setup_dir()
+        
         workflow_controller.move_to_other_directory(folder_to_move='specfem')
 
         workflow_controller.generate_model(mesh_flag=do_mesh)
@@ -130,6 +131,7 @@ def main():
     if which_step <= step_name_list.index('post_processing'):
         workflow_controller.move_to_other_directory(folder_to_move='specfem')
         workflow_controller.create_misfit_kernel()
+
     if which_step <= step_name_list.index('inversion'):
         workflow_controller.move_to_other_directory(folder_to_move='adjointflows')
         workflow_controller.do_iteration()

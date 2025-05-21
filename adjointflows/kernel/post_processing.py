@@ -24,8 +24,8 @@ class PostProcessing:
         self.kernel_list         = config.get('kernel.type.list')
         self.dtype               = config.get('kernel.type.dtype')
         self.ismooth             = config.get('kernel.smoothing.ISMOOTH')
-        self.sigma_h             = config.get('kernel.smoothing.SIGMA_H')
-        self.sigma_v             = config.get('kernel.smoothing.SIGMA_V')
+        self.sigma_h             = config.get('kernel.smoothing.smooth_par_gradinet.SIGMA_H')
+        self.sigma_v             = config.get('kernel.smoothing.smooth_par_gradinet.SIGMA_V')
         self.ivtkout             = config.get('kernel.visualization.IVTKOUT')
         
         self.nproc = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
@@ -38,7 +38,7 @@ class PostProcessing:
         self.debug_logger  = logging.getLogger("debug_logger")
         self.result_logger = logging.getLogger("result_logger")
         
-    def sum_and_smooth_kernels(self):
+    def sum_and_smooth_kernels(self, precond_flag=False):
         """
         Sum and smooth the kernels
         Note:
@@ -53,7 +53,9 @@ class PostProcessing:
         Path("OUTPUT_SUM").mkdir(parents=True, exist_ok=True)
         remove_files_with_pattern('OUTPUT_SUM/*')
         
-        self.run_precond()
+        if precond_flag:
+            self.run_precond()
+        
         self.run_sum_kernels()
         
         move_files(src_dir = 'OUTPUT_SUM', 
@@ -62,7 +64,7 @@ class PostProcessing:
         Path(f'{self.specfem_dir}/KERNEL/SMOOTH').mkdir(parents=True, exist_ok=True)
         
         if self.ismooth:
-            self.run_smoothing()
+            self.run_smoothing(precond_flag=precond_flag)
         if self.ivtkout:
             self.combine_kernels()
         
@@ -103,7 +105,7 @@ class PostProcessing:
             subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xsum_kernels'], 
                            check=True, env=os.environ)
     
-    def run_smoothing(self):
+    def run_smoothing(self, precond_flag=False):
         """
         run xsmooth_sem
         """
@@ -117,8 +119,9 @@ class PostProcessing:
                             "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "rho_kernel", 
                             "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
-            subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "hess_inv_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+            if precond_flag:
+                subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "hess_inv_kernel", 
+                                "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
         else:
             subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "alpha_kernel", 
@@ -129,9 +132,10 @@ class PostProcessing:
             subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "rho_kernel", 
                             "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc),
-                            "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "hess_inv_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+            if precond_flag:
+                subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc),
+                                "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "hess_inv_kernel", 
+                                "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
     
     def combine_kernels(self):
         """

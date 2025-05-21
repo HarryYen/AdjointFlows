@@ -8,6 +8,7 @@ def setup_logging():
     # -----------------------------------------------------
     # Debug Logger (Recorded in both debug.log and terminal)
     # -----------------------------------------------------
+    os.makedirs("logger", exist_ok=True)
     debug_logger = logging.getLogger("lbfgs_debug_logger")
     debug_logger.setLevel(logging.DEBUG)
 
@@ -62,7 +63,7 @@ def main():
     # IMPORT TOOLS
     # --------------------------------------------------------------------------------------------
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    from tools.matrix_utils import read_bin, kernel_pad_and_output, get_data_type, get_gradient, get_model, get_model_list_from_kernel_type, write_inner_product, compute_inner_product, restore_vector
+    from tools.matrix_utils import read_bin, kernel_pad_and_output, get_data_type, get_gradient, get_hess_inv, get_model, get_model_list_from_kernel_type, write_inner_product, compute_inner_product, restore_vector
     from tools.job_utils import check_dir_exists
     import numpy as np
     # --------------------------------------------------------------------------------------------
@@ -91,6 +92,7 @@ def main():
     NGLLZ = params['NGLLZ']
     NSPEC = params['nspec']
     NGLOB = params['nglob']
+    precond_flag = params['precond_flag']
     
     kernel_list = params['kernel_list']
     model_list = get_model_list_from_kernel_type(kernel_list)
@@ -129,7 +131,10 @@ def main():
     )
     
     current_gradient = get_gradient(**common_params, rank=rank, model_num=mrun, kernel_list=kernel_list)
-
+    # if precond_flag:
+    #     current_hess_inv = get_hess_inv(**common_params, rank=rank, model_num=mrun, kernel_list=kernel_list)
+    # else:
+    current_hess_inv = np.ones_like(current_gradient)
         
     q_vector = current_gradient
     
@@ -210,7 +215,7 @@ def main():
     p_k = comm.bcast(p_k, root=0)
 
     # -----------------------------------------------------------
-    r_vector = q_vector * p_k
+    r_vector = q_vector * p_k * current_hess_inv
     
     
     for iter in lbfgs_memory_range:

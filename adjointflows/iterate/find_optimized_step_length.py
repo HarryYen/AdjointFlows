@@ -47,7 +47,8 @@ class StepLengthOptimizer:
 
         
         self.step_interval       = config.get('line_search.step_interval')
-        self.step_max            = config.get('line_search.step_max')
+        self.step_beg            = config.get('line_search.step_beg')
+        self.step_end            = config.get('line_search.step_end')
         self.max_fail            = config.get('inversion.max_fail')
 
         
@@ -69,7 +70,7 @@ class StepLengthOptimizer:
         
         self.result_logger.info(f"Starting line search for model {self.current_model_num:03d}...")
         self.give_current_best_step_length(step_length_tmp=0.)
-        for step_length in np.arange(self.step_interval, self.step_max, self.step_interval):
+        for step_length in np.arange(self.step_beg, self.step_end, self.step_interval):
             
             self.result_logger.info(f"LINE SEARCH: Start step length {step_length}")
             self.increase_step_index()        

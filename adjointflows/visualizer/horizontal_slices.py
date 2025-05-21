@@ -186,8 +186,8 @@ def plot_horizontal_slices_gradient(map_region, base_dir, input_dir, output_dir)
     model_arr_list = [vp_arr, vs_arr, rho_arr]
     grd_range = [lon_min, lon_max, lat_min, lat_max]
 
-    max_value = max(np.nanmax(arr) for arr in model_arr_list)
-    min_value = min(np.nanmin(arr) for arr in model_arr_list)
+    # max_value = max(np.nanmax(arr) for arr in model_arr_list)
+    # min_value = min(np.nanmin(arr) for arr in model_arr_list)
     
     for ii, scalar in enumerate(scalar_list):
         print(f'======>{scalar}')
@@ -202,6 +202,8 @@ def plot_horizontal_slices_gradient(map_region, base_dir, input_dir, output_dir)
                     model_arr = model_arr_list[ii]
                     selected_df = interp_2d_in_specific_dep(lon_arr_uniq, lat_arr_uniq, dep_arr_uniq, model_arr, dep)
                     
+                    max_value = np.nanmax(model_arr)
+                    min_value = np.nanmin(model_arr)
                     # cpt_min = selected_df['scalar'].min()
                     # cpt_max = selected_df['scalar'].max()
                     cpt_min = min_value

@@ -15,20 +15,38 @@ class WorkflowController:
         self.specfem_dir = os.path.join(self.base_dir, 'specfem3d')
         self.flexwin_dir = os.path.join(self.base_dir, 'flexwin')
         self.iterate_dir = os.path.join(self.base_dir, 'iterate_inv')
-        self.current_model_num   = self.config.get('setup.model.current_model_num')
-        self.stage_initial_model = self.config.get('setup.stage.stage_initial_model')
-        self.ichk                = self.config.get('preprocessing.ICHK')
-        self.max_fail            = self.config.get('inversion.max_fail')
+        self.current_model_num   = int(self.config.get('setup.model.current_model_num'))
+        self.stage_initial_model = int(self.config.get('setup.stage.stage_initial_model'))
+        self.ichk                = int(self.config.get('preprocessing.ICHK'))
+        self.max_fail            = int(self.config.get('inversion.max_fail'))
         self.max_model_update    = self.config.get('inversion.max_model_update')
+        self.sd_runs_num         = int(self.config.get('inversion.sd_runs_num'))
         
-        self.tomo_dir     = os.path.join(self.base_dir, 'TOMO', f'm{self.model_num:03d}')
+        self.precondition_flag   = bool(self.config.get('inversion.precondition_flag'))
+
+        self.tomo_dir     = os.path.join(self.base_dir, 'TOMO', f'm{self.current_model_num:03d}')
 
         self.debug_logger = logging.getLogger("debug_logger")
 
+
         # initialize file_manager
-        file_manager = FileManager()
-        file_manager.set_model_number(current_model_num=self.current_model_num)
-        
+        self.file_manager = FileManager()
+        self.file_manager.set_model_number(current_model_num=self.current_model_num)
+        self.determine_inversion_method()
+
+        self.iteration_process = IterationProcess(current_model_num=self.current_model_num, config=self.config)
+        self.iteration_process.save_params_json()
+
+    def determine_inversion_method(self):
+        """
+        Determine the inversion method based on the current model number
+        """
+        if self.current_model_num < self.stage_initial_model + self.sd_runs_num:
+            self.inversion_method = 'SD'
+        else:
+            self.inversion_method = 'LBFGS'
+
+
     def construct_misfit_list(self):
         """
         Construct a list to store the misfit values
@@ -79,7 +97,7 @@ class WorkflowController:
         """
         self.reset_fail_num()
 
-        if self.current_model_num != self.stage_initial_model:
+        if self.inversion_method == 'LBFGS':
             self.construct_misfit_list()
             self.construct_step_length_list()
         
@@ -90,6 +108,9 @@ class WorkflowController:
         model_generator = ModelGenerator()
         model_generator.model_setup(mesh_flag=mesh_flag)
         
+        self.iteration_process.update_specfem_params()
+        self.iteration_process.save_params_json()
+
     def run_forward(self):
         """
         Run the adjoint tomography processes
@@ -115,13 +136,13 @@ class WorkflowController:
         model_evaluator = ModelEvaluator(current_model_num=self.current_model_num, config=self.config)
         misfit = model_evaluator.misfit_calculation(m_num=self.current_model_num)
         
-        if self.current_model_num != self.stage_initial_model:
+        if self.inversion_method == 'LBFGS':
             self.misfit_list.append(misfit)
         
         is_misfit_reduced = model_evaluator.is_misfit_reduced()
         
         if not is_misfit_reduced:
-            if self.stage_initial_model == self.current_model_num - 1: 
+            if self.stage_initial_model >= self.current_model_num - self.sd_runs_num: 
                 error_message = "STOP: [Steepest Descent] Misfit is not reduced!"
                 self.debug_logger.error(error_message)
                 raise ValueError(error_message)
@@ -138,34 +159,33 @@ class WorkflowController:
         Sum up the event kernel and smooth it
         """
         post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config)
-        post_processing.sum_and_smooth_kernels()
+        post_processing.sum_and_smooth_kernels(precond_flag=self.precondition_flag)
     
     def do_iteration(self):
         """
         Then do the preconditioning and calculate the direction
         """
-        iteration_process = IterationProcess(current_model_num=self.current_model_num, config=self.config)
-        iteration_process.save_params_json()
-        iteration_process.hess_times_kernel()
-        
+        # iteration_process = IterationProcess(current_model_num=self.current_model_num, config=self.config)
+        # iteration_process.save_params_json()
+        # iteration_process.hess_times_kernel()
         steplength_optimizer = StepLengthOptimizer(current_model_num=self.current_model_num, config=self.config)
         
         # --------------------------------------
         # Use Steepest Descent for inversion 
         # --------------------------------------
-        if self.stage_initial_model == self.current_model_num:
-            iteration_process.calculate_direction_sd()
+        if (self.stage_initial_model == self.current_model_num) or (self.inversion_method == 'SD'):
+            self.iteration_process.calculate_direction_sd(precond_flag=self.precondition_flag)
             steplength_optimizer.run_line_search()
             step_fac = steplength_optimizer.get_current_best_step_length()
-            iteration_process.update_model(step_fac=step_fac, lbfgs_flag=False)
+            self.iteration_process.update_model(step_fac=step_fac, lbfgs_flag=False)
         # --------------------------------------
         # Use L-BFGS for inversion 
         # --------------------------------------    
         else:
-            iteration_process.calculate_direction_lbfgs()
-            step_fac = iteration_process.adjust_step_length_by_minmax(max_update_amount=self.max_model_update)
-            iteration_process.save_last_step_length_to_json(step_fac)
-            iteration_process.update_model(step_fac=step_fac, lbfgs_flag=True)
+            self.iteration_process.calculate_direction_lbfgs(precond_flag=self.precondition_flag)
+            step_fac = self.iteration_process.adjust_step_length_by_minmax(max_update_amount=self.max_model_update)
+            self.iteration_process.save_last_step_length_to_json(step_fac)
+            self.iteration_process.update_model(step_fac=step_fac, lbfgs_flag=True)
             
     def reupdate_model_if_misfit_not_reduced(self):
         

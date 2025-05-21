@@ -681,18 +681,3 @@ def plot_vertical_slices_updated(input_dir, input_dir_ref, output_dir, model_n, 
             check_if_output_dir_exist(output_dir=output_dir_for_fig)
             fig.savefig(f'{output_dir_for_fig}/profile_{scalar}_m{model_n:03d}_m{model_ref_n:03d}_{int(azi_profile)}_{profile_index}.png', dpi=300,
                         transparent=True)
-
-
-
-if __name__ == '__main__':
-    plot_vertical_slices_pert(input_dir='/home/harry/Work/AdjointFlows/TOMO/m000/OUTPUT',
-                              output_dir='/home/harry/Work/AdjointFlows/TOMO/m000/OUTPUT')
-    # plot_vertical_slices_pert(input_dir='/home/harry/Work/AdjointFlows/TOMO_lastest_20250414/m005/OUTPUT',
-    #                           output_dir='/home/harry/Work/AdjointFlows/TOMO_lastest_20250414/m005/OUTPUT')
-    # plot_vertical_slices_abs(input_dir='/home/harry/Work/AdjointFlows/TOMO/m006/OUTPUT',
-                            #   output_dir='/home/harry/Work/AdjointFlows/TOMO/m006/OUTPUT')
-    # plot_vertical_slices_updated(input_dir='/home/harry/Work/AdjointFlows/TOMO/m006/OUTPUT',
-    #                              input_dir_ref = '/home/harry/Work/AdjointFlows/TOMO/m000/OUTPUT',
-    #                              output_dir='/home/harry/Work/AdjointFlows/TOMO/m006/OUTPUT',
-    #                              model_n=6,
-    #                              model_ref_n=0)

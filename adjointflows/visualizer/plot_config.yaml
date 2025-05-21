@@ -1,10 +1,16 @@
 work_flow:
     do_preprocessing: False
-    plot_horizontal_slices: True
-    plot_vertical_slices: True
+    plot_horizontal_slices: False
+    plot_vertical_slices: False
+    
+    updated_plot:
+        plot_horizontal: True
+        plot_vertical: False
+    
 
 pre_processing:
-    model_num: 0
+    model_num: 3
+    ref_model_num: 2 # For plotting updated amount
     lon_range: [119.0, 123.0]
     lat_range: [21.0, 26.0]
     dep_range: [0., 200]

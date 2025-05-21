@@ -1,4 +1,4 @@
-from tools.job_utils import remove_file, remove_files_with_pattern, make_symlink, move_files
+from tools.job_utils import remove_file, remove_files_with_pattern, make_symlink, move_files, copy_files
 from tools.matrix_utils import get_param_from_specfem_file, read_bin, kernel_pad_and_output, get_data_type
 from tools.global_params import GLOBAL_PARAMS
 from pathlib import Path
@@ -24,8 +24,11 @@ class IterationProcess:
         self.gradient_file       = os.path.join(self.adjflows_dir, 'output_inner_product.txt')
         self.pbs_nodefile        = os.path.join(self.adjflows_dir, 'nodefile')
         self.tomo_dir            = os.path.join(self.base_dir, 'TOMO', f'm{self.current_model_num:03d}')
+        self.smoothed_kernel_dir = os.path.join(self.tomo_dir, 'KERNEL', 'SMOOTH')
+        self.precond_kernel_dir  = os.path.join(self.tomo_dir, 'KERNEL', 'PRECOND')
         self.direction_dir       = os.path.join(self.tomo_dir, 'KERNEL', 'UPDATE')
         
+        self.precondition_flag   = bool(config.get('inversion.precondition_flag'))
         self.kernel_list         = config.get('kernel.type.list')
         self.dtype               = config.get('kernel.type.dtype')
         self.n_store_lbfgs       = config.get('inversion.n_store_lbfgs')
@@ -41,6 +44,15 @@ class IterationProcess:
         self.debug_logger  = logging.getLogger("debug_logger")
         self.result_logger = logging.getLogger("result_logger")
     
+    def update_specfem_params(self):
+        
+        self.nproc = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
+        self.nspec = get_param_from_specfem_file(file=self.model_generate_file, param_name='nspec', param_type=int)
+        self.nglob = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLOB_global_min', param_type=int)
+        self.NGLLX = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLX', param_type=int)
+        self.NGLLY = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLY', param_type=int)
+        self.NGLLZ = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLZ', param_type=int)
+
     def save_params_json(self):
         """
         We save the parameters in the json file to let the other scripts read them.
@@ -58,7 +70,8 @@ class IterationProcess:
             'nglob': self.nglob,
             'NGLLX': self.NGLLX,
             'NGLLY': self.NGLLY,
-            'NGLLZ': self.NGLLZ    
+            'NGLLZ': self.NGLLZ,
+            'precond_flag': self.precondition_flag  
         }
         with open(f'{self.adjflows_dir}/params.json', 'w') as f:
             json.dump(params, f)
@@ -85,7 +98,7 @@ class IterationProcess:
 
         self.result_logger.info("Done preconditioning!")
         
-    def calculate_direction_sd(self):
+    def calculate_direction_sd(self, precond_flag=False):
         """
         Calculate the direction using the steepest descent method
         """
@@ -93,8 +106,18 @@ class IterationProcess:
         nproc = self.nproc
         self.result_logger.info(f"Starting calculating direction through SD on {nproc} processors...")
         
+        if precond_flag:
+            self.hess_times_kernel()
+        else:
+            # move the gradient to precond dir
+            copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
+                       pattern="*alpha_kernel_smooth.bin")
+            copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
+                       pattern="*beta_kernel_smooth.bin")
+            copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
+                       pattern="*rho_kernel_smooth.bin")
+            
         script_dir = "iterate/calculate_direction_sd.py"
-        
         
         if nproc == 1:
             command = f"python {script_dir}"
@@ -106,7 +129,7 @@ class IterationProcess:
         self.result_logger.info("Done Steepest direction method!")
     
 
-    def calculate_direction_lbfgs(self):
+    def calculate_direction_lbfgs(self, precond_flag=False):
         """
         Calculate the direction using L-BFGS method
         """
@@ -114,6 +137,18 @@ class IterationProcess:
         nproc = self.nproc
         self.result_logger.info(f"Starting calculating direction through LBFGS on {nproc} processors...")
         
+        if precond_flag:
+            self.hess_times_kernel()
+        else:
+            # move the gradient to precond dir
+            copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
+                       pattern="*alpha_kernel_smooth.bin")
+            copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
+                       pattern="*beta_kernel_smooth.bin")
+            copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
+                       pattern="*rho_kernel_smooth.bin")
+
+
         script_dir = "iterate/calculate_direction_lbfgs.py"
         
         

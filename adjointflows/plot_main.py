@@ -11,9 +11,11 @@ def main():
     plot_config = ConfigManager('visualizer/plot_config.yaml')
     plot_config.load()
     
-    do_preprocess = plot_config.get('work_flow.do_preprocess')
+    do_preprocess = plot_config.get('work_flow.do_preprocessing')
     plot_horizontal_slices = plot_config.get('work_flow.plot_horizontal_slices')
     plot_vertical_slices = plot_config.get('work_flow.plot_vertical_slices')
+    plot_horizontal_updated_amount = plot_config.get('work_flow.updated_plot.plot_horizontal')
+    plot_vertical_updated_amount = plot_config.get('work_flow.updated_plot.plot_vertical')
 
     model_n = plot_config.get('pre_processing.model_num')
     lon_range = plot_config.get('pre_processing.lon_range')
@@ -22,6 +24,8 @@ def main():
     lon_interval = plot_config.get('pre_processing.lon_interval')
     lat_interval = plot_config.get('pre_processing.lat_interval')
     dep_interval = plot_config.get('pre_processing.dep_interval')
+
+    ref_model_n = plot_config.get('pre_processing.ref_model_num')
     
     # ---------------------------
     config = ConfigManager('config.yaml')
@@ -59,11 +63,18 @@ def main():
     if plot_horizontal_slices:
         visualizer.plot_horizontal_slices_3x3_pert()
         visualizer.plot_horizontal_slices_3x3_abs()
+
     if plot_vertical_slices:
         visualizer.plot_vertical_profile_pert()
         visualizer.plot_vertical_profile_abs()
 
-    # visualizer.plot_horizontal_slices_3x3_updated(model_ref_num=0)
-    # visualizer.plot_horizontal_slices_3x3_updated(model_ref_num=5)
+
+    if plot_horizontal_updated_amount:
+        visualizer.plot_horizontal_slices_3x3_updated(model_ref_num=ref_model_n)
+    if plot_vertical_updated_amount:
+        visualizer.plot_vertical_profile_updated(model_ref_num=ref_model_n)
+
+
+
 if __name__ == '__main__':
     main()
