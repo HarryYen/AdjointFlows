@@ -288,13 +288,13 @@ class TomographyVisualizer:
         """
         plot_vertical_slices_abs(input_dir=self.output_dir, output_dir=self.output_dir)
     
-    def plot_vertical_profile_updated(self, model_ref_n):
+    def plot_vertical_profile_updated(self, model_ref_num):
         """
         Plot the vertical profile of the kernel (updated values)
         Args:
             model_ref_n (int) : the reference model number
         """
-        input_dir_ref = os.path.join(self.base_dir, 'TOMO', f'm{model_ref_n:03d}', 'OUTPUT')
+        input_dir_ref = os.path.join(self.base_dir, 'TOMO', f'm{model_ref_num:03d}', 'OUTPUT')
         plot_vertical_slices_updated(input_dir=self.output_dir, input_dir_ref=input_dir_ref, output_dir=self.output_dir,
-                                     model_n=self.model_num, model_ref_n=model_ref_n)
+                                     model_n=self.model_num, model_ref_n=model_ref_num)
         

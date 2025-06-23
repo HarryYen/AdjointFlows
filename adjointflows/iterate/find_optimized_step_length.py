@@ -216,8 +216,8 @@ class StepLengthOptimizer:
             # -----------------------
             # adjoint modeling
             # -----------------------
-            subprocess.run('./utils/change_simulation_type.pl -b', shell=True)
-            self.run_simulator()
+            # subprocess.run('./utils/change_simulation_type.pl -b', shell=True)
+            # self.run_simulator()
             self.debug_logger.info(f'Done {event_name} adjoint simulation')
             
             move_files(src_dir = f'{self.specfem_dir}/DATABASES_MPI', 

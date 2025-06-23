@@ -210,6 +210,7 @@ def plot_horizontal_slices_gradient(map_region, base_dir, input_dir, output_dir)
                     cpt_max = max_value
                     cpt_unit_vec = (cpt_max - cpt_min) / 100
                     cpt_range = [cpt_min, cpt_max, cpt_unit_vec]
+                    # cpt_range = [cpt_min, cpt_max]
                     pygmt.xyz2grd(data=selected_df, 
                                 outgrid='tmp.grd', 
                                 region=grd_range, 
@@ -220,7 +221,7 @@ def plot_horizontal_slices_gradient(map_region, base_dir, input_dir, output_dir)
                                     verbose='q')
 
                     with fig.set_panel(panel=index):  # sets the current panel
-                        pygmt.makecpt(cmap='rainbow', series=cpt_range, reverse=True)
+                        pygmt.makecpt(cmap='rainbow', series=cpt_range, continuous=True, reverse=True)
                         fig.grdimage(grid='tmp_fine.grd', cmap=True, region=map_region, projection='M?', frame=True)
                         fig.coast(shorelines=True)
                         fig.text(text=f"dep: {depth_list[index]:3d}km", font="12p,Helvetica-Bold", position="BR", frame=True)

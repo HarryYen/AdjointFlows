@@ -142,6 +142,39 @@ def get_gradient(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, i
     gradient_arr = np.hstack(vector_gll)
     return gradient_arr
 
+def get_direction(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, ibool_arr, kernel_list, dtype):
+    """
+    get the direction from all the different kernels type and combine together.
+    Args:
+        base_dir (str): the base directory ('AdjointFlows')
+        rank (int): the rank index of the processor for multi-processing
+        model_num (int): the model number, e.g. 0, 1, 2...
+        NGLLX (int): the number of GLL points in the x direction
+        NGLLY (int): the number of GLL points in the y direction
+        NGLLZ (int): the number of GLL points in the z direction
+        NSPEC (int): the number of spectral elements
+        NGLOB (int): the number of global points
+        ibool_arr (np.array): the array of the boolean index
+        kernel_list (list): the list of the kernel names
+        dtype (type): the type of the array (np.float32 or np.float64)
+    Returns:
+        gradient_arr (np.array): the gradient array combined from all the kernels
+    """
+    model_num = f"m{model_num:03d}"
+    print(NGLOB)
+    kernel_dir = os.path.join(base_dir, "TOMO", model_num, "KERNEL", "UPDATE")
+    vector_gll = np.zeros((len(kernel_list), NGLOB), dtype=dtype)
+    for iker, kernel_name in enumerate(kernel_list):
+        direction_file = os.path.join(kernel_dir, f"proc{rank:06d}_{kernel_name}_kernel_smooth.bin")
+        vector, _dummy = read_bin(direction_file, NGLLX, NGLLY, NGLLZ, NSPEC, dtype)
+        vector = vector.reshape((NGLLX, NGLLY, NGLLZ, NSPEC), order='F')
+        ibool_arr = ibool_arr.reshape((NGLLX, NGLLY, NGLLZ, NSPEC), order='F')
+        for ispec in range(NSPEC):
+            indices = ibool_arr[:, :, :, ispec] - 1
+            vector_gll[iker, indices] = vector[:, :, :, ispec]
+    direction_arr = np.hstack(vector_gll)
+    return direction_arr
+
 def get_precond(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, ibool_arr, kernel_list, dtype):
     """
     get the PRECOND gradient from all the different kernels type and combine together.

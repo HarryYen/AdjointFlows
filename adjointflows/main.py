@@ -69,15 +69,14 @@ def main():
     
     attempt = 0
     misfit_reduced = False
-    lbfgs_flag = current_model_num != stage_initial_model
     do_mesh = bool(config.get('setup.model.do_mesh'))
     test_flexwin = bool(config.get('setup.workflow.testing_mode.test_flexwin'))
     test_forward_flag = bool(config.get('setup.workflow.testing_mode.test_forward_flag'))
     # ---------------------------------------------------------------------------
     
     workflow_controller = WorkflowController(config=config, global_params=GLOBAL_PARAMS)
-    if lbfgs_flag:
-        workflow_controller.setup_for_fail()
+
+    workflow_controller.setup_for_fail()
 
     # ---------------------------------------------------------------------------
     # determine which step to start
@@ -102,7 +101,6 @@ def main():
         5. do inversion (Steepest descent or L-BFGS)
     """
     
-    workflow_controller.setup_dir()
     while not misfit_reduced and attempt < MAX_ATTEMPTS and which_step <= step_name_list.index('forward'):
         attempt += 1
         

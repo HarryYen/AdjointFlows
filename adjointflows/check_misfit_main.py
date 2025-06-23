@@ -6,7 +6,7 @@ from tools import GLOBAL_PARAMS
 def main():
 
     model_beg = 0
-    model_end = 6
+    model_end = 2
 
     
     config = ConfigManager('config.yaml')

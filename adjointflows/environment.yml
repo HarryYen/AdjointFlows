@@ -3,17 +3,23 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python
-  - numpy
+  - pytz
+  - openmpi
   - pandas
   - scipy
-  - mpi4py
-  - openmpi
-  - pip
   - python-dateutil
-  - pytz
-  - pyyaml
-  - setuptools
+  - numpy
+  - pip
+  - python
   - wheel
-  - pip:
-      - matplotlib
+  - mpi4py
+  - setuptools
+  - pyyaml
+  - netcdf4
+  - ipykernel
+  - xarray
+  - packaging
+  - pygmt
+  - pyproj
+  - vtk
+prefix: /home/harry/.conda/envs/adjflows

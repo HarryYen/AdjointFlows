@@ -42,6 +42,7 @@ nohup*
 /adjointflows/main_for_tune.py
 /adjointflows/plot_grad_main.py
 /adjointflows/output_inner_product.txt
+/adjointflows/txtfile/*
 
 
 

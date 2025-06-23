@@ -196,14 +196,16 @@ class IterationProcess:
                     return float(line.split()[1])
         return None
     
-    def adjust_step_length_by_minmax(self, max_update_amount=250):
+    def adjust_step_length_by_minmax(self, max_update_amount=200):
         """
-        Adjust the step length by the min and max values of the direction (by the L-BFGS method)
+        Adjust the step length by the 99th percentile of the update direction magnitude.
+        If the 99th percentile value of the update direction exceeds max_update_amount,
+        the step length will be scaled to cap the update.
         We will use [max_update_amount / max_val_lbfgs_direction] to be the factor to adjust the step length
         Args:
             max_update_amount (float): The maximum update amount for the model (m/s and g/cm^3)
         """
-        max_list = []
+        all_values = []
         for kernel_name in self.kernel_list:
             for rank in range(self.nproc):
                 # Read the kernel file
@@ -214,13 +216,15 @@ class IterationProcess:
                                             NGLLZ=self.NGLLZ, 
                                             NSPEC=self.nspec, 
                                             dtype=get_data_type(self.dtype))
-                max_val = np.max(np.abs(direction_kernel))
-                max_list.append(max_val)
-        max_val = np.max(max_list)
-        if max_val < max_update_amount:
-            step_length = 1.
+                all_values.append(np.abs(direction_kernel.flatten()))
+        all_values_flat = np.concatenate(all_values)
+        threshold_val = np.max(all_values_flat)
+
+        if threshold_val < max_update_amount:
+            step_length = 1.0
         else:
-            step_length = max_update_amount / max_val
+            step_length = max_update_amount / threshold_val
+        
         self.result_logger.info(f"Step length adjusted by max value: {step_length}")
         return step_length
             

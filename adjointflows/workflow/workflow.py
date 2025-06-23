@@ -34,6 +34,7 @@ class WorkflowController:
         self.file_manager.set_model_number(current_model_num=self.current_model_num)
         self.determine_inversion_method()
 
+        self.setup_dir()
         self.iteration_process = IterationProcess(current_model_num=self.current_model_num, config=self.config)
         self.iteration_process.save_params_json()
 
@@ -45,6 +46,7 @@ class WorkflowController:
             self.inversion_method = 'SD'
         else:
             self.inversion_method = 'LBFGS'
+            self.setup_for_fail()
 
 
     def construct_misfit_list(self):
@@ -82,7 +84,7 @@ class WorkflowController:
         remove_flag = lambda num: num == 0
         clear_dir_flag = remove_flag(self.ichk)
         # if the L-BFGS fail number is NOT 0, remove the directories
-        if self.current_model_num != self.stage_initial_model:
+        if self.inversion_method == 'LBFGS':
             if self.lbfgs_fail_num != 0:
                 clear_dir_flag = True
         

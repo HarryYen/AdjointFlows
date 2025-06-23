@@ -209,7 +209,7 @@ def remove_path(directories):
     """
     for directory in directories:
         try:
-            if not os.path.exists(directory):
+            if not os.path.lexists(directory):
                 debug_logger.warning(f"Path does not exist: {directory}")
                 continue
             

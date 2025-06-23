@@ -20,9 +20,8 @@ def plot_eq(fig, eq_df, center, azi_profile, len_profile, width_profile):
         fig.plot(
             x = projected_eq[3].values,
             y = projected_eq[2].values,
-            style = 'c0.4c',
-            fill = 'gray',
-            pen = '0.1p,black'
+            style = 'c0.05c',
+            pen = '0.005p,black'
         )
     except KeyError:
         pass
@@ -233,7 +232,7 @@ def plot_vertical_slices_pert(input_dir, output_dir):
             
             output_dir_for_fig = os.path.join(output_dir, 'fig', 'vertical', 'pert')
             check_if_output_dir_exist(output_dir=output_dir_for_fig)
-            fig.savefig(f'{output_dir_for_fig}/profile_{scalar}_{int(azi_profile)}_{profile_index}.png', dpi=300,
+            fig.savefig(f'{output_dir_for_fig}/profile_{scalar}_{int(azi_profile)}_{letter_index}.png', dpi=300,
                         transparent=True)
 
 
@@ -450,7 +449,7 @@ def plot_vertical_slices_abs(input_dir, output_dir):
             
             output_dir_for_fig = os.path.join(output_dir, 'fig', 'vertical', 'abs')
             check_if_output_dir_exist(output_dir=output_dir_for_fig)
-            fig.savefig(f'{output_dir_for_fig}/profile_{scalar}_{int(azi_profile)}_{profile_index}.png', dpi=300,
+            fig.savefig(f'{output_dir_for_fig}/profile_{scalar}_{int(azi_profile)}_{letter_index}.png', dpi=300,
                         transparent=True)
 
 
@@ -679,5 +678,5 @@ def plot_vertical_slices_updated(input_dir, input_dir_ref, output_dir, model_n, 
             
             output_dir_for_fig = os.path.join(output_dir, 'fig', 'vertical', 'update')
             check_if_output_dir_exist(output_dir=output_dir_for_fig)
-            fig.savefig(f'{output_dir_for_fig}/profile_{scalar}_m{model_n:03d}_m{model_ref_n:03d}_{int(azi_profile)}_{profile_index}.png', dpi=300,
+            fig.savefig(f'{output_dir_for_fig}/profile_{scalar}_m{model_n:03d}_m{model_ref_n:03d}_{int(azi_profile)}_{letter_index}.png', dpi=300,
                         transparent=True)
