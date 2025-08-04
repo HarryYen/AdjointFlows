@@ -1,30 +1,31 @@
 setup:
   workflow:
-    start_step: 0              # which step you start (0: forward, 1: post_processing, 2: inversion)
+    start_step: 0               # which step you start (0: forward, 1: post_processing, 2: inversion)
     testing_mode:
       test_flexwin: 0           # 1: only generate time windows using FLEXWIN (for tuning or pre-select windows)
       test_forward_flag: 0      # 0: skip forward (for the situation you have done synthetics), 1: do forward before selecting windows
   model:
-    current_model_num: 3                 # The model number that you choose to start (start from 0) 
-    do_mesh: 0                           # Generate mesh (1: yes, 0: no)
+    current_model_num: 17                 # The model number that you choose to start (start from 0) 
+    do_mesh: 0                           # Generate mesh (1: yes-do both mesh and generate, 0: no-do only generate)
   stage: 
-    current_stage_num: 1                 # Which leg (stage) you start (start from 1)
-    stage_initial_model: 0               # First model in this period (leg), determines SD or LBFGS
+    current_stage_num: 5                 # Which leg (stage) you start (start from 1)
+    stage_initial_model: 14               # First model in this period (leg), determines SD or LBFGS
   flexwin:
-    flexwin_mode: user                   # every_iter: re-pick each rounds, every_stage: re-pick only in the first round of a stage, user: use the time windows specified by user
-    flexwin_user_dir: m000_windows_no_smooth       # **(under TOMO/)** the directory of time-windows if you use 'user' mode 
+    flexwin_mode: every_stage                   # every_iter: re-pick each rounds, every_stage: re-pick only in the first round of a stage, user: use the time windows specified by user
+    flexwin_user_dir: m010_windows_no_smooth       # **(under TOMO/)** the directory of time-windows if you use 'user' mode 
     
 
 preprocessing:
-  IMOD: 0                   # Establish model and database for simulation (1: establish, 0: read directly)
-  ICHK: 0                 # Check existing files for a continuous run (1: check, 0: start over)
+  ICHK: 0                    # Check existing files for a continuous run (1: check, 0: start over)
 
 inversion:
   precondition_flag: 0      # Precondition (1: yes, 0: no)
-  sd_runs_num: 1            # number of run using SD (e.g. 2 means using SD in the first 2 runs, then use LBFGS) 
+  sd_runs_num: 3            # number of run using SD (e.g. 2 means using SD in the first 2 runs, then use LBFGS) 
   n_store_lbfgs: 5          # Number of models used for approximating Hessian
   max_fail: 3               # Maximum allowed failures to reduce the misfit
   max_model_update: 999     # Max amount you can accept when updating the model (new - old)
+  do_backtracking_line_search: 1 # Do backtracking line search (1: yes, 0: no), only for L-BFGS
+
 
 data:
   list:
@@ -37,7 +38,7 @@ data:
     tcor: 0.0              # Systematic time shift to correct (if any)
     dt: 0.0325             # Resampling rate for both data and synthetics
     filter:
-      P1: 10               # Lower bound of period filtering band
+      P1: 5               # Lower bound of period filtering band
       P2: 30               # Upper bound of period filtering band
     component:
       COMP: semv           # Synthetic component to use
@@ -50,12 +51,12 @@ kernel:
   smoothing:
     ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
     smooth_par_gradinet:
-      SIGMA_H: 16000        # Horizontal smoothing width (m)
-      SIGMA_V: 8000         # Vertical smoothing width (m)
+      SIGMA_H: 4000        # Horizontal smoothing width (m)
+      SIGMA_V: 2000         # Vertical smoothing width (m)
   visualization:
     IVTKOUT: 0            # Output kernel VTK file (1: yes, 0: no)
 
 line_search:
-  step_interval: 0.02  # Step interval for steepest descent
-  step_beg: 0.02
-  step_end: 0.5          # Maximum step length
+  step_interval: 0.01  # Step interval for steepest descent
+  step_beg: 0.01
+  step_end: 1.0          # Maximum step length
