@@ -311,7 +311,7 @@ class StepLengthOptimizer:
         if nproc == 1:
             subprocess.run(["./bin/xspecfem3D", ], env=env, check=True)
         else:
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xspecfem3D'], env=env, check=True)
+            subprocess.run([str(self.mpirun_path), '-np' , str(nproc), './bin/xspecfem3D'], env=env, check=True)
     
     def prepare_adjoint_simulation(self, event_name):
         """
@@ -416,7 +416,71 @@ class StepLengthOptimizer:
     # -----------------------------------------------
     # ----------------- For L-BFGS ------------------
     # -----------------------------------------------
-    
+    def run_backtracking_line_search(self, step_length_init, min_alpha=1e-02):
+        """
+        Run the backtracking line search algorithm to find the optimized step length
+        This is for LBFGS method
+        Args:
+            step_length_init (float): The initial step length for the line search
+            min_alpha (float): The minimum step length, default is 0.01
+        """
+        
+        model_generator_line_search = ModelGenerator()
+        
+        self.result_logger.info(f"Starting backtracking line search for model {self.current_model_num:03d}...")
+        self.give_current_best_step_length(step_length_tmp=0.)
+        
+        alpha = step_length_init
+        
+        misfit_zero_step = self.misfit_calculation(step_index=0)
+        # setup a initial step length
+        self.give_current_best_step_length(step_length_tmp=0.)
+
+        pass_zero_step = False
+        while True:
+            
+            if alpha < min_alpha:
+                self.result_logger.warning(f"[L-BFGS line search] the step length is smaller than minimum, STOP!")
+                raise ValueError(f"[L-BFGS line search] the step length is smaller than minimum, STOP!")
+        
+            self.increase_step_index() 
+            self.result_logger.info(f"BACKTRACKING LINE SEARCH: step index: {self.step_index}")
+            self.result_logger.info(f"BACKTRACKING LINE SEARCH: Start step length from {alpha}")
+                   
+            self.setup_directory()
+            self.make_symbolic_links()
+            self.update_model(step_fac=alpha, lbfgs_flag=True)
+            os.chdir(self.specfem_dir)
+            model_generator_line_search.model_setup(mesh_flag=False)
+            self.preprocessing()
+            self.process_each_event(index_evt_last=0)
+            
+            os.chdir(self.adjflows_dir)
+            
+            misfit_new = self.misfit_calculation(self.step_index)
+            misfit_old = self.misfit_calculation(self.step_index - 1)                
+            self.result_logger.info(f"BACKTRACKING LINE SEARCH: old misfit: {misfit_old}")
+            self.result_logger.info(f"BACKTRACKING LINE SEARCH: new misfit: {misfit_new}")
+
+            # Once the misfit is smaller than the misfit in zero step, we can set pass_zero_step flag as True
+            if misfit_new < misfit_zero_step:
+                pass_zero_step = True
+            
+            if not pass_zero_step:
+                self.result_logger.info(f"BACKTRACKING LINE SEARCH: in step index {self.step_index} and misfit_new is still larger than the misfit in zero step")
+                self.result_logger.info(f"BACKTRACKING LINE SEARCH: so we reduce the step length and keep finding a better step which can reduce misfit!")
+                alpha *= 0.5
+                continue
+
+            elif misfit_new < misfit_old:
+                self.result_logger.info(f"BACKTRACKING LINE SEARCH: misfit reduced! NEXT")
+                self.give_current_best_step_length(step_length_tmp=alpha)
+                alpha *= 0.5
+                continue
+            else:
+                breakㄈ
+
+
     def quadratic_interpolation(self, phi_o, phi0, alpha, phi_grad):
         """
         Calculating a new step length by quadratic interpolation

@@ -21,6 +21,7 @@ class WorkflowController:
         self.max_fail            = int(self.config.get('inversion.max_fail'))
         self.max_model_update    = self.config.get('inversion.max_model_update')
         self.sd_runs_num         = int(self.config.get('inversion.sd_runs_num'))
+        self.do_backtracking_ls  = int(self.config.get('inversion.do_backtracking_line_search'))
         
         self.precondition_flag   = bool(self.config.get('inversion.precondition_flag'))
 
@@ -130,8 +131,8 @@ class WorkflowController:
         forward_generator = ForwardGenerator(current_model_num=self.current_model_num, config=self.config)        
         forward_generator.preprocessing()
         forward_generator.output_vars_file()
-        index_evt_last = forward_generator.check_last_event()
-        forward_generator.process_each_event_for_tuning_flexwin(index_evt_last=index_evt_last, do_forward=do_forward)
+        # index_evt_last = forward_generator.check_last_event()
+        forward_generator.process_each_event_for_tuning_flexwin(index_evt_last=0, do_forward=do_forward)
         
         
     def misfit_check(self):
@@ -186,6 +187,12 @@ class WorkflowController:
         else:
             self.iteration_process.calculate_direction_lbfgs(precond_flag=self.precondition_flag)
             step_fac = self.iteration_process.adjust_step_length_by_minmax(max_update_amount=self.max_model_update)
+            
+            if self.do_backtracking_ls:
+                # do a backtracking line search for finding a better step length
+                steplength_optimizer.run_backtracking_line_search(step_length_init=step_fac)
+                step_fac = steplength_optimizer.get_current_best_step_length()
+
             self.iteration_process.save_last_step_length_to_json(step_fac)
             self.iteration_process.update_model(step_fac=step_fac, lbfgs_flag=True)
             
