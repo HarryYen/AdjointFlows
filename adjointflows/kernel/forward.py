@@ -279,7 +279,7 @@ class ForwardGenerator:
         if nproc == 1:
             subprocess.run(["./bin/xspecfem3D"], check=True, env=os.environ)
         else:
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xspecfem3D'], 
+            subprocess.run([str(self.mpirun_path),'-np' , str(nproc), './bin/xspecfem3D'], 
                            check=True, env=os.environ)
     
     def prepare_adjoint_simulation(self, event_name):

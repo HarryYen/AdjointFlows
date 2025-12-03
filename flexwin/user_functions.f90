@@ -32,6 +32,9 @@
   double precision :: time
   double precision :: R_vel, R_time
   double precision :: Q_vel, Q_time
+  double precision :: Vp_vel, Vp_time
+  double precision :: Vs_vel, Vs_time
+  double precision :: hypo_dist
 
 
 ! -----------------------------------------------------------------
@@ -82,20 +85,27 @@
 !   endif
 ! enddo
 !
-
+ hypo_dist=sqrt(evdp**2+dist_km**2)
  ! --------------------------------
  ! Set approximate end of rayleigh wave arrival
- R_vel=3.2
+ R_vel=2.5
  R_time=dist_km/R_vel
  ! --------------------------------
  ! Set approximate start of love wave arrival
  Q_vel=4.2
  Q_time=dist_km/Q_vel
+ ! --------------------------------
+ ! Set approximate P/S arrival
+ Vp_vel=7.8
+ Vp_time=hypo_dist/Vp_vel
+ Vs_vel=4.5
+ Vs_time=hypo_dist/Vs_vel
+ ! --------------------------------
 
  ! reset the signal_end time to be the end of the Rayleigh waves
- if (DATA_QUALITY) then
-   signal_end=R_time
- endif
+ !if (DATA_QUALITY) then
+ !  signal_end=R_time
+ !endif
 
  ! --------------------------------
  ! modulate criteria in time
@@ -114,15 +124,25 @@
    ! --------------------------------
    ! if we are in the surface wave times, then make the cross-correlation
    ! criterion less severe
-   if (time.gt.Q_time .and. time.lt.R_time) then
-     CC_LIMIT(i)=0.9*CC_LIMIT(i)
+   !if (time.gt.Q_time .and. time.lt.R_time) then
+   !  CC_LIMIT(i)=0.9*CC_LIMIT(i)
+   !endif
+
+   if (time.lt.(Vp_time-10)) then
+     STALTA_W_LEVEL(i)=STALTA_BASE*2.5
+   endif
+   if (time.gt.(Vs_time+30)) then
+     STALTA_W_LEVEL(i)=STALTA_BASE*1.1
+     !STALTA_W_LEVEL(i)=STALTA_BASE*3.0
+     CC_LIMIT(i)= 0.85
+
    endif
    ! --------------------------------
    ! modulate criteria according to event depth
    !
    ! if an intermediate depth event
    if (evdp.ge.70 .and. evdp.lt.300) then
-     TSHIFT_LIMIT(i)=TSHIFT_BASE*1.4
+     TSHIFT_LIMIT(i)=TSHIFT_BASE*1.1
    ! if a deep event
    elseif (evdp.ge.300) then
      TSHIFT_LIMIT(i)=TSHIFT_BASE*1.7

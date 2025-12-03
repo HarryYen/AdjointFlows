@@ -1,16 +1,17 @@
 work_flow:
     do_preprocessing: False
     plot_horizontal_slices: False
-    plot_vertical_slices: False
+    plot_vertical_slices: True
+    plot_vpvs: True
     
     updated_plot:
-        plot_horizontal: True
+        plot_horizontal: False
         plot_vertical: False
     
 
 pre_processing:
-    model_num: 3
-    ref_model_num: 2 # For plotting updated amount
+    model_num: 28
+    ref_model_num: 0 # For plotting updated amount
     lon_range: [119.0, 123.0]
     lat_range: [21.0, 26.0]
     dep_range: [0., 200]
@@ -52,12 +53,12 @@ vertical_slice:
         topo_range_for_plot: [-8000, 4000] # e.g. [-8000, 4000] means -8000 to 4000 m
         surface_spacing: 1
     general_flag:
-        plot_eq: True # 1: plot eq, 0: not plot eq
+        plot_eq: False # 1: plot eq, 0: not plot eq
         plot_mapview: True # 1: plot mapview, 0: not plot mapview
     general_file:
         topo_grd: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/taiwan_topo.grd
-        profile_input: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/profile.input
-        eq_file: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/87_simple.txt
+        profile_input: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/profile_specific.input
+        eq_file: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/simple.csv
     
     fine_tune_perturb:
         scalar_list: ['dvp', 'dvs'] # ['dvp', 'dvs', 'drho']
@@ -73,7 +74,7 @@ vertical_slice:
         reverse_cmap: True # True or False
         contour:
             plot_contour: True
-            line_interval: 0.5   # unit
+            line_interval: 0.25   # unit
             annotation_interval: 1.0 # unit
     
     fine_tune_updated:
@@ -87,3 +88,11 @@ vertical_slice:
             line_interval: 0.5   # unit
             annotation_interval: 1.0 # unit
         
+    fine_tune_vpvs:
+        scalar_range: [1.5, 2]  # each element is a list corresponding to the scalar_list 
+        cmap: 'rainbow'
+        reverse_cmap: False # True or False
+        contour:
+            plot_contour: True
+            line_interval: 0.05   # unit
+            annotation_interval: 0.1 # unit

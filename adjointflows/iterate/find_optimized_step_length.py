@@ -50,7 +50,7 @@ class StepLengthOptimizer:
         self.step_beg            = config.get('line_search.step_beg')
         self.step_end            = config.get('line_search.step_end')
         self.max_fail            = config.get('inversion.max_fail')
-
+        self.shrink_factor       = config.get('inversion.backtracking_shrink')
         
         self.nproc               = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
 
@@ -469,13 +469,13 @@ class StepLengthOptimizer:
             if not pass_zero_step:
                 self.result_logger.info(f"BACKTRACKING LINE SEARCH: in step index {self.step_index} and misfit_new is still larger than the misfit in zero step")
                 self.result_logger.info(f"BACKTRACKING LINE SEARCH: so we reduce the step length and keep finding a better step which can reduce misfit!")
-                alpha *= 0.5
+                alpha *= self.shrink_factor 
                 continue
 
             elif misfit_new < misfit_old:
                 self.result_logger.info(f"BACKTRACKING LINE SEARCH: misfit reduced! NEXT")
                 self.give_current_best_step_length(step_length_tmp=alpha)
-                alpha *= 0.5
+                alpha *= self.shrink_factor 
                 continue
             else:
                 breakㄈ

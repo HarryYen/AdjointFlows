@@ -1,6 +1,7 @@
 setup:
   workflow:
     start_step: 0               # which step you start (0: forward, 1: post_processing, 2: inversion)
+    only_gradient: 1           # 1: only compute gradient and skip inversion step and will not care about misfit reduction
     testing_mode:
       test_flexwin: 0           # 1: only generate time windows using FLEXWIN (for tuning or pre-select windows)
       test_forward_flag: 0      # 0: skip forward (for the situation you have done synthetics), 1: do forward before selecting windows
@@ -25,7 +26,7 @@ inversion:
   max_fail: 3               # Maximum allowed failures to reduce the misfit
   max_model_update: 999     # Max amount you can accept when updating the model (new - old)
   do_backtracking_line_search: 1 # Do backtracking line search (1: yes, 0: no), only for L-BFGS
-
+  backtracking_shrink: 0.8  # Shrink ratio of step length in backtracking line search
 
 data:
   list:

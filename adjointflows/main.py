@@ -66,6 +66,7 @@ def main():
     current_model_num = config.get('setup.model.current_model_num')
     stage_initial_model = config.get('setup.stage.stage_initial_model')
     which_step = config.get('setup.workflow.start_step')
+    only_gradient = config.get('setup.workflow.only_gradient')
     
     attempt = 0
     misfit_reduced = False
@@ -110,10 +111,13 @@ def main():
         
         if test_flexwin:
             workflow_controller.run_forward_for_tuning_flexwin(do_forward=test_forward_flag)
-            sys.exit()
+            sys.exit(0)
         else:
             workflow_controller.run_forward()
         
+        if only_gradient:
+            result_logger.info("Only compute gradient as requested by user. Jump to post-processing step.")
+            break
         
         if workflow_controller.misfit_check():
             misfit_reduced = True
@@ -129,6 +133,9 @@ def main():
     if which_step <= step_name_list.index('post_processing'):
         workflow_controller.move_to_other_directory(folder_to_move='specfem')
         workflow_controller.create_misfit_kernel()
+        if only_gradient:
+            result_logger.info("Only compute gradient as requested by user. Stop after post-processing step.")
+            sys.exit(0)
 
     if which_step <= step_name_list.index('inversion'):
         workflow_controller.move_to_other_directory(folder_to_move='adjointflows')

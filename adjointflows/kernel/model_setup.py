@@ -68,7 +68,7 @@ class ModelGenerator:
         if nproc == 1:
             subprocess.run(["./bin/xmeshfem3D"], check=True)
         else:
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xmeshfem3D'], 
+            subprocess.run([str(self.mpirun_path), '-np' , str(nproc), './bin/xmeshfem3D'], 
                            check=True, env=os.environ)
         self.debug_logger.info("Done meshing")
         
@@ -81,7 +81,7 @@ class ModelGenerator:
         if nproc == 1:
             subprocess.run(['./bin/xgenerate_databases'], check=True)
         else:
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xgenerate_databases'], 
+            subprocess.run([str(self.mpirun_path), '-np' , str(nproc), './bin/xgenerate_databases'], 
                            check=True, env=os.environ)
         
         self.debug_logger.info("Done database generating")

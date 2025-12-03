@@ -16,7 +16,8 @@ def main():
     plot_vertical_slices = plot_config.get('work_flow.plot_vertical_slices')
     plot_horizontal_updated_amount = plot_config.get('work_flow.updated_plot.plot_horizontal')
     plot_vertical_updated_amount = plot_config.get('work_flow.updated_plot.plot_vertical')
-
+    plot_vpvs = plot_config.get('work_flow.plot_vpvs')
+    
     model_n = plot_config.get('pre_processing.model_num')
     lon_range = plot_config.get('pre_processing.lon_range')
     lat_range = plot_config.get('pre_processing.lat_range')
@@ -55,6 +56,7 @@ def main():
         vp_abs = vp_abs / 1000.
         vs_abs = vs_abs / 1000.
         rho_abs = rho_abs / 1000.
+              
         visualizer.output_model_txt_file(output_file_name='model.xyz',
                                 v1_abs=vp_abs, v1_pert=vp_pert, 
                                 v2_abs=vs_abs, v2_pert=vs_pert,
@@ -67,6 +69,8 @@ def main():
     if plot_vertical_slices:
         visualizer.plot_vertical_profile_pert()
         visualizer.plot_vertical_profile_abs()
+        if plot_vpvs:
+            visualizer.plot_vertical_profile_vpvs()
 
 
     if plot_horizontal_updated_amount:

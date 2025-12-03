@@ -3,7 +3,8 @@ from tools.job_utils import check_dir_exists
 from vtk.util.numpy_support import vtk_to_numpy
 from plotting_modules import utm_to_lonlat, get_values_by_kdtree, lonlat_to_utm, get_points_by_projection
 from horizontal_slices import plot_horizontal_slices_pert, plot_horizontal_slices_abs, plot_horizontal_slices_gradient, plot_horizontal_slices_updated
-from vertical_slices import plot_vertical_slices_pert, plot_vertical_slices_abs, plot_vertical_slices_updated
+from vertical_slices import plot_vertical_slices_pert, plot_vertical_slices_abs, plot_vertical_slices_updated, plot_vertical_slices_vpvs
+from vertical_slices_grad_diff import plot_vertical_slices_grad_diff
 import os
 import json
 import subprocess
@@ -82,7 +83,7 @@ class TomographyVisualizer:
         """
         os.chdir(self.specfem_dir)
         subprocess.run(
-            ['./bin/xcombine_vol_data_vtu', '0', f'{self.nproc-1}', f'{model_name}', f'{self.databases_dir}', f'{self.databases_dir}', '1'],
+            ['./bin/xcombine_vol_data_vtu', '0', f'{self.nproc-1}', f'{model_name}', f'{self.databases_dir}', f'{self.databases_dir}', '0'],
             check=True
         )
         os.chdir(self.adjflows_dir)
@@ -94,78 +95,100 @@ class TomographyVisualizer:
         """
         os.chdir(self.specfem_dir)
         subprocess.run(
-            ['./bin/xcombine_vol_data_vtu', '0', f'{self.nproc-1}', f'{kernel_name}', f'{self.kernels_dir}', f'{self.databases_dir}', '1'],
+            ['./bin/xcombine_vol_data_vtu', '0', f'{self.nproc-1}', f'{kernel_name}', f'{self.kernels_dir}', f'{self.databases_dir}', '0'],
             check=True
         )
         os.chdir(self.adjflows_dir)
         
-    
-    
     def project_gll_to_regular(self, kernel_name, utm_zone, is_north_hemisphere):
         """
-        Input the GLL table and output the values array based on regular coordinates
-        Include absolute value and perturbation
+        Input the GLL table (.vtu) and output values on a regular (lon, lat, dep) grid
+        using element-aware probing instead of 'thick-slab' point selection.
+
         Args:
-            kernel_name (str) : the name of the kernel 
-                                (find the file in the DATABASES_MPI called {kernel_name}.vtu)
-            utm_zone (int)    : the UTM zone (e.g. 50)
-            is_north_hemisphere (bool) : whether the region is in the northern
-        Return:
-            abs_arr (np.array)  : the absolute value of the interpolated values (1-D)
-            pert_arr (np.array) : the perturbation of the interpolated values (1-D)
+            kernel_name (str): name of the kernel; read {kernel_name}.vtu under DATABASES_MPI
+            utm_zone (int): UTM zone number (e.g., 50)
+            is_north_hemisphere (bool): True if northern hemisphere
+
+        Returns:
+            abs_arr  (np.array, 1-D): concatenated absolute values at each requested depth
+            pert_arr (np.array, 1-D): concatenated percent perturbations relative to
+                                    the nan-mean at each depth
         """
+        # --- 1) Read UnstructuredGrid ---
         gll_file = os.path.join(self.databases_dir, f'{kernel_name}.vtu')
-        
         reader = vtk.vtkXMLUnstructuredGridReader()
         reader.SetFileName(str(gll_file))
         reader.Update()
-          
-        ugrid = reader.GetOutput()
-        points = ugrid.GetPoints().GetData()
-        points_array = vtk_to_numpy(points)
-  
-        point_data = ugrid.GetPointData()
-        data = point_data.GetArray(str(kernel_name))
-        data_array = vtk_to_numpy(data)
-        
-        position_arr = points_array.T
-        # change depth of the positive direction
-        given_dep = position_arr[2,:] / -1.
-        given_x, given_y = position_arr[0,:], position_arr[1,:]
-        
+        ugrid = reader.GetOutput()  # vtkUnstructuredGrid
+
+        # Check
+        pdt = ugrid.GetPointData()
+        data_array_vtk = pdt.GetArray(str(kernel_name))
+        if data_array_vtk is None:
+            raise ValueError(f"Point-data array '{kernel_name}' not found in {gll_file}")
+
+        # --- 2) create query lon/lat grids ---
         query_lon_arr = self.query_lon_arr
-        query_lat_arr = self.query_lat_arr
-        query_lon, query_lat = np.meshgrid(query_lon_arr, query_lat_arr, indexing='ij')
-        query_lon = query_lon.flatten()
-        query_lat = query_lat.flatten()
-        query_x, query_y = lonlat_to_utm(lon=query_lon, lat=query_lat, utm_zone=utm_zone, is_north_hemisphere=is_north_hemisphere)
-        
-        abs_list = []
-        pert_list = []
-        for specified_dep in self.query_dep_arr:
-            print(specified_dep)
-            specified_dep_meter = specified_dep * 1E+03
-            # double_dep_interval = self.dep_interval * 2 * 1E+03
-            # dep_filter = (given_dep >= specified_dep_meter - double_dep_interval)&(given_dep <= specified_dep_meter + double_dep_interval)
-            dep_filter = (given_dep >= specified_dep_meter - 200)&(given_dep <= specified_dep_meter + 200)
-            # query_dep = np.ones_like(query_x) * specified_dep_meter
-            # given_dep_filter = given_dep[dep_filter]
-            given_x_filter = given_x[dep_filter]
-            given_y_filter = given_y[dep_filter]
-            data_array_filter = data_array[dep_filter]
+        query_lat_arr = self.query_lat_arr 
+        qlon, qlat = np.meshgrid(query_lon_arr, query_lat_arr, indexing='ij')
+        qlon = qlon.ravel()
+        qlat = qlat.ravel()
+
+        query_x, query_y = lonlat_to_utm(
+            lon=qlon, lat=qlat, utm_zone=utm_zone, is_north_hemisphere=is_north_hemisphere
+        )
+
+        # --- 3) post-processing with depth ---
+        abs_list, pert_list = [], []
+
+        for specified_dep_km in self.query_dep_arr:
             
-            interp_arr = get_points_by_projection(query_x=query_x, query_y=query_y, 
-                                                  given_x=given_x_filter, given_y=given_y_filter, 
-                                                  data_arr=data_array_filter)
-            mean_in_this_dep = np.nanmean(interp_arr)
-            data_values_pert_arr = (interp_arr - mean_in_this_dep) / mean_in_this_dep * 1E+02
-            abs_list.append(interp_arr)
-            pert_list.append(data_values_pert_arr)
-        
+            z0 = -float(specified_dep_km) * 1e3
+
+            # 3a) (x, y, z0) -> vtkPolyData
+            pts = vtk.vtkPoints()
+            pts.SetNumberOfPoints(len(query_x))
+            for i in range(len(query_x)):
+                pts.SetPoint(i, float(query_x[i]), float(query_y[i]), z0)
+
+            pd = vtk.vtkPolyData()
+            pd.SetPoints(pts)
+
+            # 3b) Use ProbeFilter to sample
+            probe = vtk.vtkProbeFilter()
+            probe.SetSourceData(ugrid) 
+            probe.SetInputData(pd)      
+            probe.Update()
+            sampled = probe.GetOutput()
+
+            # 3c) get array
+            val_vtk = sampled.GetPointData().GetArray(str(kernel_name))
+            if val_vtk is None:
+                vals = np.full(len(query_x), np.nan, dtype=float)
+            else:
+                vals = vtk_to_numpy(val_vtk).astype(float)
+
+                mask_vtk = sampled.GetPointData().GetArray("vtkValidPointMask")
+                if mask_vtk is not None:
+                    mask = vtk_to_numpy(mask_vtk).astype(bool)
+                    vals[~mask] = np.nan
+
+            # 3d) calculate perturbation
+            mean_in_this_dep = np.nanmean(vals)
+            if not np.isfinite(mean_in_this_dep) or mean_in_this_dep == 0.0:
+                pert = np.full_like(vals, np.nan)
+            else:
+                pert = (vals - mean_in_this_dep) / mean_in_this_dep * 1e2
+
+            abs_list.append(vals)
+            pert_list.append(pert)
+
+        # --- 4) concatenate all depths ---
         abs_arr = np.hstack(abs_list)
         pert_arr = np.hstack(pert_list)
-        
         return abs_arr, pert_arr
+    
     
     def output_model_txt_file(self, output_file_name, v1_abs, v1_pert, v2_abs, v2_pert, v3_abs, v3_pert):
         """
@@ -287,6 +310,12 @@ class TomographyVisualizer:
         Plot the vertical profile of the kernel (absolute values)
         """
         plot_vertical_slices_abs(input_dir=self.output_dir, output_dir=self.output_dir)
+
+    def plot_vertical_profile_vpvs(self):
+        """
+        Plot the vertical profile of the kernel (vpvs ratio values)
+        """
+        plot_vertical_slices_vpvs(input_dir=self.output_dir, output_dir=self.output_dir)
     
     def plot_vertical_profile_updated(self, model_ref_num):
         """
@@ -297,4 +326,3 @@ class TomographyVisualizer:
         input_dir_ref = os.path.join(self.base_dir, 'TOMO', f'm{model_ref_num:03d}', 'OUTPUT')
         plot_vertical_slices_updated(input_dir=self.output_dir, input_dir_ref=input_dir_ref, output_dir=self.output_dir,
                                      model_n=self.model_num, model_ref_n=model_ref_num)
-        
