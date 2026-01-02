@@ -24,6 +24,7 @@ class WorkflowController:
         self.do_backtracking_ls  = int(self.config.get('inversion.do_backtracking_line_search'))
         
         self.precondition_flag   = bool(self.config.get('inversion.precondition_flag'))
+        self.do_wave_simulation = bool(config.get('setup.workflow.do_wave_simulation'))
 
         self.tomo_dir     = os.path.join(self.base_dir, 'TOMO', f'm{self.current_model_num:03d}')
 
@@ -82,8 +83,7 @@ class WorkflowController:
         """
         Setup files and directories for the following adjoint tomography processes
         """
-        remove_flag = lambda num: num == 0
-        clear_dir_flag = remove_flag(self.ichk)
+        clear_dir_flag = self.do_wave_simulation and not self.ichk
         # if the L-BFGS fail number is NOT 0, remove the directories
         if self.inversion_method == 'LBFGS':
             if self.lbfgs_fail_num != 0:
@@ -114,7 +114,7 @@ class WorkflowController:
         self.iteration_process.update_specfem_params()
         self.iteration_process.save_params_json()
 
-    def run_forward(self):
+    def run_forward(self, do_forward, do_adjoint):
         """
         Run the adjoint tomography processes
         """
@@ -122,7 +122,7 @@ class WorkflowController:
         forward_generator.preprocessing()
         forward_generator.output_vars_file()
         index_evt_last = forward_generator.check_last_event()
-        forward_generator.process_each_event(index_evt_last)
+        forward_generator.process_each_event(index_evt_last, do_forward, do_adjoint)
         
     def run_forward_for_tuning_flexwin(self, do_forward):
         """

@@ -51,7 +51,7 @@ def setup_logging():
 def main():
 
     # --------------------------------------------------------------------------
-    # Settings
+    # (0a) Setting up parameters from config file
     # --------------------------------------------------------------------------
     
     setup_logging()
@@ -63,32 +63,46 @@ def main():
     config.load()
     
     MAX_ATTEMPTS = config.get('inversion.max_fail')
-    current_model_num = config.get('setup.model.current_model_num')
-    stage_initial_model = config.get('setup.stage.stage_initial_model')
-    which_step = config.get('setup.workflow.start_step')
-    only_gradient = config.get('setup.workflow.only_gradient')
     
+    run_mode = config.get('setup.workflow.run_mode')
+    start_from_stage = config.get('setup.workflow.start_from_stage')
+    end_at_stage = config.get('setup.workflow.end_at_stage')
+    forward_stop_at = config.get('setup.workflow.forward_stop_at')
+    do_wave_simulation = bool(config.get('setup.workflow.do_wave_simulation'))
+    
+
     attempt = 0
     misfit_reduced = False
     do_mesh = bool(config.get('setup.model.do_mesh'))
-    test_flexwin = bool(config.get('setup.workflow.testing_mode.test_flexwin'))
-    test_forward_flag = bool(config.get('setup.workflow.testing_mode.test_forward_flag'))
+    do_generate = bool(config.get('setup.model.do_generate'))
+
     # ---------------------------------------------------------------------------
+    # (0b) Checking and modifying parameters
+    # ---------------------------------------------------------------------------
+    # Check the stage order
+    stage_order = {
+        "forward": 1,
+        "postprocess": 2,
+        "inversion": 3,
+    }
+    start_index = stage_order[start_from_stage]
+    end_index = stage_order[end_at_stage]
+    if start_index > end_index:
+        result_logger.error(f'start_from_stage ({start_from_stage}) cannot be after end_at_stage ({end_at_stage}).')
+        raise ValueError("start_from_stage cannot be after end_at_stage.")
     
+    # Check the effectivity of forward_stop_at
+    if end_at_stage != 'forward':
+        forward_stop_at = 'full'
+    
+    do_adjoint = forward_stop_at != 'misfit'
+    
+    # ---------------------------------------------------------------------------
+    # (0c) Initiation
+    # ---------------------------------------------------------------------------
     workflow_controller = WorkflowController(config=config, global_params=GLOBAL_PARAMS)
-
     workflow_controller.setup_for_fail()
-
-    # ---------------------------------------------------------------------------
-    # determine which step to start
-    # ---------------------------------------------------------------------------
-    step_name_list = [
-        'forward',
-        'post_processing',
-        'inversion',
-    ]
-    
-    result_logger.info(f"Workflow: User choose to start from {step_name_list[which_step]}")
+    result_logger.info(f"Workflow: User choose to start from {start_from_stage}")
     # ---------------------------------------------------------------------------
     """
     Main loop
@@ -102,42 +116,67 @@ def main():
         5. do inversion (Steepest descent or L-BFGS)
     """
     
-    while not misfit_reduced and attempt < MAX_ATTEMPTS and which_step <= step_name_list.index('forward'):
+    while not misfit_reduced and attempt < MAX_ATTEMPTS and stage_order[start_from_stage] <= stage_order['forward']:
+        
         attempt += 1
-        
+        # -------------------------------------------------------------------------
+        # (1) Mesh and generate model  
+        # -------------------------------------------------------------------------
         workflow_controller.move_to_other_directory(folder_to_move='specfem')
-
-        workflow_controller.generate_model(mesh_flag=do_mesh)
+        if do_generate or attempt > 1:
+            workflow_controller.generate_model(mesh_flag=do_mesh)
         
-        if test_flexwin:
-            workflow_controller.run_forward_for_tuning_flexwin(do_forward=test_forward_flag)
-            sys.exit(0)
+        # -------------------------------------------------------------------------
+        # (2) Forward (Pipeline or tuning parameters from FLEXWIN)  
+        # -------------------------------------------------------------------------
+        if run_mode == 'flexwin_test':
+            workflow_controller.run_forward_for_tuning_flexwin(do_forward=do_wave_simulation)
+            return 0
         else:
-            workflow_controller.run_forward()
+            workflow_controller.run_forward(do_forward=do_wave_simulation, do_adjoint=do_adjoint)
         
-        if only_gradient:
-            result_logger.info("Only compute gradient as requested by user. Jump to post-processing step.")
+        # -------------------------------------------------------------------------
+        # (2a) Handle forward-stop modes:
+        #   - 'gradient': stop forward after gradient computation (continue to next stage)
+        #   - 'misfit'  : stop entire pipeline after misfit measurement
+        # -------------------------------------------------------------------------
+        if forward_stop_at == 'gradient':
+            result_logger.info("forward_stop_at='gradient': forward terminated after gradient computation.")
             break
+        elif forward_stop_at == 'misfit':
+            result_logger.info("Only compute misfit as requested by user. STOP!.")
+            return 0
         
+        # -------------------------------------------------------------------------
+        # (3) Check whether the misfit is lower (if the run_mode == 'pipeline')
+        # ------------------------------------------------------------------------- 
         if workflow_controller.misfit_check():
             misfit_reduced = True
         else:
             workflow_controller.reupdate_model_if_misfit_not_reduced()
         do_mesh = False
-        
+    
+    # -------------------------------------------------------------------------
+    # (4) Check if the attempt number exceeds MAX_ATTEPTS
+    # -------------------------------------------------------------------------
     if not misfit_reduced and attempt == MAX_ATTEMPTS:
         result_logger.warning("STOP: Reached max attempts without reducing misfit.")
-        sys.exit(0)
+        return 0
 
-    
-    if which_step <= step_name_list.index('post_processing'):
+    # -------------------------------------------------------------------------
+    # (5) Post-processing: smoothing and summing up kernels
+    # -------------------------------------------------------------------------
+    if start_index <= stage_order['postprocess']:
         workflow_controller.move_to_other_directory(folder_to_move='specfem')
         workflow_controller.create_misfit_kernel()
-        if only_gradient:
+        if forward_stop_at == 'gradient':
             result_logger.info("Only compute gradient as requested by user. Stop after post-processing step.")
-            sys.exit(0)
-
-    if which_step <= step_name_list.index('inversion'):
+            
+            return 0
+    # -------------------------------------------------------------------------
+    # (6) Inversion
+    # -------------------------------------------------------------------------
+    if start_index <= stage_order['inversion']:
         workflow_controller.move_to_other_directory(folder_to_move='adjointflows')
         workflow_controller.do_iteration()
 
@@ -147,4 +186,5 @@ def main():
 
 if __name__ == '__main__':
     
-    main()	
+    main_status = main()
+    sys.exit(main_status)

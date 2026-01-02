@@ -159,11 +159,14 @@ def plot_horizontal_slices_abs(map_region, base_dir, input_dir, output_dir):
 
 def plot_horizontal_slices_gradient(map_region, base_dir, input_dir, output_dir):    
 
+    current_dir = os.path.dirname(__file__)
+    with open(os.path.join(current_dir, 'plot_config.yaml'), 'r') as file:
+        config = yaml.safe_load(file)
     
+    config_horizontal = config['horizontal_slice']
     scalar_list = ['alpha','beta','rho']
     # unit_list = ['km/s', 'km/s', 'g/cm^3']
-    depth_list = [6, 10, 15, 20, 30, 50, 80, 120, 150]
-
+    depth_list = config_horizontal['general_map']['depth_list']
 
 
     input_file = os.path.join(input_dir, 'gradient.xyz')

@@ -409,7 +409,7 @@ class StepLengthOptimizer:
             command = f"python {script_dir} {step_fac} {int(lbfgs_flag)} {int(line_search_flag)}"
             subprocess.run(command, shell=True, check=True)
         else:
-            command = f'{self.py_mpirun_path} --hostfile {self.pbs_nodefile} -np {nproc} python {script_dir} {step_fac} {int(lbfgs_flag)} {int(line_search_flag)}'
+            command = f'{self.py_mpirun_path} -np {nproc} python {script_dir} {step_fac} {int(lbfgs_flag)} {int(line_search_flag)}'
             self.debug_logger.info(f"Command: {command}")
             subprocess.run(command, shell=True, check=True, env=env)
         
@@ -478,7 +478,7 @@ class StepLengthOptimizer:
                 alpha *= self.shrink_factor 
                 continue
             else:
-                breakㄈ
+                break
 
 
     def quadratic_interpolation(self, phi_o, phi0, alpha, phi_grad):

@@ -93,7 +93,7 @@ class IterationProcess:
             command = f"python {script_dir}"
             subprocess.run(command, shell=True, check=True)
         else:
-            command = f'{self.mpirun_path} --hostfile {self.pbs_nodefile} -np {nproc} python {script_dir}'
+            command = f'{self.mpirun_path} -np {nproc} python {script_dir}'
             subprocess.run(command, shell=True, check=True, env=env)
 
         self.result_logger.info("Done preconditioning!")
@@ -123,7 +123,7 @@ class IterationProcess:
             command = f"python {script_dir}"
             subprocess.run(command, shell=True, check=True)
         else:
-            command = f'{self.mpirun_path} --hostfile {self.pbs_nodefile} -np {nproc} python {script_dir}'
+            command = f'{self.mpirun_path} -np {nproc} python {script_dir}'
             subprocess.run(command, shell=True, check=True, env=env)
 
         self.result_logger.info("Done Steepest direction method!")
@@ -156,7 +156,7 @@ class IterationProcess:
             command = f"python {script_dir}"
             subprocess.run(command, shell=True, check=True)
         else:
-            command = f'{self.mpirun_path} --hostfile {self.pbs_nodefile} -np {nproc} python {script_dir}'
+            command = f'{self.mpirun_path} -np {nproc} python {script_dir}'
             subprocess.run(command, shell=True, check=True, env=env)
 
         self.result_logger.info("Done L-BFGS method!")
@@ -179,7 +179,7 @@ class IterationProcess:
             command = f"python {script_dir} {step_fac} {int(lbfgs_flag)} {int(line_search_flag)}"
             subprocess.run(command, shell=True, check=True, env=env)
         else:
-            command = f'{self.mpirun_path} --hostfile {self.pbs_nodefile} -np {nproc} python {script_dir} {step_fac} {int(lbfgs_flag)} {int(line_search_flag)}'
+            command = f'{self.mpirun_path} -np {nproc} python {script_dir} {step_fac} {int(lbfgs_flag)} {int(line_search_flag)}'
             subprocess.run(command, shell=True, check=True, env=env)
 
         self.result_logger.info("Done Updating Model!")

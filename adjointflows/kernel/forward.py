@@ -98,11 +98,12 @@ class ForwardGenerator:
             return index_evt_last
         return 0
     
-    def process_each_event(self, index_evt_last):
+    def process_each_event(self, index_evt_last, do_forward, do_adjoint):
         """
         It controls the loop for doing forward and adjoint simulation of each event.
         Args:
             index_evt_last (int): The index of the event we will start here
+            do_forward (bool): Whether we do the forward modeling using SPECFEM3D
         """
         evt_df = pd.read_csv(self.evlst, sep='\s+', 
                              names=['name', 'date', 'time', 'lon', 'lat', 'dep',
@@ -124,28 +125,35 @@ class ForwardGenerator:
             # -----------------------
             # forward modeling
             # -----------------------
-            subprocess.run('./utils/change_simulation_type.pl -F', shell=True)
-            remove_files_with_pattern('OUTPUT_FILES/*.sem?')
-            self.run_simulator()
-            self.debug_logger.info(f'Done {event_name} forward simulation')
-            self.prepare_adjoint_simulation(event_name)            
-            self.select_windows_and_measure_misfit(event_name=event_name)
+            if do_forward:
+                subprocess.run('./utils/change_simulation_type.pl -F', shell=True)
+                remove_files_with_pattern('OUTPUT_FILES/*.sem?')
+                self.run_simulator()
+                self.result_logger.info(f'Done {event_name} forward simulation')
+            else:
+                self.result_logger.info(f'Skip {event_name} forward simulation')
+                shutil.copy("DATA/STATIONS", "DATA/STATIONS_FILTERED")
             
+            keep_syn_wav = not do_forward  
+            self.prepare_adjoint_simulation(event_name=event_name, keep_syn_wav=keep_syn_wav)            
+            self.select_windows_and_measure_misfit(event_name=event_name)
+    
             os.chdir(self.specfem_dir)
             time.sleep(2)
             
             # -----------------------
             # adjoint modeling
             # -----------------------
-            subprocess.run('./utils/change_simulation_type.pl -b', shell=True)
-            self.run_simulator()
-            self.debug_logger.info(f'Done {event_name} adjoint simulation')
-            
-            move_files(src_dir = f'{self.specfem_dir}/DATABASES_MPI', 
-                       dst_dir = f'{self.specfem_dir}/KERNEL/DATABASE/{event_name}', 
-                       pattern = 'proc*kernel.bin')
-            
-            self.result_logger.info("kernel constructed and collected!")
+            if do_adjoint:
+                subprocess.run('./utils/change_simulation_type.pl -b', shell=True)
+                self.run_simulator()
+                self.debug_logger.info(f'Done {event_name} adjoint simulation')
+                
+                move_files(src_dir = f'{self.specfem_dir}/DATABASES_MPI', 
+                        dst_dir = f'{self.specfem_dir}/KERNEL/DATABASE/{event_name}', 
+                        pattern = 'proc*kernel.bin')
+                
+                self.result_logger.info("kernel constructed and collected!")
             
             
     def process_each_event_for_tuning_flexwin(self, index_evt_last, do_forward):
@@ -282,7 +290,7 @@ class ForwardGenerator:
             subprocess.run([str(self.mpirun_path),'-np' , str(nproc), './bin/xspecfem3D'], 
                            check=True, env=os.environ)
     
-    def prepare_adjoint_simulation(self, event_name):
+    def prepare_adjoint_simulation(self, event_name, keep_syn_wav):
         """
         Prepare the adjoint simulation
         """
@@ -290,7 +298,8 @@ class ForwardGenerator:
         syn_dir = Path(syn_path)  
         syn_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy("DATA/STATIONS_FILTERED", "../measure_adj/PLOTS")
-        remove_files_with_pattern(f'{syn_path}/*')
+        if not keep_syn_wav:
+            remove_files_with_pattern(f'{syn_path}/*')
         
         for file in Path("OUTPUT_FILES").glob("*.sem?"):
             shutil.move(str(file), str(syn_dir))

@@ -1,5 +1,5 @@
 from tools.matrix_utils import get_param_from_specfem_file
-from tools.job_utils import check_dir_exists
+from tools.job_utils import check_dir_exists, remove_file
 from vtk.util.numpy_support import vtk_to_numpy
 from plotting_modules import utm_to_lonlat, get_values_by_kdtree, lonlat_to_utm, get_points_by_projection
 from horizontal_slices import plot_horizontal_slices_pert, plot_horizontal_slices_abs, plot_horizontal_slices_gradient, plot_horizontal_slices_updated
@@ -82,6 +82,9 @@ class TomographyVisualizer:
         the script from SPECFEM3D (bin/xcombine_vol_data_vtu)
         """
         os.chdir(self.specfem_dir)
+        target_file_name = f'{model_name}.vtu'
+        remove_file(target_file_name)
+        
         subprocess.run(
             ['./bin/xcombine_vol_data_vtu', '0', f'{self.nproc-1}', f'{model_name}', f'{self.databases_dir}', f'{self.databases_dir}', '0'],
             check=True
@@ -94,6 +97,9 @@ class TomographyVisualizer:
         the script from SPECFEM3D (bin/xcombine_vol_data_vtu)
         """
         os.chdir(self.specfem_dir)
+        target_file_name = f'{kernel_name}.vtu'
+        remove_file(target_file_name)
+        
         subprocess.run(
             ['./bin/xcombine_vol_data_vtu', '0', f'{self.nproc-1}', f'{kernel_name}', f'{self.kernels_dir}', f'{self.databases_dir}', '0'],
             check=True

@@ -89,7 +89,7 @@ class PostProcessing:
         if nproc == 1:
             subprocess.run(["./bin/xsum_preconditioned_kernels"], check=True, env=os.environ)
         else:
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xsum_preconditioned_kernels'], 
+            subprocess.run([str(self.mpirun_path), '-np' , str(nproc), './bin/xsum_preconditioned_kernels'], 
                            check=True, env=os.environ)
         
     def run_sum_kernels(self):
@@ -102,7 +102,7 @@ class PostProcessing:
         if nproc == 1:
             subprocess.run(["./bin/xsum_kernels"], check=True, env=os.environ)
         else:
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc), './bin/xsum_kernels'], 
+            subprocess.run([str(self.mpirun_path), '-np' , str(nproc), './bin/xsum_kernels'], 
                            check=True, env=os.environ)
     
     def run_smoothing(self, precond_flag=False):
@@ -123,17 +123,17 @@ class PostProcessing:
                 subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "hess_inv_kernel", 
                                 "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
         else:
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc),
+            subprocess.run([str(self.mpirun_path), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "alpha_kernel", 
                             "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc),
+            subprocess.run([str(self.mpirun_path), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "beta_kernel", 
                             "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
-            subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc),
+            subprocess.run([str(self.mpirun_path), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "rho_kernel", 
                             "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             if precond_flag:
-                subprocess.run([str(self.mpirun_path), '--hostfile', str(self.pbs_nodefile), '-np' , str(nproc),
+                subprocess.run([str(self.mpirun_path), '-np' , str(nproc),
                                 "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "hess_inv_kernel", 
                                 "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
     
