@@ -38,7 +38,7 @@ class WorkflowController:
 
         self.setup_dir()
         self.iteration_process = IterationProcess(current_model_num=self.current_model_num, config=self.config)
-        self.iteration_process.save_params_json()
+        # self.iteration_process.save_params_json()
 
     def determine_inversion_method(self):
         """
