@@ -21,6 +21,12 @@ setup:
 preprocessing:
   ICHK: 0                    # Check existing files for a continuous run (1: check, 0: start over)
 
+source:
+  type: cmt                  # cmt: use CMTSOLUTION; force: use FORCESOLUTION from station-source list
+  force:
+    depth_km: 0.0
+    auto_set_par_file: 1     # Ensure USE_FORCE_POINT_SOURCE = .true. in specfem3d/DATA/Par_file
+
 inversion:
   precondition_flag: 0      # Precondition (1: yes, 0: no)
   sd_runs_num: 3            # number of run using SD (e.g. 2 means using SD in the first 2 runs, then use LBFGS) 
@@ -32,7 +38,7 @@ inversion:
 
 data:
   list:
-    evlst: fwi_new_cat_version4.txt # Path to event list
+    evlst: fwi_new_cat_version4.txt # Event list (or virtual source station list when source.type=force)
     stlst: sta_new_remove_western.txt # Path to station list
     evchk: fwi_new_cat_version4_18.txt  # Event list to check misfit in line search
   seismogram:

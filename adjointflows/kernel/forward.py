@@ -34,6 +34,21 @@ class ForwardGenerator:
         # self.flexwin_flag        = config.get('setup.flexwin.FLEXWIN_FLAG')
         self.flexwin_mode        = config.get('setup.flexwin.flexwin_mode')
         self.flexwin_user_dir    = config.get('setup.flexwin.flexwin_user_dir')
+        self.source_type         = (config.get('source.type') or 'cmt').lower()
+        if self.source_type not in ('cmt', 'force'):
+            raise ValueError(f"Unknown source.type: {self.source_type}")
+        self.force_depth_km      = config.get('source.force.depth_km', 0.0)
+        if self.force_depth_km is None:
+            self.force_depth_km = 0.0
+        self.force_auto_set_par  = bool(config.get('source.force.auto_set_par_file', True))
+        self.dummy_cmt_date      = '2000/01/01'
+        self.dummy_cmt_time      = '00:00:00'
+        self.dummy_cmt_mag       = 1.0
+        self.dummy_cmt_moment    = (1.0e20, 1.0e20, 1.0e20, 0.0, 0.0, 0.0)
+        self.force_factor        = '1.d10'
+        self.force_direction     = (0.0, 0.0, -1.0)
+        self.force_stf_type      = 0
+        self.force_hdurorf0      = 0.0
         
         self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
         self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', config.get('data.list.stlst'))
@@ -44,7 +59,7 @@ class ForwardGenerator:
 
         self.debug_logger      = logging.getLogger("debug_logger")
         self.result_logger     = logging.getLogger("result_logger")
-        
+
     def preprocessing(self):
         """
         some preprocessing before forward simulation
@@ -59,7 +74,9 @@ class ForwardGenerator:
             error_message = f"STOP: the current directory is not {self.specfem_dir}!"
             self.debug_logger.error(error_message)
             raise ValueError(error_message)
- 
+        if self.source_type == 'force':
+            self.ensure_force_point_source()
+
     def output_vars_file(self):
         """
         Save the current model number in the txt file
@@ -97,6 +114,14 @@ class ForwardGenerator:
             self.debug_logger.info(f"Last time stopped at event {index_evt_last}")
             return index_evt_last
         return 0
+
+    def load_event_list(self):
+        if self.source_type == 'force':
+            return pd.read_csv(self.evlst, sep=r'\s+', names=['name', 'lon', 'lat', 'elev'])
+        return pd.read_csv(self.evlst, sep=r'\s+',
+                           names=['name', 'date', 'time', 'lon', 'lat', 'dep',
+                                  'strike1', 'dip1', 'rake1', 'strike2', 'dip2', 'rake2',
+                                  'Mw', 'MR', 'mrr', 'mtt', 'mpp', 'mrt', 'mrp', 'mtp'])
     
     def process_each_event(self, index_evt_last, do_forward, do_adjoint):
         """
@@ -105,19 +130,16 @@ class ForwardGenerator:
             index_evt_last (int): The index of the event we will start here
             do_forward (bool): Whether we do the forward modeling using SPECFEM3D
         """
-        evt_df = pd.read_csv(self.evlst, sep='\s+', 
-                             names=['name', 'date', 'time', 'lon', 'lat', 'dep',
-                                    'strike1', 'dip1', 'rake1', 'strike2', 'dip2', 'rake2',
-                                    'Mw', 'MR', 'mrr', 'mtt', 'mpp', 'mrt', 'mrp', 'mtp'])
+        evt_df = self.load_event_list()
         sta_df = pd.read_csv(self.stlst, sep='\s+',
                              names=['sta', 'lon', 'lat', 'elev'])
         self.debug_logger.info(f'We start from event {index_evt_last}')
         for evt_i in np.arange(index_evt_last, evt_df.shape[0]):
             event_info = evt_df.iloc[evt_i]
-            event_name = event_info.iloc[0]
+            event_name = str(event_info.iloc[0])
             
             self.debug_logger.info(f"Processing event {event_name}")
-            self.write_cmt_file(event_info)
+            self.write_source_files(event_info)
             self.write_station_file(sta_df)
             
             time.sleep(2)
@@ -167,19 +189,16 @@ class ForwardGenerator:
             index_evt_last (int): The index of the event we will start here
             do_forward (bool): If True, do forward simulation.
         """
-        evt_df = pd.read_csv(self.evlst, sep=r'\s+', 
-                             names=['name', 'date', 'time', 'lon', 'lat', 'dep',
-                                    'strike1', 'dip1', 'rake1', 'strike2', 'dip2', 'rake2',
-                                    'Mw', 'MR', 'mrr', 'mtt', 'mpp', 'mrt', 'mrp', 'mtp'])
+        evt_df = self.load_event_list()
         sta_df = pd.read_csv(self.stlst, sep=r'\s+',
                              names=['sta', 'lon', 'lat', 'elev'])
         self.debug_logger.info(f'We start from event {index_evt_last}')
         for evt_i in np.arange(index_evt_last, evt_df.shape[0]):
             event_info = evt_df.iloc[evt_i]
-            event_name = event_info.iloc[0]
+            event_name = str(event_info.iloc[0])
             
             self.debug_logger.info(f"Processing event {event_name}")
-            self.write_cmt_file(event_info)
+            self.write_source_files(event_info)
             self.write_station_file(sta_df)
             
             time.sleep(2)
@@ -211,9 +230,9 @@ class ForwardGenerator:
         Args:
             event_info (pd.Series): The information of the current event
         """
-        name = event_info['name']
-        date = event_info['date']
-        time = event_info['time']
+        name = str(event_info['name'])
+        date = str(event_info['date'])
+        time = str(event_info['time'])
         lat = event_info['lat']
         lon = event_info['lon']
         dep = event_info['dep']
@@ -234,8 +253,8 @@ class ForwardGenerator:
         remove_file(cmt_file)
         
         with open(cmt_file, 'w') as f:
-            f.write(f"PDE {year:4d} {month:2d} {day:2d} {hour:2d} {min:2d} {sec:5.2f} {lat:6.3f} {lon:6.3f} {dep:4.1f} {mag:3.1f} {mag:3.1f} {name:12d}\n")
-            f.write(f"event name: {name:12d}\n")
+            f.write(f"PDE {year:4d} {month:2d} {day:2d} {hour:2d} {min:2d} {sec:5.2f} {lat:6.3f} {lon:6.3f} {dep:4.1f} {mag:3.1f} {mag:3.1f} {name:>12}\n")
+            f.write(f"event name: {name:>12}\n")
             f.write(f"time shift: 0.0\n")
             f.write(f"half duration: 0.0\n")
             f.write(f"latitude: {lat:6.3f}\n")
@@ -249,6 +268,103 @@ class ForwardGenerator:
             f.write(f"Mtp: {mtp:13.6e}\n")
         
         shutil.copy(cmt_file, self.measure_adj_dir)
+
+    def write_dummy_cmt_file(self, source_info):
+        name = str(source_info['name'])
+        date = self.dummy_cmt_date.replace('-', '/')
+        time_str = self.dummy_cmt_time
+        lat = float(source_info['lat'])
+        lon = float(source_info['lon'])
+        dep = float(self.force_depth_km)
+        mag = float(self.dummy_cmt_mag)
+        mrr, mtt, mpp, mrt, mrp, mtp = self.dummy_cmt_moment
+
+        date_split = date.split('/')
+        time_split = time_str.split(':')
+        year, month, day = int(date_split[0]), int(date_split[1]), int(date_split[2])
+        hour, min, sec = int(time_split[0]), int(time_split[1]), float(time_split[2])
+
+        cmt_file = os.path.join(self.specfem_dir, 'DATA', 'CMTSOLUTION')
+        remove_file(cmt_file)
+
+        with open(cmt_file, 'w') as f:
+            f.write(f"PDE {year:4d} {month:2d} {day:2d} {hour:2d} {min:2d} {sec:5.2f} {lat:6.3f} {lon:6.3f} {dep:4.1f} {mag:3.1f} {mag:3.1f} {name:>12}\n")
+            f.write(f"event name: {name:>12}\n")
+            f.write("time shift: 0.0\n")
+            f.write("half duration: 0.0\n")
+            f.write(f"latitude: {lat:6.3f}\n")
+            f.write(f"longitude: {lon:6.3f}\n")
+            f.write(f"depth: {dep:6.2f}\n")
+            f.write(f"Mrr: {mrr:13.6e}\n")
+            f.write(f"Mtt: {mtt:13.6e}\n")
+            f.write(f"Mpp: {mpp:13.6e}\n")
+            f.write(f"Mrt: {mrt:13.6e}\n")
+            f.write(f"Mrp: {mrp:13.6e}\n")
+            f.write(f"Mtp: {mtp:13.6e}\n")
+
+        shutil.copy(cmt_file, self.measure_adj_dir)
+
+    def write_force_file(self, source_info):
+        lat = float(source_info['lat'])
+        lon = float(source_info['lon'])
+        dep = float(self.force_depth_km)
+        dir_e, dir_n, dir_z = self.force_direction
+        output_lines = [
+            "FORCE  001\n",
+            "time shift:     0.0000\n",
+            f"hdurorf0:        {self.force_hdurorf0}\n",
+            f"latorUTM:       {lat:10.4f}\n",
+            f"longorUTM:      {lon:10.4f}\n",
+            f"depth:          {dep:10.4f}\n",
+            f"source time function:            {self.force_stf_type}\n",
+            f"factor force source:             {self.force_factor}\n",
+            f"component dir vect source E:     {dir_e}\n",
+            f"component dir vect source N:     {dir_n}\n",
+            f"component dir vect source Z_UP:  {dir_z}\n",
+        ]
+
+        force_file = os.path.join(self.specfem_dir, 'DATA', 'FORCESOLUTION')
+        remove_file(force_file)
+        with open(force_file, 'w') as f:
+            f.writelines(output_lines)
+
+    def write_source_files(self, event_info):
+        if self.source_type == 'force':
+            self.write_force_file(event_info)
+            self.write_dummy_cmt_file(event_info)
+            return
+        self.write_cmt_file(event_info)
+
+    def ensure_force_point_source(self):
+        if not self.force_auto_set_par:
+            return
+        updated = False
+        output_lines = []
+        with open(self.specfem_par_file, 'r') as f:
+            for line in f:
+                stripped = line.strip()
+                if not stripped.startswith('USE_FORCE_POINT_SOURCE'):
+                    output_lines.append(line)
+                    continue
+                key, rest = line.split('=', 1)
+                value_part = rest
+                comment = ''
+                if '#' in rest:
+                    value_part, comment = rest.split('#', 1)
+                    comment = '#' + comment.rstrip('\n')
+                if '.true.' in value_part:
+                    output_lines.append(line)
+                    continue
+                new_line = f"{key}= .true."
+                if comment:
+                    new_line += f" {comment}"
+                output_lines.append(new_line.rstrip() + "\n")
+                updated = True
+
+        if updated:
+            with open(self.specfem_par_file, 'w') as f:
+                f.writelines(output_lines)
+
         
     def write_station_file(self, sta_df):
         """
