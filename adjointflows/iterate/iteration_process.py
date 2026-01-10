@@ -34,12 +34,12 @@ class IterationProcess:
         self.n_store_lbfgs       = config.get('inversion.n_store_lbfgs')
         self.stage_initial_model = config.get('setup.stage.stage_initial_model')
         
-        self.nproc = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
-        self.nspec = get_param_from_specfem_file(file=self.model_generate_file, param_name='nspec', param_type=int)
-        self.nglob = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLOB_global_min', param_type=int)
-        self.NGLLX = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLX', param_type=int)
-        self.NGLLY = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLY', param_type=int)
-        self.NGLLZ = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLZ', param_type=int)
+        # self.nproc = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
+        # self.nspec = get_param_from_specfem_file(file=self.model_generate_file, param_name='nspec', param_type=int)
+        # self.nglob = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLOB_global_min', param_type=int)
+        # self.NGLLX = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLX', param_type=int)
+        # self.NGLLY = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLY', param_type=int)
+        # self.NGLLZ = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLZ', param_type=int)
 
         self.debug_logger  = logging.getLogger("debug_logger")
         self.result_logger = logging.getLogger("result_logger")
