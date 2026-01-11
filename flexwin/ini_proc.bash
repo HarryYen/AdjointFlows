@@ -32,8 +32,8 @@ f2=$(echo "scale=3; 1 / $p1"|bc)
 for cmt in `gawk '{print $1"/"$2"/"$3"/"$4"/"$5"/"$6"/"$7"/"$8"/"$9"/"$13"/"$14}' $evlst`
 do
 dir=`echo $cmt | gawk -F[:/] '{print $1}'`
-if [ $1 -ne 0 ]; then
-if [ $1 -ne $dir ]; then
+if [ "$1" != "0" ]; then
+if [ "$1" != "$dir" ]; then
 continue
 fi
 fi

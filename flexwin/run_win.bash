@@ -37,8 +37,8 @@ do
    hr=`echo $cmt | gawk -F[:/] '{print $5}'`
    mi=`echo $cmt | gawk -F[:/] '{print $6}'`
 
-   if [ $1 -ne 0 ]; then
-      if [ $1 -ne $dir ]; then
+   if [ "$1" != "0" ]; then
+      if [ "$1" != "$dir" ]; then
          continue
       fi
    fi
