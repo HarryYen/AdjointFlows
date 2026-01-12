@@ -14,6 +14,19 @@ echo $1    # evt_dir
 par_file=../adjointflows/config.yaml
 evlst=`grep evlst $par_file | gawk '{print $2}'`  # path to event list
 evlst=`echo ../DATA/evlst/$evlst`
+source_type=`awk '/^source:/{flag=1;next} flag && /^[[:space:]]+type:/{print $2; exit}' $par_file`
+if [ "$source_type" = "force" ]; then
+force_depth=`awk '/^source:/{flag=1;next} flag && /depth_km:/{print $2; exit}' $par_file`
+if [ -z "$force_depth" ]; then
+force_depth="0.0"
+fi
+flexwin_evlst="${evlst}.flexwin"
+if [ ! -f "$flexwin_evlst" ] || [ "$evlst" -nt "$flexwin_evlst" ] || [ "$par_file" -nt "$flexwin_evlst" ]; then
+# build a CMT-like event list for FLEXWIN using the virtual station list
+awk -v date="2000/01/01" -v time="00:00:00" -v dep="$force_depth" -v mag="1.0" 'BEGIN {OFS=" "} $1 ~ /^#/ || NF < 3 {next} {print $1, date, time, $2, $3, dep, 0, 0, 0, 0, 0, 0, mag, mag}' "$evlst" > "$flexwin_evlst"
+fi
+evlst="$flexwin_evlst"
+fi
 comp=`grep COMP $par_file  | gawk '{print $2}'`    # synthetic component to use
 en2rt=`grep EN2RT $par_file  | gawk '{print $2}'`  # rotate the E & N comp onent to R & T
 echo $evlst $comp
