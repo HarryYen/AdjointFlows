@@ -39,6 +39,27 @@ p2=`grep P2 $par_file | gawk '{print $2}'`        # max period for bandpass
 comp=`grep COMP $par_file | gawk '{print $2}'`    # synthetic component to use
 en2rt=`grep EN2RT $par_file | gawk '{print $2}'`  # rotate the E & N component to R & T
 
+normalize_sac() {
+local sac_file=$1
+local max_amp
+if [ ! -f "$sac_file" ]; then
+return
+fi
+max_amp=$(saclst depmax depmin f "$sac_file" | awk '{mx=$2; mn=$3; if (mx<0) mx=-mx; if (mn<0) mn=-mn; if (mx<mn) mx=mn; print mx}')
+if [ -z "$max_amp" ]; then
+return
+fi
+awk -v x="$max_amp" 'BEGIN {exit !(x > 0)}'
+if [ $? -eq 0 ]; then
+sac<<EOF
+r $sac_file
+div $max_amp
+w over
+q
+EOF
+fi
+}
+
 
 f1=$(echo "scale=3; 1 / $p2"|bc)
 f2=$(echo "scale=3; 1 / $p1"|bc)
@@ -148,6 +169,12 @@ w ../SYN/$dir/*$stnm.TW.BHR.$comp.sac.tomo ../SYN/$dir/*$stnm.TW.BHT.$comp.sac.t
 cut off
 q
 EOF
+if [ "$source_type" = "force" ]; then
+normalize_sac ../DATA/wav/$dir/$stnm.TW.BHR.sac.tomo
+normalize_sac ../DATA/wav/$dir/$stnm.TW.BHT.sac.tomo
+normalize_sac ../SYN/$dir/*$stnm.TW.BHR.$comp.sac.tomo
+normalize_sac ../SYN/$dir/*$stnm.TW.BHT.$comp.sac.tomo
+fi
 fi
 
 else
@@ -167,6 +194,10 @@ w ../DATA/wav/$dir/$stnm.TW.BHE.sac.tomo ../SYN/$dir/$stnm.TW.BHE.$comp.sac.tomo
 cut off
 q
 EOF
+if [ "$source_type" = "force" ]; then
+normalize_sac ../DATA/wav/$dir/$stnm.TW.BHE.sac.tomo
+normalize_sac ../SYN/$dir/$stnm.TW.BHE.$comp.sac.tomo
+fi
 fi
 if [ -f ../DATA/wav/$dir/$stnm*N.*sac -a -f ../SYN/$dir/*$stnm*N.$comp.*sac ]; then
 sac<<EOF
@@ -181,6 +212,10 @@ w ../DATA/wav/$dir/$stnm.TW.BHN.sac.tomo ../SYN/$dir/$stnm.TW.BHN.$comp.sac.tomo
 cut off
 q
 EOF
+if [ "$source_type" = "force" ]; then
+normalize_sac ../DATA/wav/$dir/$stnm.TW.BHN.sac.tomo
+normalize_sac ../SYN/$dir/$stnm.TW.BHN.$comp.sac.tomo
+fi
 fi
 
 fi
@@ -199,6 +234,10 @@ w ../DATA/wav/$dir/$stnm.TW.BHZ.sac.tomo ../SYN/$dir/$stnm.TW.BHZ.$comp.sac.tomo
 cut off
 q
 EOF
+if [ "$source_type" = "force" ]; then
+normalize_sac ../DATA/wav/$dir/$stnm.TW.BHZ.sac.tomo
+normalize_sac ../SYN/$dir/$stnm.TW.BHZ.$comp.sac.tomo
+fi
 fi
 
 done
@@ -223,4 +262,3 @@ fi
 fi
 done
 #rm half_duration.out
-
