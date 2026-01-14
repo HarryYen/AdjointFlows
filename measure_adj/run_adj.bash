@@ -24,7 +24,9 @@ tmin=`grep tbeg $par_file | gawk '{print $2}'`      # tbeg of simulated waveform
 tmax=`grep tend $par_file | gawk '{print $2}'`      # tend of simulated waveforms for plotting
 # measuring the adjoint sources using flexwin output
 mkdir -p OUTPUT_FILES
-rm -f OUTPUT_FILES/* 
+rm -f OUTPUT_FILES/*
+
+rm window_index window_chi window_chi_sum
 ./measure_adj
 
 
@@ -33,12 +35,6 @@ rm -f PLOTS/SYN/*
 grep SYN MEASUREMENT.WINDOWS | gawk -F. '{print "cp .."$3"."$4"*tomo PLOTS/SYN"}' | sh
 rm -f PLOTS/DATA/*
 grep DATA MEASUREMENT.WINDOWS | gawk -F. '{print "cp .."$3"."$4"*tomo PLOTS/DATA"}' | sh
-
-# # Geographic weighting
-# python apply_geographic_weighting.py $1
-# rm -f OUTPUT_FILES/*adj
-# cp ADJOINT_SOURCES_tmp/* OUTPUT_FILES
-
 
 
 rm -f PLOTS/ADJOINT_SOURCES/*
