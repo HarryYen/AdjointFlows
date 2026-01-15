@@ -4,7 +4,9 @@
 # using a Gaussian having a very close shape, as explained in Figure 5.2
 # of the manual
 
-set hdur_file = "half_duration.out"
+set script_dir = `dirname $0`
+set specfem_root = `cd ${script_dir}/..; pwd`
+set hdur_file = "${specfem_root}/half_duration.out"
 if ( -f $hdur_file ) then
   set half_duration_triangle = `tail -n 1 $hdur_file | awk '{print $1}'`
   if ( "$half_duration_triangle" == "" ) set half_duration_triangle = 1
@@ -12,7 +14,7 @@ else
   set half_duration_triangle = 1
 endif
 # TODO : It shall be better to send this to the script with an option. Ex : ./convolve_source_timefunction fileToConvolve --hdur 11.2
-set SPECFEM_PATH = "~/specfem3d"  # Path to your specfem3d/ directory. TODO Could also be send as an (optional) option --path_to_specfem
+set SPECFEM_PATH = "$specfem_root"  # Path to your specfem3d/ directory. TODO Could also be send as an (optional) option --path_to_specfem
 set use_triangle_source = ".false." # Use .true. for a triangle and .false. for a Gaussian. TODO Idem --use_triangle_source
 
 ########### DO NOT CHANGE ANYTHING BELOW ###########

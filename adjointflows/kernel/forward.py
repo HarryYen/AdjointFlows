@@ -51,6 +51,7 @@ class ForwardGenerator:
         self.force_hdurorf0      = 0.0
         self.synthetic_comp      = config.get('data.seismogram.component.COMP')
         self.synthetic_tcor      = float(config.get('data.seismogram.tcor', 0.0))
+        self.half_duration_file  = os.path.join(self.specfem_dir, "half_duration.out")
         
         self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
         self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', config.get('data.list.stlst'))
@@ -165,7 +166,7 @@ class ForwardGenerator:
                 self.prepare_adjoint_simulation(event_name=event_name, keep_syn_wav=keep_syn_wav)
                 self.select_windows_and_measure_misfit(event_name=event_name)
             else:
-                self.store_synthetics(event_name=event_name, keep_syn_wav=keep_syn_wav)
+                self.store_synthetics(event_name=event_name, keep_syn_wav=keep_syn_wav, event_info=event_info)
     
             os.chdir(self.specfem_dir)
             time.sleep(2)
@@ -413,7 +414,7 @@ class ForwardGenerator:
             subprocess.run([str(self.mpirun_path),'-np' , str(nproc), './bin/xspecfem3D'], 
                            check=True, env=os.environ)
     
-    def store_synthetics(self, event_name, keep_syn_wav):
+    def store_synthetics(self, event_name, keep_syn_wav, event_info):
         """
         Save synthetic seismograms to SYN/ without running FLEXWIN or measure_adj.
         """
@@ -426,9 +427,9 @@ class ForwardGenerator:
         for file in Path("OUTPUT_FILES").glob("*.sem?"):
             shutil.move(str(file), str(syn_dir))
 
-        self.convert_synthetics_to_sac(event_name=event_name)
+        self.convert_synthetics_to_sac(event_name=event_name, event_info=event_info)
 
-    def convert_synthetics_to_sac(self, event_name):
+    def convert_synthetics_to_sac(self, event_name, event_info):
         """
         Convert synthetics to convolved SAC files (same as FLEXWIN preprocessing).
         """
@@ -443,7 +444,8 @@ class ForwardGenerator:
 
         convolve_script = os.path.join(self.specfem_dir, "utils", "convolve_source_timefunction.csh")
         ascii2sac_script = os.path.join(self.specfem_dir, "utils", "seis_process", "ascii2sac.csh")
-        if self.source_type == "force":
+        if self.source_type == "cmt":
+            self.write_half_duration(event_info=event_info)
             subprocess.run(["csh", convolve_script, *[str(f) for f in sem_files]], check=True)
             sac_inputs = [f"{f}.convolved" for f in sem_files]
             sac_glob = f"*.{self.synthetic_comp}.convolved.sac"
@@ -462,6 +464,21 @@ class ForwardGenerator:
             new_b = b_val + self.synthetic_tcor
             sac_input = f"""r {sac_file}\nch b {new_b}\nch o 0\nw over\nq\n"""
             subprocess.run(["sac"], input=sac_input, text=True, check=True)
+
+    def write_half_duration(self, event_info):
+        if event_info is None:
+            return
+        try:
+            mag = float(event_info.get('Mw'))
+        except (TypeError, ValueError, KeyError):
+            self.debug_logger.warning("Missing magnitude for half duration; skip half_duration.out.")
+            return
+        if np.isnan(mag):
+            self.debug_logger.warning("Invalid magnitude for half duration; skip half_duration.out.")
+            return
+        half_duration = 1.1 * (10 ** (-8)) * ((10 ** ((mag + 10.7) * 1.5)) ** (1.0 / 3.0))
+        with open(self.half_duration_file, "w") as f:
+            f.write(f"{half_duration}\n")
 
     def prepare_adjoint_simulation(self, event_name, keep_syn_wav):
         """

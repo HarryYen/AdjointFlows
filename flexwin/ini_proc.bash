@@ -93,11 +93,11 @@ dp=`echo $cmt | gawk -F[:/] '{print $10}'`
 mg=`echo $cmt | gawk -F[:/] '{print $14}'`
 # empirical half duration of source rupture
 hd=`echo $mg  | gawk '{print 1.1*(10**(-8))*((10**(($1+10.7)*1.5))**(1/3)) }'`
-echo $hd > half_duration.out
+echo $hd > ../specfem3d/half_duration.out
 
 
-# convolve source time function scaled by local magnitude (force sources only)
-if [ "$source_type" = "force" ]; then
+# convolve source time function scaled by local magnitude (non-force sources only)
+if [ "$source_type" == "cmt" ]; then
 csh ../specfem3d/utils/convolve_source_timefunction.csh ../SYN/$dir/*.$comp
 fi
 
