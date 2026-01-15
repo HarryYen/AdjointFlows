@@ -27,6 +27,7 @@ class PostProcessing:
         self.sigma_h             = config.get('kernel.smoothing.smooth_par_gradinet.SIGMA_H')
         self.sigma_v             = config.get('kernel.smoothing.smooth_par_gradinet.SIGMA_V')
         self.ivtkout             = config.get('kernel.visualization.IVTKOUT')
+        self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
         
         self.nproc = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
         self.nspec = get_param_from_specfem_file(file=self.model_generate_file, param_name='nspec', param_type=int)
@@ -75,7 +76,23 @@ class PostProcessing:
         replace the linux command `ls KERNEL/DATABASE > kernels_list.txt`
         """
         kernel_dir = f'{self.specfem_dir}/KERNEL/DATABASE'
-        kernel_files = [f.name for f in Path(kernel_dir).iterdir()]
+        event_names = None
+        if self.evlst and os.path.isfile(self.evlst):
+            with open(self.evlst, 'r') as f:
+                event_names = [line.split()[0] for line in f if line.split()]
+
+        if event_names:
+            # Filter by evlst and skip events without kernel files.
+            kernel_files = []
+            for name in event_names:
+                event_dir = Path(kernel_dir) / name
+                if not event_dir.is_dir():
+                    continue
+                if not list(event_dir.glob("proc*kernel.bin")):
+                    continue
+                kernel_files.append(name)
+        else:
+            kernel_files = [f.name for f in Path(kernel_dir).iterdir() if f.is_dir()]
         with open('kernels_list.txt', 'w') as f:
             f.write("\n".join(kernel_files))
     
