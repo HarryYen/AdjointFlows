@@ -96,8 +96,10 @@ hd=`echo $mg  | gawk '{print 1.1*(10**(-8))*((10**(($1+10.7)*1.5))**(1/3)) }'`
 echo $hd > half_duration.out
 
 
-# convolve source time function scaled by local magnitude
+# convolve source time function scaled by local magnitude (force sources only)
+if [ "$source_type" = "force" ]; then
 csh ../specfem3d/utils/convolve_source_timefunction.csh ../SYN/$dir/*.$comp
+fi
 
 # shift begin time and mark the origin time (shift 1.66667 seconds in consistent with RMT process)
 # the file need to be 'REALPATH' !!!

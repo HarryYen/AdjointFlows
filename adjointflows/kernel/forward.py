@@ -49,6 +49,8 @@ class ForwardGenerator:
         self.force_direction     = (0.0, 0.0, -1.0)
         self.force_stf_type      = 0
         self.force_hdurorf0      = 0.0
+        self.synthetic_comp      = config.get('data.seismogram.component.COMP')
+        self.synthetic_tcor      = float(config.get('data.seismogram.tcor', 0.0))
         
         self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
         self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', config.get('data.list.stlst'))
@@ -423,6 +425,43 @@ class ForwardGenerator:
 
         for file in Path("OUTPUT_FILES").glob("*.sem?"):
             shutil.move(str(file), str(syn_dir))
+
+        self.convert_synthetics_to_sac(event_name=event_name)
+
+    def convert_synthetics_to_sac(self, event_name):
+        """
+        Convert synthetics to convolved SAC files (same as FLEXWIN preprocessing).
+        """
+        if not self.synthetic_comp:
+            self.debug_logger.warning("No synthetic component configured; skip SAC conversion.")
+            return
+        syn_dir = Path(f"../SYN/{event_name}")
+        sem_files = sorted(syn_dir.glob(f"*.{self.synthetic_comp}"))
+        if not sem_files:
+            self.debug_logger.warning(f"No synthetic files found for {event_name}; skip SAC conversion.")
+            return
+
+        convolve_script = os.path.join(self.specfem_dir, "utils", "convolve_source_timefunction.csh")
+        ascii2sac_script = os.path.join(self.specfem_dir, "utils", "seis_process", "ascii2sac.csh")
+        if self.source_type == "force":
+            subprocess.run(["csh", convolve_script, *[str(f) for f in sem_files]], check=True)
+            sac_inputs = [f"{f}.convolved" for f in sem_files]
+            sac_glob = f"*.{self.synthetic_comp}.convolved.sac"
+        else:
+            sac_inputs = [str(f) for f in sem_files]
+            sac_glob = f"*.{self.synthetic_comp}.sac"
+        subprocess.run(["csh", ascii2sac_script, *sac_inputs], check=True)
+
+        for sac_file in sorted(syn_dir.glob(sac_glob)):
+            try:
+                output = subprocess.check_output(["saclst", "b", "f", str(sac_file)], text=True).split()
+                b_val = float(output[1]) if len(output) > 1 else 0.0
+            except (subprocess.SubprocessError, ValueError, IndexError):
+                self.debug_logger.warning(f"Failed to read SAC header b for {sac_file}; skip time shift.")
+                continue
+            new_b = b_val + self.synthetic_tcor
+            sac_input = f"""r {sac_file}\nch b {new_b}\nch o 0\nw over\nq\n"""
+            subprocess.run(["sac"], input=sac_input, text=True, check=True)
 
     def prepare_adjoint_simulation(self, event_name, keep_syn_wav):
         """
