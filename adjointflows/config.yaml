@@ -3,7 +3,8 @@ setup:
     run_mode: pipeline          # pipeline: Normal inversion process, flexwin_test: Test FLEXWIN only
     start_from_stage: forward   # [forward, postprocess, inversion]
     end_at_stage: forward      # [forward, postprocess, inversion]
-    forward_stop_at: misfit           # [full, misfit, gradient], only effective when end_at_stage == 'forward'
+    forward_stop_at: misfit           # [full, misfit, gradient, synthetics], only effective when end_at_stage == 'forward'
+    # synthetics: only create synthetic waveforms under SYN/
     do_wave_simulation: 1             # 0: skip waveform simulation (if you have them), 1: do waveform simulation
     
   model:

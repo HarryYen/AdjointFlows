@@ -123,12 +123,14 @@ class ForwardGenerator:
                                   'strike1', 'dip1', 'rake1', 'strike2', 'dip2', 'rake2',
                                   'Mw', 'MR', 'mrr', 'mtt', 'mpp', 'mrt', 'mrp', 'mtp'])
     
-    def process_each_event(self, index_evt_last, do_forward, do_adjoint):
+    def process_each_event(self, index_evt_last, do_forward, do_adjoint, do_measurement):
         """
         It controls the loop for doing forward and adjoint simulation of each event.
         Args:
             index_evt_last (int): The index of the event we will start here
             do_forward (bool): Whether we do the forward modeling using SPECFEM3D
+            do_adjoint (bool): Whether we do the adjoint modeling using SPECFEM3D
+            do_measurement (bool): Whether to run FLEXWIN and measure_adj
         """
         evt_df = self.load_event_list()
         sta_df = pd.read_csv(self.stlst, sep='\s+',
@@ -156,9 +158,12 @@ class ForwardGenerator:
                 self.result_logger.info(f'Skip {event_name} forward simulation')
                 shutil.copy("DATA/STATIONS", "DATA/STATIONS_FILTERED")
             
-            keep_syn_wav = not do_forward  
-            self.prepare_adjoint_simulation(event_name=event_name, keep_syn_wav=keep_syn_wav)            
-            self.select_windows_and_measure_misfit(event_name=event_name)
+            keep_syn_wav = not do_forward
+            if do_measurement:
+                self.prepare_adjoint_simulation(event_name=event_name, keep_syn_wav=keep_syn_wav)
+                self.select_windows_and_measure_misfit(event_name=event_name)
+            else:
+                self.store_synthetics(event_name=event_name, keep_syn_wav=keep_syn_wav)
     
             os.chdir(self.specfem_dir)
             time.sleep(2)
@@ -406,6 +411,19 @@ class ForwardGenerator:
             subprocess.run([str(self.mpirun_path),'-np' , str(nproc), './bin/xspecfem3D'], 
                            check=True, env=os.environ)
     
+    def store_synthetics(self, event_name, keep_syn_wav):
+        """
+        Save synthetic seismograms to SYN/ without running FLEXWIN or measure_adj.
+        """
+        syn_path = f"../SYN/{event_name}"
+        syn_dir = Path(syn_path)
+        syn_dir.mkdir(parents=True, exist_ok=True)
+        if not keep_syn_wav:
+            remove_files_with_pattern(f'{syn_path}/*')
+
+        for file in Path("OUTPUT_FILES").glob("*.sem?"):
+            shutil.move(str(file), str(syn_dir))
+
     def prepare_adjoint_simulation(self, event_name, keep_syn_wav):
         """
         Prepare the adjoint simulation

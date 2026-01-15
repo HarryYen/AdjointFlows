@@ -95,7 +95,8 @@ def main():
     if end_at_stage != 'forward':
         forward_stop_at = 'full'
     
-    do_adjoint = forward_stop_at != 'misfit'
+    do_measurement = forward_stop_at != 'synthetics'
+    do_adjoint = forward_stop_at not in ('misfit', 'synthetics')
     
     # ---------------------------------------------------------------------------
     # (0c) Initiation
@@ -133,18 +134,22 @@ def main():
             workflow_controller.run_forward_for_tuning_flexwin(do_forward=do_wave_simulation)
             return 0
         else:
-            workflow_controller.run_forward(do_forward=do_wave_simulation, do_adjoint=do_adjoint)
+            workflow_controller.run_forward(do_forward=do_wave_simulation, do_adjoint=do_adjoint, do_measurement=do_measurement)
         
         # -------------------------------------------------------------------------
         # (2a) Handle forward-stop modes:
-        #   - 'gradient': stop forward after gradient computation (continue to next stage)
-        #   - 'misfit'  : stop entire pipeline after misfit measurement
+        #   - 'gradient'  : stop forward after gradient computation (continue to next stage)
+        #   - 'misfit'    : stop entire pipeline after misfit measurement
+        #   - 'synthetics': stop after waveform modeling (SYN/ only)
         # -------------------------------------------------------------------------
         if forward_stop_at == 'gradient':
             result_logger.info("forward_stop_at='gradient': forward terminated after gradient computation.")
             break
         elif forward_stop_at == 'misfit':
             result_logger.info("Only compute misfit as requested by user. STOP!.")
+            return 0
+        elif forward_stop_at == 'synthetics':
+            result_logger.info("Only create synthetic waveforms as requested by user. STOP!.")
             return 0
         
         # -------------------------------------------------------------------------

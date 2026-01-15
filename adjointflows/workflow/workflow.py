@@ -114,7 +114,7 @@ class WorkflowController:
         self.iteration_process.update_specfem_params()
         self.iteration_process.save_params_json()
 
-    def run_forward(self, do_forward, do_adjoint):
+    def run_forward(self, do_forward, do_adjoint, do_measurement):
         """
         Run the adjoint tomography processes
         """
@@ -122,7 +122,7 @@ class WorkflowController:
         forward_generator.preprocessing()
         forward_generator.output_vars_file()
         index_evt_last = forward_generator.check_last_event()
-        forward_generator.process_each_event(index_evt_last, do_forward, do_adjoint)
+        forward_generator.process_each_event(index_evt_last, do_forward, do_adjoint, do_measurement)
         
     def run_forward_for_tuning_flexwin(self, do_forward):
         """
