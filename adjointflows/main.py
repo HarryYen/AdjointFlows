@@ -98,7 +98,8 @@ def main():
     do_measurement = forward_stop_at != 'synthetics'
     do_adjoint = forward_stop_at not in ('misfit', 'synthetics')
     if forward_stop_at == 'synthetics' and not do_wave_simulation:
-        result_logger.warning("synthetics mode with do_wave_simulation=0: This is a ineffective action. No new SYN will be generated.")
+        result_logger.error("synthetics mode requires do_wave_simulation=1. STOP!.")
+        return 0
     
     # ---------------------------------------------------------------------------
     # (0c) Initiation
