@@ -48,9 +48,9 @@ cp window_index window_chi window_chi_sum PLOTS
 rm -f STATIONS_ADJOINT
 rm -f ADJOINT_SOURCES/*adj
 if [ $en2rt -eq 1 ]; then
-./prepare_adj_src.pl -m CMTSOLUTION -s PLOTS/STATIONS_FILTERED -z BH -o ADJOINT_SOURCES -i OUTPUT_FILES/*adj -r
+./prepare_adj_src.pl -m CMTSOLUTION -s PLOTS/STATIONS_FILTERED -z BH -o ADJOINT_SOURCES -i 1 OUTPUT_FILES/*adj -r
 else
-./prepare_adj_src.pl -m CMTSOLUTION -s PLOTS/STATIONS_FILTERED -z BH -o ADJOINT_SOURCES -i OUTPUT_FILES/*adj
+./prepare_adj_src.pl -m CMTSOLUTION -s PLOTS/STATIONS_FILTERED -z BH -o ADJOINT_SOURCES -i 1 OUTPUT_FILES/*adj
 fi
 
 rm -f PLOTS/STATIONS_ADJOINT
