@@ -29,6 +29,9 @@ rm -f OUTPUT_FILES/*
 rm window_index window_chi window_chi_sum
 ./measure_adj
 
+shopt -s nullglob
+adj_files=(OUTPUT_FILES/*adj)
+shopt -u nullglob
 
 # collecting files for plotting
 rm -f PLOTS/SYN/*
@@ -37,20 +40,26 @@ rm -f PLOTS/DATA/*
 grep DATA MEASUREMENT.WINDOWS | gawk -F. '{print "cp .."$3"."$4"*tomo PLOTS/DATA"}' | sh
 
 
-rm -f PLOTS/ADJOINT_SOURCES/*
-cp OUTPUT_FILES/*adj PLOTS/ADJOINT_SOURCES
 rm -f PLOTS/RECON/*
+if ls OUTPUT_FILES/*recon.sac >/dev/null 2>&1; then
 ls OUTPUT_FILES/*recon.sac | gawk -F/ '{print "r "$1"/"$2"; ch o 0; w PLOTS/RECON/"$2}END{print "q"}' | sac
+fi
 #cp OUTPUT_FILES/*recon.sac PLOTS/RECON
 cp window_index window_chi window_chi_sum PLOTS
 
 # plotting figures
 rm -f STATIONS_ADJOINT
 rm -f ADJOINT_SOURCES/*adj
-if [ $en2rt -eq 1 ]; then
-./prepare_adj_src.pl -m CMTSOLUTION -s PLOTS/STATIONS_FILTERED -z BH -o ADJOINT_SOURCES -i 1 OUTPUT_FILES/*adj -r
+if [ ${#adj_files[@]} -eq 0 ]; then
+echo "No adjoint sources found; skip prepare_adj_src."
+echo 0 > STATIONS_ADJOINT
 else
-./prepare_adj_src.pl -m CMTSOLUTION -s PLOTS/STATIONS_FILTERED -z BH -o ADJOINT_SOURCES -i 1 OUTPUT_FILES/*adj
+rm -f PLOTS/ADJOINT_SOURCES/*
+cp "${adj_files[@]}" PLOTS/ADJOINT_SOURCES
+if [ $en2rt -eq 1 ]; then
+./prepare_adj_src.pl -m CMTSOLUTION -s PLOTS/STATIONS_FILTERED -z BH -o ADJOINT_SOURCES -i 1 "${adj_files[@]}" -r
+else
+./prepare_adj_src.pl -m CMTSOLUTION -s PLOTS/STATIONS_FILTERED -z BH -o ADJOINT_SOURCES -i 1 "${adj_files[@]}"
 fi
 
 rm -f PLOTS/STATIONS_ADJOINT
@@ -73,6 +82,7 @@ else
 ./plot_win_adj_all.pl -l $tmin/$tmax -m ../CMTSOLUTION -n BH -b 0 -k 7/1 -a STATIONS_ADJOINT -d DATA -s SYN -c RECON -w MEASUREMENT.WINDOWS -i m00 -j $p1/$p2
 fi
 cd ..
+fi
 
 # trasfer ps into png
 cd PLOTS

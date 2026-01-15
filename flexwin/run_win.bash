@@ -59,7 +59,14 @@ do
    if [ -d ../DATA/wav/$dir -a -d ../SYN/$dir ]; then
       echo $dir" match!"
 #      np=`ls ../DATA/$dir | gawk -F. '{print $1"."$2}' | uniq | wc -l`
-      ls ../DATA/wav/$dir/*.tomo | gawk -F[./] '{print $7"."$8"."$9}' > pairs.tmp
+      shopt -s nullglob
+      tomo_files=(../DATA/wav/$dir/*.tomo)
+      shopt -u nullglob
+      if [ ${#tomo_files[@]} -eq 0 ]; then
+         echo "No .tomo files for $dir, skip."
+         continue
+      fi
+      printf "%s\n" "${tomo_files[@]}" | gawk -F[./] '{print $7"."$8"."$9}' > pairs.tmp
 
 #      echo $np > input
 
