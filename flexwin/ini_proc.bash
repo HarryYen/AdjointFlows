@@ -45,7 +45,9 @@ local max_amp
 if [ ! -f "$sac_file" ]; then
 return
 fi
-max_amp=$(saclst depmax depmin f "$sac_file" | awk '{mx=$2; mn=$3; if (mx<0) mx=-mx; if (mn<0) mn=-mn; if (mx<mn) mx=mn; print mx}')
+depmax=$(saclst depmax f "$sac_file" | awk '{print $2}')
+depmin=$(saclst depmin f "$sac_file" | awk '{print $2}')
+max_amp=$(awk -v mx="$depmax" -v mn="$depmin" 'BEGIN {if (mx=="") exit; if (mn=="") mn=0; if (mx<0) mx=-mx; if (mn<0) mn=-mn; if (mx<mn) mx=mn; print mx}')
 if [ -z "$max_amp" ]; then
 return
 fi
