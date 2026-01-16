@@ -103,10 +103,14 @@ def main():
     
     # ---------------------------------------------------------------------------
     # (0c) Initiation
+    # If starting from postprocess or inversion, load the previous specfem parameters
     # ---------------------------------------------------------------------------
     workflow_controller = WorkflowController(config=config, global_params=GLOBAL_PARAMS)
     workflow_controller.setup_for_fail()
     result_logger.info(f"Workflow: User choose to start from {start_from_stage}")
+    if start_index > stage_order['forward']:
+        workflow_controller.move_to_other_directory(folder_to_move='specfem')
+        workflow_controller.load_specfem_params_without_generation()
     # ---------------------------------------------------------------------------
     """
     Main loop
