@@ -22,6 +22,33 @@ p2=`grep P2 $par_file | gawk '{print $2}'`        # max period for bandpass
 en2rt=`grep EN2RT $par_file | gawk '{print $2}'`  # rotate the E & N component to R & T
 tmin=`grep tbeg $par_file | gawk '{print $2}'`      # tbeg of simulated waveforms for plotting
 tmax=`grep tend $par_file | gawk '{print $2}'`      # tend of simulated waveforms for plotting
+# guard for missing or empty window list
+if [ ! -f MEASUREMENT.WINDOWS ]; then
+   echo "MEASUREMENT.WINDOWS not found; creating empty window list."
+   echo 0 > MEASUREMENT.WINDOWS
+fi
+win_count=`head -n 1 MEASUREMENT.WINDOWS | gawk '{print $1}'`
+
+if [ -z "$win_count" ]; then
+   win_count=0
+fi
+
+if [ "$win_count" -eq 0 ]; then
+   echo "No windows found; skip measure_adj."
+   echo 0 > STATIONS_ADJOINT
+   rm -f PLOTS/MEASUREMENT.WINDOWS
+   cp MEASUREMENT.WINDOWS PLOTS
+   rm -f PLOTS/STATIONS_ADJOINT
+   cp STATIONS_ADJOINT PLOTS
+   if [ -f CMTSOLUTION ]; then
+      cp CMTSOLUTION PACK/$1
+   fi
+   cp PLOTS/MEASUREMENT.WINDOWS PACK/$1
+   cp PLOTS/STATIONS_ADJOINT PACK/$1
+   rm -f ../specfem3d/DATA/STATIONS_ADJOINT
+   cat STATIONS_ADJOINT | gawk 'NR>=2 {print $0}' > ../specfem3d/DATA/STATIONS_ADJOINT
+   exit 0
+fi
 # measuring the adjoint sources using flexwin output
 mkdir -p OUTPUT_FILES
 rm -f OUTPUT_FILES/*

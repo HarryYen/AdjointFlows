@@ -41,6 +41,7 @@ mkdir PACK/$1
 rm -f MEASURE/*
 for cmt in `gawk '{print $1"/"$2"/"$3"/"$4"/"$5"/"$6"/"$7"/"$8"/"$9"/"$13"/"$14}' $evlst`
 do
+   run_win_cwd="$(pwd)"
 
    dir=`echo $cmt | gawk -F[:/] '{print $1}'`
    yy=`echo $cmt | gawk -F[:/] '{print $2}'`
@@ -63,7 +64,13 @@ do
       tomo_files=(../DATA/wav/$dir/*.tomo)
       shopt -u nullglob
       if [ ${#tomo_files[@]} -eq 0 ]; then
-         echo "No .tomo files for $dir, skip."
+         echo "No .tomo files for $dir; writing empty MEASUREMENT.WINDOWS."
+         echo 0 > MEASUREMENT.WINDOWS
+         rm -f ../measure_adj/MEASUREMENT.WINDOWS
+         cp MEASUREMENT.WINDOWS ../measure_adj/
+         cd ../measure_adj
+         bash run_adj.bash $1
+         cd "$run_win_cwd"
          continue
       fi
       printf "%s\n" "${tomo_files[@]}" | gawk -F[./] '{print $7"."$8"."$9}' > pairs.tmp
