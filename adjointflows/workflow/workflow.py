@@ -114,6 +114,14 @@ class WorkflowController:
         self.iteration_process.update_specfem_params()
         self.iteration_process.save_params_json()
 
+    def load_specfem_params_without_generation(self):
+        """
+        Load specfem parameters from existing files without generating a model.
+        """
+        self.debug_logger.info("Skipping model generation; loading specfem parameters from existing files.")
+        self.iteration_process.update_specfem_params()
+        self.iteration_process.save_params_json()
+
     def run_forward(self, do_forward, do_adjoint, do_measurement):
         """
         Run the adjoint tomography processes

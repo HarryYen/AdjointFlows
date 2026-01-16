@@ -45,13 +45,54 @@ class IterationProcess:
         self.result_logger = logging.getLogger("result_logger")
     
     def update_specfem_params(self):
-        
+        if not os.path.exists(self.model_generate_file):
+            self._load_specfem_params_from_json()
+            return
+
         self.nproc = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
         self.nspec = get_param_from_specfem_file(file=self.model_generate_file, param_name='nspec', param_type=int)
         self.nglob = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLOB_global_min', param_type=int)
         self.NGLLX = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLX', param_type=int)
         self.NGLLY = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLY', param_type=int)
         self.NGLLZ = get_param_from_specfem_file(file=self.model_generate_file, param_name='NGLLZ', param_type=int)
+        if None in (self.nproc, self.nspec, self.nglob, self.NGLLX, self.NGLLY, self.NGLLZ):
+            self._load_specfem_params_from_json()
+
+    def _load_specfem_params_from_json(self):
+        params_file = os.path.join(self.tomo_dir, 'params.json')
+        if not os.path.exists(params_file):
+            params_file = os.path.join(self.adjflows_dir, 'params.json')
+        if not os.path.exists(params_file):
+            error_message = (
+                "Missing specfem parameter sources: "
+                "output_generate_databases.txt and params.json not found. "
+                "Run generate_model once to create parameters."
+            )
+            self.result_logger.error(error_message)
+            raise FileNotFoundError(error_message)
+
+        warning_message = (
+            f"Using params from last generation: {params_file}. "
+            "This inversion will reuse the previous model parameters."
+        )
+        self.result_logger.warning(warning_message)
+
+        with open(params_file, 'r') as f:
+            params = json.load(f)
+        required_keys = ('nproc', 'nspec', 'nglob', 'NGLLX', 'NGLLY', 'NGLLZ')
+        missing_keys = [key for key in required_keys if key not in params]
+        if missing_keys:
+            missing_str = ", ".join(missing_keys)
+            error_message = f"Missing keys in params.json: {missing_str}"
+            self.result_logger.error(error_message)
+            raise KeyError(error_message)
+
+        self.nproc = int(params['nproc'])
+        self.nspec = int(params['nspec'])
+        self.nglob = int(params['nglob'])
+        self.NGLLX = int(params['NGLLX'])
+        self.NGLLY = int(params['NGLLY'])
+        self.NGLLZ = int(params['NGLLZ'])
 
     def save_params_json(self):
         """

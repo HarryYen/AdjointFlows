@@ -129,6 +129,8 @@ def main():
         workflow_controller.move_to_other_directory(folder_to_move='specfem')
         if do_generate or attempt > 1:
             workflow_controller.generate_model(mesh_flag=do_mesh)
+        else:
+            workflow_controller.load_specfem_params_without_generation()
         
         # -------------------------------------------------------------------------
         # (2) Forward (Pipeline or tuning parameters from FLEXWIN)  
