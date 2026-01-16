@@ -99,6 +99,14 @@ echo $hd > ../specfem3d/half_duration.out
 # convolve source time function scaled by local magnitude (non-force sources only)
 if [ "$source_type" == "cmt" ]; then
 csh ../specfem3d/utils/convolve_source_timefunction.csh ../SYN/$dir/*.$comp
+else
+for sac_file in ../SYN/$dir/*.$comp
+do
+    [ -e "$sac_file" ] || continue
+    if [ ! -e "${sac_file}.convolved" ]; then
+        cp "$sac_file" "${sac_file}.convolved"
+    fi
+done
 fi
 
 # shift begin time and mark the origin time (shift 1.66667 seconds in consistent with RMT process)
