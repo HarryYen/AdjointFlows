@@ -473,13 +473,32 @@ class StepLengthOptimizer:
     
         evt_df = pd.read_csv(self.evlst, header=None, sep=r'\s+')
         chi_df = pd.DataFrame()
+        missing_chi = []
         for evt in evt_df[0]:
             adjoints_dir = f'{measure_dir}/{evt}'
             chi_file = f'{adjoints_dir}/window_chi'
-            tmp_df = pd.read_csv(chi_file, header=None, sep=r'\s+')
+            if not os.path.isfile(chi_file):
+                missing_chi.append(evt)
+                continue
+            try:
+                tmp_df = pd.read_csv(chi_file, header=None, sep=r'\s+')
+            except Exception as exc:
+                self.result_logger.warning(f"Skip {evt}: failed to read {chi_file} ({exc})")
+                missing_chi.append(evt)
+                continue
             chi_df = pd.concat([chi_df, tmp_df])
+
+        if missing_chi:
+            missing_str = ", ".join(missing_chi)
+            self.result_logger.warning(f"Missing window_chi for events: {missing_str}. Please check window selection.")
+        if chi_df.empty:
+            self.result_logger.warning("No window_chi files found; misfit set to 0.")
+            return 0.0
             
         chi_filtered_df = chi_df[(chi_df[28] != 0.) | (chi_df[29] != 0.)]
+        if chi_filtered_df.empty:
+            self.result_logger.warning("No valid windows; misfit set to 0.")
+            return 0.0
         total_misfit = chi_filtered_df[28].sum()
         win_num = len(chi_filtered_df)
         average_misfit = round(total_misfit / win_num, 5)
