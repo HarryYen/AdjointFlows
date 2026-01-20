@@ -14,7 +14,6 @@ echo $1    # evt_dir
 pwd=`pwd`
 par_file=../adjointflows/config.yaml
 evlst=`grep evlst $par_file | gawk '{print $2}'`  # path to event list
-stlst=`grep stlst $par_file | gawk '{print $2}'`  # path to station list
 evlst=`echo ../DATA/evlst/$evlst`
 source_type=`awk '/^source:/{flag=1;next} flag && /^[[:space:]]+type:/{print $2; exit}' $par_file`
 if [ "$source_type" = "force" ]; then
@@ -29,13 +28,13 @@ if [ "$source_type" = "force" ]; then
    fi
    evlst="$flexwin_evlst"
 fi
-stlst=`echo ../DATA/stlst/$stlst`
+stlst=../specfem3d/DATA/STATIONS
 tbeg=`grep tbeg $par_file | gawk '{print $2}'`    # begin time to cut (adding 30 sec prior to origin time for STA/LTA)
 tend=`grep tend $par_file | gawk '{print $2}'`    # ending time to cut (make sure long enough to include desired phases)
 tcor=`grep tcor $par_file | gawk '{print $2}'`    # systematic time shift to correct (if any), e.g. 1.66667 is the RMT time shift.
 dt=`grep dt $par_file | gawk '{print $2}'`        # sampling rate to reset
-p1=`grep P1 $par_file | gawk '{print $2}'`        # min period for bandpass
-p2=`grep P2 $par_file | gawk '{print $2}'`        # max period for bandpass
+p1=`grep P1: $par_file | gawk '{print $2}'`        # min period for bandpass
+p2=`grep P2: $par_file | gawk '{print $2}'`        # max period for bandpass
 comp=`grep COMP $par_file | gawk '{print $2}'`    # synthetic component to use
 en2rt=`grep EN2RT $par_file | gawk '{print $2}'`  # rotate the E & N component to R & T
 
@@ -117,7 +116,7 @@ ls ../SYN/$dir/*.sac | gawk '{print "saclst b f",$0}' | sh | gawk '{print "r "$1
 
 echo $stlst
 
-for sta in `ls ../DATA/wav/$dir | gawk -F. '{print $1}' | uniq | gawk '{print "grep "$1" "stlst}' stlst="$stlst" | sh | gawk '{print $1"_"$2"_"$3"_"$4}'`
+for sta in `ls ../DATA/wav/$dir | gawk -F. '{print $1}' | uniq | gawk '{print "grep "$1" "stlst}' stlst="$stlst" | sh | gawk '{print $1"_"$4"_"$3"_"$5}'`
 do
 echo $sta
 stnm=`echo $sta | gawk -F_ '{print $1}'`
