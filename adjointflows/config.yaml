@@ -42,6 +42,11 @@ data:
     evlst: fwi_new_cat_version4.txt # Event list (or virtual source station list when source.type=force)
     stlst: sta_new_remove_western.txt # Path to station list
     evchk: fwi_new_cat_version4_18.txt  # Event list to check misfit in line search
+  egf:
+    n_wavelength: 2.0        # Distance threshold = P2 * n_wavelength * ref_velocity_km_s
+    ref_velocity_km_s: 3.5   # Reference velocity for wavelength (km/s)
+  filter:
+    P2: 30               # Max period for EGF distance threshold; keep in sync with data.seismogram.filter.P2
   seismogram:
     tbeg: -30              # Cutting time: start (seconds)
     tend: 150              # Cutting time: end (seconds)
@@ -49,7 +54,7 @@ data:
     dt: 0.0325             # Resampling rate for both data and synthetics
     filter:
       P1: 5               # Lower bound of period filtering band
-      P2: 30               # Upper bound of period filtering band
+      P2: 30               # Upper bound of period filtering band (keep in sync with data.filter.P2)
     component:
       COMP: semv           # Synthetic component to use
       EN2RT: 0             # Rotate E & N to R & T (1: yes, 0: no)

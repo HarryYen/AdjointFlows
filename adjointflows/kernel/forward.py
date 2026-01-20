@@ -52,6 +52,9 @@ class ForwardGenerator:
         self.synthetic_comp      = config.get('data.seismogram.component.COMP')
         self.synthetic_tcor      = float(config.get('data.seismogram.tcor', 0.0))
         self.half_duration_file  = os.path.join(self.specfem_dir, "half_duration.out")
+        self.egf_n_wavelength    = config.get('data.egf.n_wavelength')
+        self.egf_ref_velocity_km_s = config.get('data.egf.ref_velocity_km_s')
+        self.egf_max_period      = config.get('data.filter.P2', config.get('data.seismogram.filter.P2'))
         
         self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
         self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', config.get('data.list.stlst'))
@@ -145,7 +148,15 @@ class ForwardGenerator:
             
             self.debug_logger.info(f"Processing event {event_name}")
             self.write_source_files(event_info)
-            self.write_station_file(sta_df)
+            filtered_sta_df = sta_df
+            if self.source_type == 'force':
+                filtered_sta_df = self.filter_stations_for_egf(event_info, sta_df, event_name)
+                if filtered_sta_df.empty:
+                    self.result_logger.warning(
+                        f"EGF distance filter: no stations left for {event_name}; skipping event."
+                    )
+                    continue
+            self.write_station_file(filtered_sta_df)
             
             time.sleep(2)
             
@@ -207,7 +218,15 @@ class ForwardGenerator:
             
             self.debug_logger.info(f"Processing event {event_name}")
             self.write_source_files(event_info)
-            self.write_station_file(sta_df)
+            filtered_sta_df = sta_df
+            if self.source_type == 'force':
+                filtered_sta_df = self.filter_stations_for_egf(event_info, sta_df, event_name)
+                if filtered_sta_df.empty:
+                    self.result_logger.warning(
+                        f"EGF distance filter: no stations left for {event_name}; skipping event."
+                    )
+                    continue
+            self.write_station_file(filtered_sta_df)
             
             time.sleep(2)
             
@@ -373,7 +392,71 @@ class ForwardGenerator:
             with open(self.specfem_par_file, 'w') as f:
                 f.writelines(output_lines)
 
-        
+    def haversine_km(self, lon1, lat1, lon2, lat2):
+        """Calculate great-circle distance in kilometers.
+
+        Args:
+            lon1 (float or np.ndarray): Longitude(s) of the first point(s).
+            lat1 (float or np.ndarray): Latitude(s) of the first point(s).
+            lon2 (float or np.ndarray): Longitude(s) of the second point(s).
+            lat2 (float or np.ndarray): Latitude(s) of the second point(s).
+
+        Returns:
+            np.ndarray: Great-circle distance(s) in kilometers.
+        """
+        lon1_rad = np.radians(lon1)
+        lat1_rad = np.radians(lat1)
+        lon2_rad = np.radians(lon2)
+        lat2_rad = np.radians(lat2)
+
+        dlon = lon2_rad - lon1_rad
+        dlat = lat2_rad - lat1_rad
+        a = np.sin(dlat / 2.0) ** 2 + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon / 2.0) ** 2
+        c = 2.0 * np.arcsin(np.sqrt(a))
+        return 6371.0 * c
+
+    def filter_stations_for_egf(self, event_info, sta_df, event_name):
+        """Filter stations based on EGF distance rule in force mode.
+
+        Args:
+            event_info (pd.Series): Event info for the current EGF source.
+            sta_df (pd.DataFrame): Station list.
+            event_name (str): Event name for logging.
+
+        Returns:
+            pd.DataFrame: Filtered stations.
+        """
+        if self.egf_n_wavelength is None or self.egf_ref_velocity_km_s is None or self.egf_max_period is None:
+            self.debug_logger.warning(
+                "EGF distance filter skipped: missing data.egf.n_wavelength, "
+                "data.egf.ref_velocity_km_s, or data.filter.P2."
+            )
+            return sta_df
+
+        min_distance_km = (
+            float(self.egf_max_period) * float(self.egf_n_wavelength) * float(self.egf_ref_velocity_km_s)
+        )
+        if min_distance_km <= 0.0:
+            self.debug_logger.warning("EGF distance filter skipped: min distance is <= 0 km.")
+            return sta_df
+
+        src_lat = float(event_info['lat'])
+        src_lon = float(event_info['lon'])
+        distances_km = self.haversine_km(
+            src_lon,
+            src_lat,
+            sta_df['lon'].to_numpy(dtype=float),
+            sta_df['lat'].to_numpy(dtype=float),
+        )
+        keep_mask = distances_km >= min_distance_km
+        filtered_df = sta_df.loc[keep_mask].copy()
+        removed = len(sta_df) - len(filtered_df)
+        self.result_logger.info(
+            f"EGF distance filter: {event_name} min={min_distance_km:.2f} km "
+            f"kept={len(filtered_df)} removed={removed}"
+        )
+        return filtered_df
+
     def write_station_file(self, sta_df):
         """
         Write STATIONS file for SPECFEM3D in specfem3d/DATA.
