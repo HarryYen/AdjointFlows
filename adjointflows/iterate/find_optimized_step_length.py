@@ -61,7 +61,7 @@ class StepLengthOptimizer:
         self.force_hdurorf0      = 0.0
         self.egf_n_wavelength    = config.get('data.egf.n_wavelength')
         self.egf_ref_velocity_km_s = config.get('data.egf.ref_velocity_km_s')
-        self.egf_max_period      = config.get('data.filter.P2', config.get('data.seismogram.filter.P2'))
+        self.egf_max_period      = config.get('data.seismogram.filter.P2')
 
         
         self.step_interval       = config.get('line_search.step_interval')

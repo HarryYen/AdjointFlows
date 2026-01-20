@@ -45,8 +45,6 @@ data:
   egf:
     n_wavelength: 2.0        # Distance threshold = P2 * n_wavelength * ref_velocity_km_s
     ref_velocity_km_s: 3.5   # Reference velocity for wavelength (km/s)
-  filter:
-    P2: 30               # Max period for EGF distance threshold; keep in sync with data.seismogram.filter.P2
   seismogram:
     tbeg: -30              # Cutting time: start (seconds)
     tend: 150              # Cutting time: end (seconds)
@@ -54,7 +52,7 @@ data:
     dt: 0.0325             # Resampling rate for both data and synthetics
     filter:
       P1: 5               # Lower bound of period filtering band
-      P2: 30               # Upper bound of period filtering band (keep in sync with data.filter.P2)
+      P2: 30               # Upper bound of period filtering band
     component:
       COMP: semv           # Synthetic component to use
       EN2RT: 0             # Rotate E & N to R & T (1: yes, 0: no)

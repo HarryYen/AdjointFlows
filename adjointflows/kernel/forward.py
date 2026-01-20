@@ -54,7 +54,7 @@ class ForwardGenerator:
         self.half_duration_file  = os.path.join(self.specfem_dir, "half_duration.out")
         self.egf_n_wavelength    = config.get('data.egf.n_wavelength')
         self.egf_ref_velocity_km_s = config.get('data.egf.ref_velocity_km_s')
-        self.egf_max_period      = config.get('data.filter.P2', config.get('data.seismogram.filter.P2'))
+        self.egf_max_period      = config.get('data.seismogram.filter.P2')
         
         self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
         self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', config.get('data.list.stlst'))
