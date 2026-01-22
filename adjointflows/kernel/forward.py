@@ -145,6 +145,7 @@ class ForwardGenerator:
         for evt_i in np.arange(index_evt_last, evt_df.shape[0]):
             event_info = evt_df.iloc[evt_i]
             event_name = str(event_info.iloc[0])
+            run_adjoint = do_adjoint
             
             self.debug_logger.info(f"Processing event {event_name}")
             self.write_source_files(event_info)
@@ -176,6 +177,11 @@ class ForwardGenerator:
             if do_measurement:
                 self.prepare_adjoint_simulation(event_name=event_name, keep_syn_wav=keep_syn_wav)
                 self.select_windows_and_measure_misfit(event_name=event_name)
+                if run_adjoint and self.get_measurement_window_count() == 0:
+                    self.result_logger.info(
+                        f"No windows for {event_name}; skip adjoint simulation."
+                    )
+                    run_adjoint = False
             else:
                 self.store_synthetics(event_name=event_name, keep_syn_wav=keep_syn_wav, event_info=event_info)
     
@@ -185,7 +191,7 @@ class ForwardGenerator:
             # -----------------------
             # adjoint modeling
             # -----------------------
-            if do_adjoint:
+            if run_adjoint:
                 subprocess.run('./utils/change_simulation_type.pl -b', shell=True)
                 self.run_simulator()
                 self.debug_logger.info(f'Done {event_name} adjoint simulation')
@@ -456,6 +462,26 @@ class ForwardGenerator:
             f"kept={len(filtered_df)} removed={removed}"
         )
         return filtered_df
+
+    def get_measurement_window_count(self):
+        """Read the window count from MEASUREMENT.WINDOWS.
+
+        Returns:
+            int: Number of windows in MEASUREMENT.WINDOWS (0 if missing/invalid).
+        """
+        windows_file = os.path.join(self.measure_adj_dir, "MEASUREMENT.WINDOWS")
+        if not os.path.isfile(windows_file):
+            self.debug_logger.warning("MEASUREMENT.WINDOWS not found; treat as 0 windows.")
+            return 0
+        with open(windows_file, "r") as f:
+            first_line = f.readline().strip()
+        if not first_line:
+            return 0
+        try:
+            return int(float(first_line.split()[0]))
+        except ValueError:
+            self.debug_logger.warning("Invalid MEASUREMENT.WINDOWS header; treat as 0 windows.")
+            return 0
 
     def write_station_file(self, sta_df):
         """
