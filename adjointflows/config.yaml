@@ -8,12 +8,12 @@ setup:
     do_wave_simulation: 1             # 0: skip waveform simulation (if you have them), 1: do waveform simulation
     
   model:
-    current_model_num: 17                 # The model number that you choose to start (start from 0) 
-    do_generate: 0                       # 1: generate model 0: skip generation
+    current_model_num: 0                # The model number that you choose to start (start from 0) 
+    do_generate: 1                       # 1: generate model 0: skip generation
     do_mesh: 0                           # 1: do mesh 0: skip mesh (only efffective when do_generate == 1)
   stage: 
-    current_stage_num: 5                 # Which leg (stage) you start (start from 1)
-    stage_initial_model: 14               # First model in this period (leg), determines SD or LBFGS
+    current_stage_num: 1                 # Which leg (stage) you start (start from 1)
+    stage_initial_model: 0               # First model in this period (leg), determines SD or LBFGS
   flexwin:
     flexwin_mode: every_stage                   # every_iter: re-pick each rounds, every_stage: re-pick only in the first round of a stage, user: use the time windows specified by user
     flexwin_user_dir: m010_windows_no_smooth       # **(under TOMO/)** the directory of time-windows if you use 'user' mode 
@@ -36,26 +36,6 @@ inversion:
   max_model_update: 999     # Max amount you can accept when updating the model (new - old)
   do_backtracking_line_search: 1 # Do backtracking line search (1: yes, 0: no), only for L-BFGS
   backtracking_shrink: 0.8  # Shrink ratio of step length in backtracking line search
-
-data:
-  list:
-    evlst: fwi_new_cat_version4.txt # Event list (or virtual source station list when source.type=force)
-    stlst: sta_new_remove_western.txt # Path to station list
-    evchk: fwi_new_cat_version4_18.txt  # Event list to check misfit in line search
-  egf:
-    n_wavelength: 2.0        # Distance threshold = P2 * n_wavelength * ref_velocity_km_s
-    ref_velocity_km_s: 3.5   # Reference velocity for wavelength (km/s)
-  seismogram:
-    tbeg: -30              # Cutting time: start (seconds)
-    tend: 150              # Cutting time: end (seconds)
-    tcor: 0.0              # Systematic time shift to correct (if any)
-    dt: 0.0325             # Resampling rate for both data and synthetics
-    filter:
-      P1: 5               # Lower bound of period filtering band
-      P2: 30               # Upper bound of period filtering band
-    component:
-      COMP: semv           # Synthetic component to use
-      EN2RT: 0             # Rotate E & N to R & T (1: yes, 0: no)
 
 kernel:
   type:

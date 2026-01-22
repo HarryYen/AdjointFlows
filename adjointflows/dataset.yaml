@@ -1,0 +1,54 @@
+defaults:
+  seismogram:
+    tbeg: -30              # Cutting time: start (seconds)
+    tend: 150              # Cutting time: end (seconds)
+    tcor: 0.0              # Systematic time shift to correct (if any)
+    dt: 0.0325             # Resampling rate for both data and synthetics
+    component:
+      COMP: semv           # Synthetic component to use
+      EN2RT: 0             # Rotate E & N to R & T (1: yes, 0: no)
+    fine_tune:
+      EGF:
+        criteria:
+          n_wavelength: 2.0        # Distance threshold = P2 * n_wavelength * ref_velocity_km_s
+          ref_velocity_km_s: 3.5   # Reference velocity for wavelength (km/s)
+
+datasets:
+  # Specify the parameters of a specific dataset here.
+  # 'name': the name of this dataset
+  # 'waveform_group': the observed waveform directory under DATA/
+  # 'source': source type 
+  # 'list': event/station list
+  # 'seismogram': seismogram parameters (filtering, components, etc.)
+  - name: EQ_10_30s
+    waveform_group: wav_EQ
+    source:
+      type: cmt
+    list:
+      evlst: cmt_evt_test.txt
+      evchk: cmt_evt_test.txt
+      stlst: sta_new_remove_western.txt
+    seismogram:
+      filter: {P1: 10, P2: 30}
+  
+  - name: EQ_5_12s
+    waveform_group: wav_EQ
+    source:
+      type: cmt
+    list:
+      evlst: cmt_evt_test.txt
+      evchk: cmt_evt_test.txt
+      stlst: sta_new_remove_western.txt
+    seismogram:
+      filter: {P1: 5, P2: 12}
+
+  - name: EGF_8_18
+    waveform_group: wav_EGF
+    source:
+      type: force
+    list:
+      evlst: force_evt_test.txt
+      evchk: force_evt_test.txt
+      stlst: force_evt_test.txt
+    seismogram:
+      filter: {P1: 8, P2: 18}
