@@ -18,10 +18,10 @@ setup:
     
 
 preprocessing:
-  ICHK: 0                    # Check existing files for a continuous run (1: check, 0: start over)
+  ICHK: 1                    # Check existing files for a continuous run (1: check, 0: start over)
 
 source:
-  type: cmt                  # cmt: use CMTSOLUTION; force: use FORCESOLUTION from station-source list
+  type: force                  # cmt: use CMTSOLUTION; force: use FORCESOLUTION from station-source list
   force:
     depth_km: 0.0
     auto_set_par_file: 1     # Ensure USE_FORCE_POINT_SOURCE = .true. in specfem3d/DATA/Par_file
@@ -42,8 +42,8 @@ kernel:
   smoothing:
     ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
     smooth_par_gradinet:
-      SIGMA_H: 4000        # Horizontal smoothing width (m)
-      SIGMA_V: 2000         # Vertical smoothing width (m)
+      SIGMA_H: 15000        # Horizontal smoothing width (m)
+      SIGMA_V: 10000         # Vertical smoothing width (m)
   visualization:
     IVTKOUT: 0            # Output kernel VTK file (1: yes, 0: no)
 
