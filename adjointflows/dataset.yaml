@@ -15,13 +15,23 @@ defaults:
 
 datasets:
   # Specify the parameters of a specific dataset here.
-  # 'name': the name of this dataset
-  # 'waveform_group': the observed waveform directory under DATA/
-  # 'source': source type 
-  # 'list': event/station list
-  # 'seismogram': seismogram parameters (filtering, components, etc.)
+  # - name: the name of this dataset, used to be file suffix
+  # - data: parameters for observed data
+  #   - waveform_dir: directory under DATA/ where observed waveforms are stored
+  # - synthetics: parameters for synthetic data
+  #   - do_wave_simulation: 1: simulate synthetics, 0: skip simulation
+  #   - waveform_dir: directory under SYN/ where synthetic waveforms are stored (do_wave_simulation=1) 
+  #                         or read from (do_wave_simulation=0)                      
+  # - source: source type (cmt, force) 
+  # - list: event/station list under DATA/evlst and DATA/stlst, respectively
+  # - seismogram: seismogram parameters
+  #  - filter: {P1: min period, P2: max period} for bandpass filter
   - name: EQ_10_30s
-    waveform_group: wav_EQ
+    data:
+      waveform_dir: wav_EQ
+    synthetics:
+      do_wave_simulation: 1
+      waveform_dir: SYN_EQ   
     source:
       type: cmt
     list:
@@ -31,8 +41,12 @@ datasets:
     seismogram:
       filter: {P1: 10, P2: 30}
   
-  - name: EQ_5_12s
-    waveform_group: wav_EQ
+  - name: EQ_6_12s
+    data:
+      waveform_dir: wav_EQ
+    synthetics:
+      do_wave_simulation: 0
+      waveform_dir: SYN_EQ   
     source:
       type: cmt
     list:
@@ -40,15 +54,15 @@ datasets:
       evchk: cmt_evt_test.txt
       stlst: sta_new_remove_western.txt
     seismogram:
-      filter: {P1: 5, P2: 12}
+      filter: {P1: 6, P2: 12}
 
-  - name: EGF_8_18
-    waveform_group: wav_EGF
-    source:
-      type: force
-    list:
-      evlst: force_evt_test.txt
-      evchk: force_evt_test.txt
-      stlst: force_evt_test.txt
-    seismogram:
-      filter: {P1: 8, P2: 18}
+  # - name: EGF_8_18
+  #   waveform_group: wav_EGF
+  #   source:
+  #     type: force
+  #   list:
+  #     evlst: force_evt_test.txt
+  #     evchk: force_evt_test.txt
+  #     stlst: force_evt_test.txt
+  #   seismogram:
+  #     filter: {P1: 8, P2: 18}

@@ -6,6 +6,7 @@ import os
 import sys
 import logging
 import json
+import yaml
 
 class WorkflowController:
     def __init__(self, config, global_params):
@@ -36,6 +37,8 @@ class WorkflowController:
         self.file_manager.set_model_number(current_model_num=self.current_model_num)
         self.determine_inversion_method()
 
+        self.dataset_config = self.load_dataset_config()
+
         self.setup_dir()
         self.iteration_process = IterationProcess(current_model_num=self.current_model_num, config=self.config)
         # self.iteration_process.save_params_json()
@@ -50,6 +53,23 @@ class WorkflowController:
             self.inversion_method = 'LBFGS'
             self.setup_for_fail()
 
+    def load_dataset_config(self):
+        """Load dataset configuration from adjointflows/dataset.yaml.
+
+        Returns:
+            dict: Parsed dataset configuration, or an empty dict if missing/invalid.
+        """
+        dataset_path = os.path.join(self.adjointflows_dir, "dataset.yaml")
+        if not os.path.isfile(dataset_path):
+            self.debug_logger.warning(f"Dataset config not found: {dataset_path}")
+            return {}
+        try:
+            with open(dataset_path, "r") as f:
+                data = yaml.safe_load(f) or {}
+        except yaml.YAMLError as exc:
+            self.debug_logger.error(f"Failed to parse {dataset_path}: {exc}")
+            return {}
+        return data
 
     def construct_misfit_list(self):
         """
