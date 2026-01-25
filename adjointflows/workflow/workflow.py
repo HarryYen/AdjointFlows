@@ -7,6 +7,7 @@ import os
 import sys
 import logging
 import json
+import yaml
 
 class WorkflowController:
     def __init__(self, config, global_params):
@@ -116,6 +117,47 @@ class WorkflowController:
         self.iteration_process.update_specfem_params()
         self.iteration_process.save_params_json()
 
+    def write_dataset_config_file(self, dataset_config):
+        """Write a dataset-specific config file for FLEXWIN/MEASURE scripts."""
+        dataset_name = get_by_path(dataset_config, "name", default="dataset")
+        out_dir = os.path.join(self.adjointflows_dir, ".dataset_configs")
+        os.makedirs(out_dir, exist_ok=True)
+        config_path = os.path.join(out_dir, f"{dataset_name}.yaml")
+
+        config_data = {
+            "source": {
+                "type": get_by_path(dataset_config, "source.type", default="cmt"),
+                "force": {
+                    "depth_km": get_by_path(dataset_config, "source.force.depth_km", default=0.0),
+                },
+            },
+            "data": {
+                "list": {
+                    "evlst": get_by_path(dataset_config, "list.evlst", default=self.config.get("data.list.evlst")),
+                    "stlst": get_by_path(dataset_config, "list.stlst", default=self.config.get("data.list.stlst")),
+                    "evchk": get_by_path(dataset_config, "list.evchk", default=self.config.get("data.list.evchk")),
+                },
+                "seismogram": {
+                    "tbeg": get_by_path(dataset_config, "seismogram.tbeg", default=self.config.get("data.seismogram.tbeg")),
+                    "tend": get_by_path(dataset_config, "seismogram.tend", default=self.config.get("data.seismogram.tend")),
+                    "tcor": get_by_path(dataset_config, "seismogram.tcor", default=self.config.get("data.seismogram.tcor")),
+                    "dt": get_by_path(dataset_config, "seismogram.dt", default=self.config.get("data.seismogram.dt")),
+                    "filter": {
+                        "P1": get_by_path(dataset_config, "seismogram.filter.P1", default=self.config.get("data.seismogram.filter.P1")),
+                        "P2": get_by_path(dataset_config, "seismogram.filter.P2", default=self.config.get("data.seismogram.filter.P2")),
+                    },
+                    "component": {
+                        "COMP": get_by_path(dataset_config, "seismogram.component.COMP", default=self.config.get("data.seismogram.component.COMP")),
+                        "EN2RT": get_by_path(dataset_config, "seismogram.component.EN2RT", default=self.config.get("data.seismogram.component.EN2RT")),
+                    },
+                },
+            },
+        }
+
+        with open(config_path, "w") as f:
+            yaml.safe_dump(config_data, f, sort_keys=False)
+        return config_path
+
     def run_all_datasets(self, do_adjoint, do_measurement):
         """
         Run all datasets defined in dataset.yaml
@@ -151,7 +193,13 @@ class WorkflowController:
                 clear_measure=True,
                 clear_kernel=True,
             )
-        forward_generator = ForwardGenerator(current_model_num=self.current_model_num, config=self.config, dataset_config=dataset_config)        
+        dataset_config_path = self.write_dataset_config_file(dataset_config)
+        forward_generator = ForwardGenerator(
+            current_model_num=self.current_model_num,
+            config=self.config,
+            dataset_config=dataset_config,
+            dataset_config_path=dataset_config_path,
+        )
         forward_generator.preprocessing()
         forward_generator.output_vars_file()
         index_evt_last = forward_generator.check_last_event()

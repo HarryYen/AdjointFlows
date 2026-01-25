@@ -17,15 +17,18 @@ import csv
 
 class ForwardGenerator:
     
-    def __init__(self, current_model_num, config, dataset_config):
+    def __init__(self, current_model_num, config, dataset_config=None, dataset_config_path=None):
         """
         Args:
             config (dict): The configuration dictionary
             current_model_num (int): The current model number
         """
+        if dataset_config is None:
+            dataset_config = {}
         self.base_dir          = GLOBAL_PARAMS['base_dir']
         self.mpirun_path       = GLOBAL_PARAMS['mpirun_path']
         self.current_model_num = current_model_num
+        self.dataset_config_path = dataset_config_path
         self.specfem_dir       = os.path.join(self.base_dir, 'specfem3d')
         self.databases_mpi_dir = os.path.join(self.specfem_dir, 'DATABASES_MPI')
         self.measure_adj_dir   = os.path.join(self.base_dir, 'measure_adj')
@@ -39,7 +42,7 @@ class ForwardGenerator:
         self.source_type         = (get_by_path(dataset_config, "source.type", default="cmt")   ).lower()
         if self.source_type not in ('cmt', 'force'):
             raise ValueError(f"Unknown source.type: {self.source_type}")
-        self.force_depth_km      = 0.
+        self.force_depth_km      = 0.0
         self.dummy_cmt_date      = '2000/01/01'
         self.dummy_cmt_time      = '00:00:00'
         self.dummy_cmt_mag       = 1.0
@@ -48,15 +51,31 @@ class ForwardGenerator:
         self.force_direction     = (0.0, 0.0, -1.0)
         self.force_stf_type      = 0
         self.force_hdurorf0      = 0.0
-        self.synthetic_comp      = get_by_path(dataset_config, 'seismogram.component.COMP')
-        self.synthetic_tcor      = float(get_by_path(dataset_config, 'seismogram.tcor', default=0))
+        self.synthetic_comp      = get_by_path(
+            dataset_config,
+            'seismogram.component.COMP',
+            default='semv',
+        )
+        self.synthetic_tcor      = float(
+            get_by_path(dataset_config, 'seismogram.tcor', default=0.0)
+        )
         self.half_duration_file  = os.path.join(self.specfem_dir, "half_duration.out")
         self.egf_n_wavelength    = get_by_path(dataset_config, 'seismogram.fine_tune.EGF.criteria.n_wavelength')
         self.egf_ref_velocity_km_s = get_by_path(dataset_config, 'seismogram.fine_tune.EGF.criteria.ref_velocity_km_s')
         self.egf_max_period      = get_by_path(dataset_config, 'seismogram.filter.P2')
         
-        self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', get_by_path(dataset_config, 'list.evlst'))
-        self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', get_by_path(dataset_config, 'list.stlst'))
+        self.evlst               = os.path.join(
+            self.base_dir,
+            'DATA',
+            'evlst',
+            get_by_path(dataset_config, 'list.evlst'),
+        )
+        self.stlst               = os.path.join(
+            self.base_dir,
+            'DATA',
+            'stlst',
+            get_by_path(dataset_config, 'list.stlst'), 
+        )
         self.specfem_par_file    = os.path.join(self.specfem_dir, 'DATA', 'Par_file')   
         
         self.nproc               = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
@@ -483,6 +502,13 @@ class ForwardGenerator:
             self.debug_logger.warning("Invalid MEASUREMENT.WINDOWS header; treat as 0 windows.")
             return 0
 
+    def get_script_env(self):
+        """Return environment with dataset-specific config path for scripts."""
+        env = os.environ.copy()
+        if self.dataset_config_path:
+            env["AF_CONFIG"] = self.dataset_config_path
+        return env
+
     def write_station_file(self, sta_df):
         """
         Write STATIONS file for SPECFEM3D in specfem3d/DATA.
@@ -611,11 +637,12 @@ class ForwardGenerator:
         Run flexwin and measure_adj
         """
         os.chdir(self.flexwin_dir)
+        env = self.get_script_env()
         
         if (self.flexwin_mode == 'every_stage' and (self.stage_initial_model == self.current_model_num)) or (self.flexwin_mode == 'every_iter'):
-            subprocess.run(['bash', 'run_win.bash', f'{event_name}'])
+            subprocess.run(['bash', 'run_win.bash', f'{event_name}'], env=env)
         else:
-            subprocess.run(['bash', 'ini_proc.bash', f'{event_name}'])
+            subprocess.run(['bash', 'ini_proc.bash', f'{event_name}'], env=env)
             initial_model_dir = f'm{self.stage_initial_model:03d}'
             if self.flexwin_mode == 'user':
                 windows_dir = f"../TOMO/{self.flexwin_user_dir}/MEASURE/windows/{event_name}/MEASUREMENT.WINDOWS"
@@ -623,14 +650,15 @@ class ForwardGenerator:
                 windows_dir = f"../TOMO/{initial_model_dir}/MEASURE/adjoints/{event_name}/MEASUREMENT.WINDOWS"
             shutil.copy(windows_dir, "../measure_adj")
             os.chdir(self.measure_adj_dir)
-            subprocess.run(['bash', 'run_adj.bash', f'{event_name}'])
+            subprocess.run(['bash', 'run_adj.bash', f'{event_name}'], env=env)
     
     def select_windows_for_tuning_flexwin(self, event_name):
         """
         Run flexwin for tuning the flexwin parameters
         """
         os.chdir(self.flexwin_dir)
-        subprocess.run(['bash', 'run_win_for_tune_par.bash', f'{event_name}'])
+        env = self.get_script_env()
+        subprocess.run(['bash', 'run_win_for_tune_par.bash', f'{event_name}'], env=env)
         
         put_windows_file_dir = os.path.join(f'{self.flexwin_dir}', 'PACK', f'{event_name}')
         move_files(src_dir = f'{self.flexwin_dir}', 

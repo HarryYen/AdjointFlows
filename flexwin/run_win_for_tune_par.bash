@@ -11,7 +11,7 @@ fi
 echo $1    # evt_dir
 
 # set path to event list
-par_file=../adjointflows/config.yaml
+par_file=${AF_CONFIG:-../adjointflows/config.yaml}
 evlst=`grep evlst $par_file | gawk '{print $2}'`  # path to event list
 evlst=`echo ../DATA/evlst/$evlst`
 source_type=`awk '/^source:/{flag=1;next} flag && /^[[:space:]]+type:/{print $2; exit}' $par_file`
