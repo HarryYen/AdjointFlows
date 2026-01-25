@@ -67,6 +67,72 @@ class FileManager:
             )
         return os.path.join(self.current_model_dir, syn_dir_name)
 
+    def _resolve_tool_path(self, tool_dir, source_path, default_name=None):
+        if not source_path:
+            return None
+        source = Path(source_path).expanduser()
+        if not source.is_absolute():
+            source = Path(tool_dir) / source
+        if source.is_dir() and default_name:
+            source = source / default_name
+        return str(source)
+
+    def _link_tool_file(self, target_path, source_path, label=None):
+        if not source_path:
+            return
+        target = Path(target_path)
+        if target.exists() and not target.is_symlink():
+            self.debug_logger.info(f"{label or 'Target'} exists as a real file; keep {target}")
+            return
+        source = Path(source_path)
+        if not source.exists():
+            raise FileNotFoundError(f"Tool file not found: {source}")
+        if target.is_symlink():
+            try:
+                if os.path.realpath(source) == os.path.realpath(target):
+                    return
+            except OSError:
+                pass
+            target.unlink()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        os.symlink(source, target)
+
+    def link_measurement_tools(
+        self,
+        flexwin_bin=None,
+        flexwin_par=None,
+        measure_adj_bin=None,
+        measure_adj_par=None,
+    ):
+        flexwin_dir = os.path.join(self.base_dir, "flexwin")
+        measure_dir = os.path.join(self.base_dir, "measure_adj")
+
+        flexwin_bin_path = self._resolve_tool_path(flexwin_dir, flexwin_bin, default_name="flexwin")
+        flexwin_par_path = self._resolve_tool_path(flexwin_dir, flexwin_par)
+        measure_bin_path = self._resolve_tool_path(measure_dir, measure_adj_bin, default_name="measure_adj")
+        measure_par_path = self._resolve_tool_path(measure_dir, measure_adj_par)
+
+        self._link_tool_file(
+            os.path.join(flexwin_dir, "flexwin"),
+            flexwin_bin_path,
+            label="flexwin binary",
+        )
+        self._link_tool_file(
+            os.path.join(flexwin_dir, "PAR_FILE"),
+            flexwin_par_path,
+            label="flexwin PAR_FILE",
+        )
+        self._link_tool_file(
+            os.path.join(measure_dir, "measure_adj"),
+            measure_bin_path,
+            label="measure_adj binary",
+        )
+        self._link_tool_file(
+            os.path.join(measure_dir, "MEASUREMENT.PAR"),
+            measure_par_path,
+            label="measure_adj MEASUREMENT.PAR",
+        )
+
     def ensure_dataset_dirs(self, dataset_name, syn_waveform_dir=None):
         """Create dataset-specific directories for the current model."""
         if not self.current_model_dir:

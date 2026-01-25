@@ -191,6 +191,12 @@ class WorkflowController:
             data_waveform_dir,
             syn_waveform_dir=syn_waveform_dir,
         )
+        self.file_manager.link_measurement_tools(
+            flexwin_bin=get_by_path(dataset_config, "flexwin.bin_dir"),
+            flexwin_par=get_by_path(dataset_config, "flexwin.par_file"),
+            measure_adj_bin=get_by_path(dataset_config, "measure_adj.bin_dir"),
+            measure_adj_par=get_by_path(dataset_config, "measure_adj.par_file"),
+        )
         if not self.ichk:
             self.file_manager.clear_dataset_dirs(
                 dataset_name,
