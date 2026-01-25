@@ -28,7 +28,7 @@ class FileManager:
         self.next_model_dir    = os.path.join(self.base_dir, 'TOMO', mnxt_dir)
                     
             
-    def setup_directory(self, clear_directories=True):
+    def setup_directory(self):
         """
         Create a series of directories for inversion.
         it will call clean_and_initialize_directories to remove all files in the directories
@@ -49,9 +49,7 @@ class FileManager:
     
         for dir in dirs:
             os.makedirs(dir, exist_ok=True)
-        
-        if clear_directories:
-            clean_and_initialize_directories(dirs[1:])
+    
 
     def ensure_dataset_dirs(self, dataset_name):
         """Create dataset-specific directories for the current model."""

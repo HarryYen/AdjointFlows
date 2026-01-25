@@ -20,12 +20,6 @@ setup:
 preprocessing:
   ICHK: 1                    # Check existing files for a continuous run (1: check, 0: start over)
 
-source:
-  type: force                  # cmt: use CMTSOLUTION; force: use FORCESOLUTION from station-source list
-  force:
-    depth_km: 0.0
-    auto_set_par_file: 1     # Ensure USE_FORCE_POINT_SOURCE = .true. in specfem3d/DATA/Par_file
-
 inversion:
   precondition_flag: 0      # Precondition (1: yes, 0: no)
   sd_runs_num: 3            # number of run using SD (e.g. 2 means using SD in the first 2 runs, then use LBFGS) 

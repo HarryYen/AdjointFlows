@@ -84,14 +84,7 @@ class WorkflowController:
         """
         Setup files and directories for the following adjoint tomography processes
         """
-        clear_dir_flag = self.do_wave_simulation and not self.ichk
-        # if the L-BFGS fail number is NOT 0, remove the directories
-        if self.inversion_method == 'LBFGS':
-            if self.lbfgs_fail_num != 0:
-                clear_dir_flag = True
-        
-
-        self.file_manager.setup_directory(clear_directories=clear_dir_flag)
+        self.file_manager.setup_directory()
         self.file_manager.make_symbolic_links()
     
     def setup_for_fail(self):
