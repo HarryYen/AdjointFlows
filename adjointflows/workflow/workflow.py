@@ -184,12 +184,19 @@ class WorkflowController:
         dataset_name = get_by_path(dataset_config, "name", default="dataset")
         do_forward = bool(get_by_path(dataset_config, "synthetics.do_wave_simulation", default=1))
         data_waveform_dir = get_by_path(dataset_config, "data.waveform_dir")
-        self.file_manager.ensure_dataset_dirs(dataset_name)
-        self.file_manager.link_dataset_dirs(dataset_name, data_waveform_dir)
+        syn_waveform_dir = get_by_path(dataset_config, "synthetics.waveform_dir")
+        self.file_manager.ensure_dataset_dirs(dataset_name, syn_waveform_dir=syn_waveform_dir)
+        self.file_manager.link_dataset_dirs(
+            dataset_name,
+            data_waveform_dir,
+            syn_waveform_dir=syn_waveform_dir,
+        )
         if not self.ichk:
             self.file_manager.clear_dataset_dirs(
                 dataset_name,
+                syn_waveform_dir=syn_waveform_dir,
                 clear_syn=do_forward,
+                clear_syn_intermediate=not do_forward,
                 clear_measure=True,
                 clear_kernel=True,
             )

@@ -1,5 +1,6 @@
 from .job_utils import copy_files, clean_and_initialize_directories, remove_path, remove_files_with_pattern
 from .global_params import GLOBAL_PARAMS
+from pathlib import Path
 import os
 import shutil
 import logging
@@ -51,7 +52,22 @@ class FileManager:
             os.makedirs(dir, exist_ok=True)
     
 
-    def ensure_dataset_dirs(self, dataset_name):
+    def _resolve_syn_dir(self, dataset_name, syn_waveform_dir):
+        syn_dir_name = syn_waveform_dir or f"SYN_{dataset_name}"
+        syn_dir_norm = os.path.normpath(syn_dir_name)
+        if os.path.isabs(syn_dir_norm):
+            if os.path.normpath(syn_dir_norm) == os.path.normpath(os.path.join(self.current_model_dir, "SYN")):
+                raise ValueError("synthetics.waveform_dir cannot be the same as the SYN symlink.")
+            return syn_dir_norm
+
+        first_segment = syn_dir_norm.split(os.sep)[0]
+        if first_segment == "SYN":
+            raise ValueError(
+                "synthetics.waveform_dir cannot start with 'SYN'; it conflicts with the SYN symlink."
+            )
+        return os.path.join(self.current_model_dir, syn_dir_name)
+
+    def ensure_dataset_dirs(self, dataset_name, syn_waveform_dir=None):
         """Create dataset-specific directories for the current model."""
         if not self.current_model_dir:
             message = "Model numbers not set. Please call set_model_number before ensure_dataset_dirs."
@@ -60,7 +76,7 @@ class FileManager:
 
         kernel_base = f"{self.current_model_dir}/KERNEL_{dataset_name}"
         measure_base = f"{self.current_model_dir}/MEASURE_{dataset_name}"
-        syn_dir = f"{self.current_model_dir}/SYN_{dataset_name}"
+        syn_dir = self._resolve_syn_dir(dataset_name, syn_waveform_dir)
 
         dirs = [
             syn_dir,
@@ -76,12 +92,13 @@ class FileManager:
         for dir in dirs:
             os.makedirs(dir, exist_ok=True)
 
-    def link_dataset_dirs(self, dataset_name, data_waveform_dir):
+    def link_dataset_dirs(self, dataset_name, data_waveform_dir, syn_waveform_dir=None):
         """Relink dataset-specific directories to standard paths.
 
         Args:
             dataset_name (str): Dataset name used for suffixing TOMO directories.
             data_waveform_dir (str): Directory under DATA/ to link as DATA/wav.
+            syn_waveform_dir (str): Directory name used as the SYN target.
         """
         if not self.current_model_dir:
             message = "Model numbers not set. Please call set_model_number before link_dataset_dirs."
@@ -92,8 +109,9 @@ class FileManager:
         if os.path.normpath(data_waveform_dir) == "wav":
             raise ValueError("data.waveform_dir cannot be 'wav'; it conflicts with DATA/wav symlink.")
 
+        syn_dir = self._resolve_syn_dir(dataset_name, syn_waveform_dir)
         links = {
-            f"{self.current_model_dir}/SYN": f"{self.current_model_dir}/SYN_{dataset_name}",
+            f"{self.current_model_dir}/SYN": syn_dir,
             f"{self.current_model_dir}/MEASURE": f"{self.current_model_dir}/MEASURE_{dataset_name}",
             f"{self.current_model_dir}/KERNEL": f"{self.current_model_dir}/KERNEL_{dataset_name}",
         }
@@ -105,7 +123,26 @@ class FileManager:
         for link, target in links.items():
             os.symlink(target, link)
 
-    def clear_dataset_dirs(self, dataset_name, clear_syn=False, clear_measure=True, clear_kernel=True):
+    def clear_syn_intermediate_files(self, syn_dir):
+        """Remove SAC and TOMO files from a synthetic directory tree."""
+        if not os.path.isdir(syn_dir):
+            return
+        for pattern in ("*.sac", "*.tomo"):
+            for file in Path(syn_dir).rglob(pattern):
+                try:
+                    file.unlink()
+                except Exception as e:
+                    self.debug_logger.warning(f"Failed to remove {file}: {e}")
+
+    def clear_dataset_dirs(
+        self,
+        dataset_name,
+        syn_waveform_dir=None,
+        clear_syn=False,
+        clear_syn_intermediate=False,
+        clear_measure=True,
+        clear_kernel=True,
+    ):
         """Clear dataset-specific directories."""
         if not self.current_model_dir:
             message = "Model numbers not set. Please call set_model_number before clear_dataset_dirs."
@@ -113,8 +150,9 @@ class FileManager:
             raise ValueError(message)
 
         dirs = []
+        syn_dir = self._resolve_syn_dir(dataset_name, syn_waveform_dir)
         if clear_syn:
-            dirs.append(f"{self.current_model_dir}/SYN_{dataset_name}")
+            dirs.append(syn_dir)
         if clear_measure:
             dirs.extend([
                 f"{self.current_model_dir}/MEASURE_{dataset_name}/windows",
@@ -131,6 +169,8 @@ class FileManager:
             ])
         if dirs:
             clean_and_initialize_directories(dirs)
+        if clear_syn_intermediate and not clear_syn:
+            self.clear_syn_intermediate_files(syn_dir)
         
     def make_symbolic_links(self):
         """
