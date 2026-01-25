@@ -12,7 +12,9 @@ defaults:
         criteria:
           n_wavelength: 2.0        # Distance threshold = P2 * n_wavelength * ref_velocity_km_s
           ref_velocity_km_s: 3.5   # Reference velocity for wavelength (km/s)
-
+    weighting:
+      type: amplitude           # amplitude: weight by amplitude; user: user-defined weight
+      
 datasets:
   # Specify the parameters of a specific dataset here.
   # - name: the name of this dataset, used to be file suffix
@@ -40,6 +42,8 @@ datasets:
       stlst: sta_new_remove_western.txt
     seismogram:
       filter: {P1: 10, P2: 30}
+    inversion:
+      weight: 0.5
   
   - name: EQ_6_12s
     data:
@@ -55,6 +59,8 @@ datasets:
       stlst: sta_new_remove_western.txt
     seismogram:
       filter: {P1: 6, P2: 12}
+    inversion:
+      weight: 0.5
 
   # - name: EGF_8_18
   #   waveform_group: wav_EGF

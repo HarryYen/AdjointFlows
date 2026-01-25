@@ -68,7 +68,6 @@ def main():
     start_from_stage = config.get('setup.workflow.start_from_stage')
     end_at_stage = config.get('setup.workflow.end_at_stage')
     forward_stop_at = config.get('setup.workflow.forward_stop_at')
-    do_wave_simulation = bool(config.get('setup.workflow.do_wave_simulation'))
     
 
     attempt = 0
@@ -97,9 +96,7 @@ def main():
     
     do_measurement = forward_stop_at != 'synthetics'
     do_adjoint = forward_stop_at not in ('misfit', 'synthetics')
-    if forward_stop_at == 'synthetics' and not do_wave_simulation:
-        result_logger.error("synthetics mode requires do_wave_simulation=1. STOP!.")
-        return 0
+
     
     # ---------------------------------------------------------------------------
     # (0c) Initiation
@@ -140,10 +137,10 @@ def main():
         # (2) Forward (Pipeline or tuning parameters from FLEXWIN)  
         # -------------------------------------------------------------------------
         if run_mode == 'flexwin_test':
-            workflow_controller.run_forward_for_tuning_flexwin(do_forward=do_wave_simulation)
+            # workflow_controller.run_forward_for_tuning_flexwin(do_forward=do_wave_simulation)
             return 0
         else:
-            workflow_controller.run_forward(do_forward=do_wave_simulation, do_adjoint=do_adjoint, do_measurement=do_measurement)
+            workflow_controller.run_all_datasets(do_adjoint=do_adjoint, do_measurement=do_measurement)
         
         # -------------------------------------------------------------------------
         # (2a) Handle forward-stop modes:

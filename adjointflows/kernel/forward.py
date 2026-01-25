@@ -1,6 +1,8 @@
 from tools import GLOBAL_PARAMS
+
 from tools.job_utils import check_if_directory_not_empty, remove_file, remove_files_with_pattern, move_files, wait_for_launching, check_path_is_correct
 from tools.matrix_utils import get_param_from_specfem_file
+from tools.dataset_loader import get_by_path
 from pathlib import Path
 
 import pandas as pd
@@ -15,7 +17,7 @@ import csv
 
 class ForwardGenerator:
     
-    def __init__(self, current_model_num, config):
+    def __init__(self, current_model_num, config, dataset_config):
         """
         Args:
             config (dict): The configuration dictionary
@@ -31,16 +33,13 @@ class ForwardGenerator:
         
         self.stage_initial_model = config.get('setup.stage.stage_initial_model')
         self.ichk                = config.get('preprocessing.ICHK')
-        # self.flexwin_flag        = config.get('setup.flexwin.FLEXWIN_FLAG')
+
         self.flexwin_mode        = config.get('setup.flexwin.flexwin_mode')
         self.flexwin_user_dir    = config.get('setup.flexwin.flexwin_user_dir')
-        self.source_type         = (config.get('source.type') or 'cmt').lower()
+        self.source_type         = (get_by_path(dataset_config, "source.type", default="cmt")   ).lower()
         if self.source_type not in ('cmt', 'force'):
             raise ValueError(f"Unknown source.type: {self.source_type}")
-        self.force_depth_km      = config.get('source.force.depth_km', 0.0)
-        if self.force_depth_km is None:
-            self.force_depth_km = 0.0
-        self.force_auto_set_par  = bool(config.get('source.force.auto_set_par_file', True))
+        self.force_depth_km      = 0.
         self.dummy_cmt_date      = '2000/01/01'
         self.dummy_cmt_time      = '00:00:00'
         self.dummy_cmt_mag       = 1.0
@@ -49,15 +48,15 @@ class ForwardGenerator:
         self.force_direction     = (0.0, 0.0, -1.0)
         self.force_stf_type      = 0
         self.force_hdurorf0      = 0.0
-        self.synthetic_comp      = config.get('data.seismogram.component.COMP')
-        self.synthetic_tcor      = float(config.get('data.seismogram.tcor', 0.0))
+        self.synthetic_comp      = get_by_path(dataset_config, 'seismogram.component.COMP')
+        self.synthetic_tcor      = float(get_by_path(dataset_config, 'seismogram.tcor', default=0))
         self.half_duration_file  = os.path.join(self.specfem_dir, "half_duration.out")
-        self.egf_n_wavelength    = config.get('data.egf.n_wavelength')
-        self.egf_ref_velocity_km_s = config.get('data.egf.ref_velocity_km_s')
-        self.egf_max_period      = config.get('data.seismogram.filter.P2')
+        self.egf_n_wavelength    = get_by_path(dataset_config, 'seismogram.fine_tune.EGF.criteria.n_wavelength')
+        self.egf_ref_velocity_km_s = get_by_path(dataset_config, 'seismogram.fine_tune.EGF.criteria.ref_velocity_km_s')
+        self.egf_max_period      = get_by_path(dataset_config, 'seismogram.filter.P2')
         
-        self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
-        self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', config.get('data.list.stlst'))
+        self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', get_by_path(dataset_config, 'list.evlst'))
+        self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', get_by_path(dataset_config, 'list.stlst'))
         self.specfem_par_file    = os.path.join(self.specfem_dir, 'DATA', 'Par_file')   
         
         self.nproc               = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
@@ -80,8 +79,7 @@ class ForwardGenerator:
             error_message = f"STOP: the current directory is not {self.specfem_dir}!"
             self.debug_logger.error(error_message)
             raise ValueError(error_message)
-        if self.source_type == 'force':
-            self.ensure_force_point_source()
+        self.ensure_force_point_source()
 
     def output_vars_file(self):
         """
@@ -369,8 +367,10 @@ class ForwardGenerator:
         self.write_cmt_file(event_info)
 
     def ensure_force_point_source(self):
-        if not self.force_auto_set_par:
-            return
+        """
+        Ensure that USE_FORCE_POINT_SOURCE in Par_file is set correctly
+        """
+        target_value = '.true.' if self.source_type == 'force' else '.false.'
         updated = False
         output_lines = []
         with open(self.specfem_par_file, 'r') as f:
@@ -385,10 +385,10 @@ class ForwardGenerator:
                 if '#' in rest:
                     value_part, comment = rest.split('#', 1)
                     comment = '#' + comment.rstrip('\n')
-                if '.true.' in value_part:
+                if target_value in value_part.lower():
                     output_lines.append(line)
                     continue
-                new_line = f"{key}= .true."
+                new_line = f"{key}= {target_value}"
                 if comment:
                     new_line += f" {comment}"
                 output_lines.append(new_line.rstrip() + "\n")

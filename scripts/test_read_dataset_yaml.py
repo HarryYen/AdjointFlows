@@ -3,30 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
-import yaml
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "adjointflows"))
 
-
-def load_dataset_config(path: Path) -> dict:
-    """Load dataset.yaml and return the parsed content.
-
-    Args:
-        path: Path to dataset.yaml.
-
-    Returns:
-        Parsed YAML content as a dictionary.
-    """
-    if not path.is_file():
-        raise FileNotFoundError(f"Dataset file not found: {path}")
-    with path.open("r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    if data is None:
-        return {}
-    if not isinstance(data, dict):
-        raise ValueError("Dataset file must contain a mapping at the top level.")
-    return data
+from tools.dataset_loader import load_dataset_config, get_by_path
 
 
 def validate_datasets(data: dict) -> list[str]:
@@ -57,6 +41,21 @@ def validate_datasets(data: dict) -> list[str]:
     return names
 
 
+def deep_merge(base, override):
+    """Deep-merge two dictionaries with override taking precedence."""
+    if not isinstance(base, dict):
+        return override
+    if not isinstance(override, dict):
+        return override
+    merged = dict(base)
+    for key, value in override.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
 def main() -> int:
     """Run dataset.yaml validation."""
     parser = argparse.ArgumentParser(description="Validate and summarize dataset.yaml")
@@ -66,27 +65,52 @@ def main() -> int:
         default=None,
         help="Path to dataset.yaml (default: adjointflows/dataset.yaml)",
     )
+    parser.add_argument(
+        "--show-merged",
+        action="store_true",
+        help="Print merged dataset configs with defaults applied.",
+    )
     args = parser.parse_args()
+
+    try:
+        if args.path is None:
+            repo_root = Path(__file__).resolve().parents[1]
+            data = load_dataset_config(str(repo_root / "adjointflows"))
+        else:
+            data = load_dataset_config(str(args.path.parent))
+        names = validate_datasets(data)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"ERROR: {exc}")
+        return 1
 
     if args.path is None:
         repo_root = Path(__file__).resolve().parents[1]
         dataset_path = repo_root / "adjointflows" / "dataset.yaml"
     else:
         dataset_path = args.path
+    datasets = data.get("datasets", [])
+    default_settings = get_by_path(data, "defaults.seismogram.tbeg")
 
-    try:
-        data = load_dataset_config(dataset_path)
-        names = validate_datasets(data)
-    except (FileNotFoundError, ValueError, yaml.YAMLError) as exc:
-        print(f"ERROR: {exc}")
-        return 1
 
-    print(f"OK: {dataset_path}")
-    print(f"datasets: {len(names)}")
-    for name in names:
-        print(f"- {name}")
+    defaults = data.get("defaults", {})
+    print("merged_datasets:")
+    for dataset in datasets:
+        merged = deep_merge(defaults, dataset)
+        print(merged)
+        print(get_by_path(merged, "seismogram.tbeg"))
+        sys.exit(0)
+        # print(json.dumps(merged, indent=2, ensure_ascii=True))
+
+    print(default_settings)
+    # print(f"OK: {dataset_path}")
+    # print(f"datasets: {len(names)}")
+    # for dataset in datasets:
+    #     merge_data = deep_merge(defaults, dataset)
+    #     print(merge_data)
+
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+# 

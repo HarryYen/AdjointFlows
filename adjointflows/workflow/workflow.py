@@ -1,12 +1,12 @@
 from tools import FileManager, ModelEvaluator
 from tools.job_utils import remove_file, wait_for_launching, copy_files
+from tools.dataset_loader import load_dataset_config, get_by_path, deep_merge
 from kernel import ModelGenerator, ForwardGenerator, PostProcessing
 from iterate import IterationProcess, StepLengthOptimizer
 import os
 import sys
 import logging
 import json
-import yaml
 
 class WorkflowController:
     def __init__(self, config, global_params):
@@ -25,7 +25,6 @@ class WorkflowController:
         self.do_backtracking_ls  = int(self.config.get('inversion.do_backtracking_line_search'))
         
         self.precondition_flag   = bool(self.config.get('inversion.precondition_flag'))
-        self.do_wave_simulation = bool(config.get('setup.workflow.do_wave_simulation'))
 
         self.tomo_dir     = os.path.join(self.base_dir, 'TOMO', f'm{self.current_model_num:03d}')
 
@@ -37,7 +36,7 @@ class WorkflowController:
         self.file_manager.set_model_number(current_model_num=self.current_model_num)
         self.determine_inversion_method()
 
-        self.dataset_config = self.load_dataset_config()
+        self.dataset_config = load_dataset_config(self.adjointflows_dir, logger=self.debug_logger)
 
         self.setup_dir()
         self.iteration_process = IterationProcess(current_model_num=self.current_model_num, config=self.config)
@@ -52,24 +51,6 @@ class WorkflowController:
         else:
             self.inversion_method = 'LBFGS'
             self.setup_for_fail()
-
-    def load_dataset_config(self):
-        """Load dataset configuration from adjointflows/dataset.yaml.
-
-        Returns:
-            dict: Parsed dataset configuration, or an empty dict if missing/invalid.
-        """
-        dataset_path = os.path.join(self.adjointflows_dir, "dataset.yaml")
-        if not os.path.isfile(dataset_path):
-            self.debug_logger.warning(f"Dataset config not found: {dataset_path}")
-            return {}
-        try:
-            with open(dataset_path, "r") as f:
-                data = yaml.safe_load(f) or {}
-        except yaml.YAMLError as exc:
-            self.debug_logger.error(f"Failed to parse {dataset_path}: {exc}")
-            return {}
-        return data
 
     def construct_misfit_list(self):
         """
@@ -142,11 +123,42 @@ class WorkflowController:
         self.iteration_process.update_specfem_params()
         self.iteration_process.save_params_json()
 
-    def run_forward(self, do_forward, do_adjoint, do_measurement):
+    def run_all_datasets(self, do_adjoint, do_measurement):
+        """
+        Run all datasets defined in dataset.yaml
+        """
+        default_settings = self.dataset_config.get("defaults", {})
+        datasets = self.dataset_config.get("datasets", [])
+        for dataset_entry in datasets:
+            dataset_name = dataset_entry.get("name")
+            if not dataset_name:
+                self.debug_logger.error("Dataset entry missing 'name'. Skipping this dataset.")
+                continue
+            
+            self.debug_logger.info(f"Processing dataset: {dataset_name}")
+            # Merge default settings with dataset-specific settings
+            merged_dataset = deep_merge(default_settings, dataset_entry)
+            self.run_forward(merged_dataset, do_adjoint, do_measurement)
+        
+            
+
+    def run_forward(self, dataset_config, do_adjoint, do_measurement):
         """
         Run the adjoint tomography processes
         """
-        forward_generator = ForwardGenerator(current_model_num=self.current_model_num, config=self.config)        
+        dataset_name = get_by_path(dataset_config, "name", default="dataset")
+        do_forward = bool(get_by_path(dataset_config, "synthetics.do_wave_simulation", default=1))
+        data_waveform_dir = get_by_path(dataset_config, "data.waveform_dir")
+        self.file_manager.ensure_dataset_dirs(dataset_name)
+        self.file_manager.link_dataset_dirs(dataset_name, data_waveform_dir)
+        if not self.ichk:
+            self.file_manager.clear_dataset_dirs(
+                dataset_name,
+                clear_syn=do_forward,
+                clear_measure=True,
+                clear_kernel=True,
+            )
+        forward_generator = ForwardGenerator(current_model_num=self.current_model_num, config=self.config, dataset_config=dataset_config)        
         forward_generator.preprocessing()
         forward_generator.output_vars_file()
         index_evt_last = forward_generator.check_last_event()

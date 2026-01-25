@@ -50,7 +50,6 @@ class StepLengthOptimizer:
         self.force_depth_km      = config.get('source.force.depth_km', 0.0)
         if self.force_depth_km is None:
             self.force_depth_km = 0.0
-        self.force_auto_set_par  = bool(config.get('source.force.auto_set_par_file', True))
         self.dummy_cmt_date      = '2000/01/01'
         self.dummy_cmt_time      = '00:00:00'
         self.dummy_cmt_mag       = 1.0
@@ -191,8 +190,7 @@ class StepLengthOptimizer:
             error_message = f"STOP: the current directory is not {self.specfem_dir}!"
             self.debug_logger.error(error_message)
             raise ValueError(error_message)
-        if self.source_type == 'force':
-            self.ensure_force_point_source()
+        self.ensure_force_point_source()
         
         kernel_ready_file = os.path.join(self.specfem_dir, 'kernel_databases_ready')
         remove_file(kernel_ready_file)
@@ -371,8 +369,7 @@ class StepLengthOptimizer:
         self.write_cmt_file(event_info)
 
     def ensure_force_point_source(self):
-        if not self.force_auto_set_par:
-            return
+        target_value = '.true.' if self.source_type == 'force' else '.false.'
         updated = False
         output_lines = []
         with open(self.specfem_par_file, 'r') as f:
@@ -387,10 +384,10 @@ class StepLengthOptimizer:
                 if '#' in rest:
                     value_part, comment = rest.split('#', 1)
                     comment = '#' + comment.rstrip('\n')
-                if '.true.' in value_part:
+                if target_value in value_part.lower():
                     output_lines.append(line)
                     continue
-                new_line = f"{key}= .true."
+                new_line = f"{key}= {target_value}"
                 if comment:
                     new_line += f" {comment}"
                 output_lines.append(new_line.rstrip() + "\n")
