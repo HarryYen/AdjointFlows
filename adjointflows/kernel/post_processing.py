@@ -134,28 +134,28 @@ class PostProcessing:
 
         if nproc == 1:
             subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "alpha_kernel", 
-                            f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                            f"{self.tomo_dir}/KERNEL_{dataset_name}/SUM/", f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "beta_kernel", 
-                            f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                            f"{self.tomo_dir}/KERNEL_{dataset_name}/SUM/", f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "rho_kernel", 
-                            f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                            f"{self.tomo_dir}/KERNEL_{dataset_name}/SUM/", f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             if precond_flag:
                 subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "hess_inv_kernel", 
-                                f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                                f"{self.tomo_dir}/KERNEL_{dataset_name}/SUM/", f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
         else:
             subprocess.run([str(self.mpirun_path), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "alpha_kernel", 
-                            f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                            f"{self.tomo_dir}/KERNEL_{dataset_name}/SUM/", f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run([str(self.mpirun_path), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "beta_kernel", 
-                            f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                            f"{self.tomo_dir}/KERNEL_{dataset_name}/SUM/", f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run([str(self.mpirun_path), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "rho_kernel", 
-                            f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                            f"{self.tomo_dir}/KERNEL_{dataset_name}/SUM/", f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             if precond_flag:
                 subprocess.run([str(self.mpirun_path), '-np' , str(nproc),
                                 "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "hess_inv_kernel", 
-                                f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                                f"{self.tomo_dir}/KERNEL_{dataset_name}/SUM/", f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
     
     def combine_kernels(self, dataset_name):
         """
@@ -166,15 +166,15 @@ class PostProcessing:
         
         if self.ismooth:
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "alpha_kernel_smooth",
-                            f"KERNEL_{dataset_name}/SMOOTH/", f"KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
+                            f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.tomo_dir}/KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "beta_kernel_smooth",
-                            f"KERNEL_{dataset_name}/SMOOTH/", f"KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
+                            f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.tomo_dir}/KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "rho_kernel_smooth",
-                            f"KERNEL_{dataset_name}/SMOOTH/", f"KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
+                            f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.tomo_dir}/KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
         else:
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "alpha_kernel",
-                            f"KERNEL_{dataset_name}/SMOOTH/", f"KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
+                            f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.tomo_dir}/KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "beta_kernel",
-                            f"KERNEL_{dataset_name}/SMOOTH/", f"KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
+                            f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.tomo_dir}/KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "rho_kernel",
-                            f"KERNEL_{dataset_name}/SMOOTH/", f"KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
+                            f"{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH/", f"{self.tomo_dir}/KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
