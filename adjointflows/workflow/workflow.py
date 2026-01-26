@@ -157,6 +157,7 @@ class WorkflowController:
         with open(config_path, "w") as f:
             yaml.safe_dump(config_data, f, sort_keys=False)
         return config_path
+    
 
     def run_all_datasets(self, do_adjoint, do_measurement):
         """
@@ -192,9 +193,9 @@ class WorkflowController:
             syn_waveform_dir=syn_waveform_dir,
         )
         self.file_manager.link_measurement_tools(
-            flexwin_bin=get_by_path(dataset_config, "flexwin.bin_dir"),
+            flexwin_bin=get_by_path(dataset_config, "flexwin.bin_file"),
             flexwin_par=get_by_path(dataset_config, "flexwin.par_file"),
-            measure_adj_bin=get_by_path(dataset_config, "measure_adj.bin_dir"),
+            measure_adj_bin=get_by_path(dataset_config, "measure_adj.bin_file"),
             measure_adj_par=get_by_path(dataset_config, "measure_adj.par_file"),
         )
         if not self.ichk:
@@ -230,8 +231,8 @@ class WorkflowController:
         
         
     def misfit_check(self):
-        model_evaluator = ModelEvaluator(current_model_num=self.current_model_num, config=self.config)
-        misfit = model_evaluator.misfit_calculation(m_num=self.current_model_num)
+        model_evaluator = ModelEvaluator(current_model_num=self.current_model_num, config=self.config, dataset_config=self.dataset_config)
+        misfit = model_evaluator.run_all_datasets_misfit_evaluation(m_num=self.current_model_num)
         
         if self.inversion_method == 'LBFGS':
             self.misfit_list.append(misfit)

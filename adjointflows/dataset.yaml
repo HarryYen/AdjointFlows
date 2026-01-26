@@ -35,10 +35,11 @@ datasets:
       do_wave_simulation: 1
       waveform_dir: SYN_EQ
     flexwin:
-      par_file: Par_file_EQ_10_30s      # **(under FLEXWIN/)** the parameter file for FLEXWIN
-      bin_dir: flexwin_EQ_10_30s    # **(under FLEXWIN/)** the directory to store time-windows picked by FLEXWIN
+      par_file: Joint_par_and_bin/EQ_10_30/PAR_FILE      # **(under FLEXWIN/)** the parameter file for FLEXWIN
+      bin_file: Joint_par_and_bin/EQ_10_30/flexwin    # **(under FLEXWIN/)** the directory to store time-windows picked by FLEXWIN
     measure_adj:
-      par_file: MEASURE_EQ_10_30s.PAR  # **(under MEASURE_ADJ/)** the parameter file for measuring adjoint sources
+      par_file: Joint_par/EQ_10_30/MEASUREMENT.PAR  # **(under MEASURE_ADJ/)** the parameter file for measuring adjoint sources
+      bin_file: measure_adj
     source:
       type: cmt
     list:
@@ -50,36 +51,48 @@ datasets:
     inversion:
       weight: 0.5
   
-  - name: EQ_6_12s
+  # - name: EQ_6_12s
+  #   data:
+  #     waveform_dir: wav_EQ
+  #   synthetics:
+  #     do_wave_simulation: 0
+  #     waveform_dir: SYN_EQ   
+  #   flexwin:
+  #     par_file: Par_file_EQ_6_12s      # **(under FLEXWIN/)** the parameter file for FLEXWIN
+  #     bin_dir: flexwin_EQ_6_12s    # **(under FLEXWIN/)** the directory to store time-windows picked by FLEXWIN
+  #   measure_adj:
+  #     bin_dir: measure_adj
+  #     par_file: MEASURE_EQ_6_12s.PAR  # **(under MEASURE_ADJ/)** the parameter file for measuring adjoint sources
+  #   source:
+  #     type: cmt
+  #   list:
+  #     evlst: cmt_evt_test.txt
+  #     evchk: cmt_evt_test.txt
+  #     stlst: sta_new_remove_western.txt
+  #   seismogram:
+  #     filter: {P1: 6, P2: 12}
+  #   inversion:
+  #     weight: 0.5
+
+  - name: EGF_8_18s
     data:
-      waveform_dir: wav_EQ
+      waveform_dir: wav_EGF
     synthetics:
-      do_wave_simulation: 0
-      waveform_dir: SYN_EQ   
+      do_wave_simulation: 1
+      waveform_dir: SYN_EGF
     flexwin:
-      par_file: Par_file_EQ_6_12s      # **(under FLEXWIN/)** the parameter file for FLEXWIN
-      bin_dir: flexwin_EQ_6_12s    # **(under FLEXWIN/)** the directory to store time-windows picked by FLEXWIN
+      par_file: Joint_par_and_bin/EGF_8_18/PAR_FILE      # **(under FLEXWIN/)** the parameter file for FLEXWIN
+      bin_file: Joint_par_and_bin/EGF_8_18/flexwin     # **(under FLEXWIN/)** the directory to store time-windows picked by FLEXWIN
     measure_adj:
-      bin_dir: measure_adj
-      par_file: MEASURE_EQ_6_12s.PAR  # **(under MEASURE_ADJ/)** the parameter file for measuring adjoint sources
+      par_file: Joint_par/EGF_8_18/MEASUREMENT.PAR  # **(under MEASURE_ADJ/)** the parameter file for measuring adjoint sources
+      bin_file: measure_adj
     source:
-      type: cmt
+      type: force
     list:
-      evlst: cmt_evt_test.txt
-      evchk: cmt_evt_test.txt
-      stlst: sta_new_remove_western.txt
+      evlst: force_evt_test.txt
+      evchk: force_evt_test.txt
+      stlst: sta_91_EGF.txt
     seismogram:
-      filter: {P1: 6, P2: 12}
+      filter: {P1: 8, P2: 18}
     inversion:
       weight: 0.5
-
-  # - name: EGF_8_18
-  #   waveform_group: wav_EGF
-  #   source:
-  #     type: force
-  #   list:
-  #     evlst: force_evt_test.txt
-  #     evchk: force_evt_test.txt
-  #     stlst: force_evt_test.txt
-  #   seismogram:
-  #     filter: {P1: 8, P2: 18}
