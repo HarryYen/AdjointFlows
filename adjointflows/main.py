@@ -121,7 +121,12 @@ def main():
         5. do inversion (Steepest descent or L-BFGS)
     """
     
-    while not misfit_reduced and attempt < MAX_ATTEMPTS and stage_order[start_from_stage] <= stage_order['forward']:
+    while (
+        not misfit_reduced
+        and attempt < MAX_ATTEMPTS
+        and stage_order[start_from_stage] <= stage_order['forward']
+        and stage_order['forward'] <= end_index
+    ):
         
         attempt += 1
         # -------------------------------------------------------------------------
@@ -177,7 +182,7 @@ def main():
     # -------------------------------------------------------------------------
     # (5) Post-processing: smoothing and summing up kernels
     # -------------------------------------------------------------------------
-    if start_index <= stage_order['postprocess']:
+    if start_index <= stage_order['postprocess'] <= end_index:
         workflow_controller.move_to_other_directory(folder_to_move='specfem')
         workflow_controller.create_misfit_kernel_each_dataset()
         if forward_stop_at == 'gradient':
@@ -187,7 +192,7 @@ def main():
     # -------------------------------------------------------------------------
     # (6) Inversion
     # -------------------------------------------------------------------------
-    if start_index <= stage_order['inversion']:
+    if start_index <= stage_order['inversion'] <= end_index:
         workflow_controller.move_to_other_directory(folder_to_move='adjointflows')
         workflow_controller.do_iteration()
 
