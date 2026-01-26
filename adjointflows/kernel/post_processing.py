@@ -1,6 +1,7 @@
 from tools.job_utils import remove_file, remove_files_with_pattern, make_symlink, move_files
 from tools.matrix_utils import get_param_from_specfem_file, read_bin, kernel_pad_and_output
 from tools.global_params import GLOBAL_PARAMS
+from tools.dataset_loader import get_by_path
 from mpi4py import MPI
 from pathlib import Path
 import os
@@ -11,23 +12,24 @@ import subprocess
 
 
 class PostProcessing:
-    def __init__(self, current_model_num, config):
+    def __init__(self, current_model_num, config, ismooth=True, sigma_h=15000, sigma_v=10000):
         self.config              = config
         self.base_dir            = GLOBAL_PARAMS['base_dir']
         self.mpirun_path         = GLOBAL_PARAMS['mpirun_path']
         self.specfem_dir         = os.path.join(self.base_dir, 'specfem3d')
         self.current_model_num   = current_model_num
+        self.tomo_dir            = os.path.join(self.base_dir, 'TOMO', f'm{self.current_model_num:03d}')
         self.specfem_par_file    = os.path.join(self.specfem_dir, 'DATA', 'Par_file')
         self.model_generate_file = os.path.join(self.specfem_dir, 'OUTPUT_FILES', 'output_generate_databases.txt')
         self.pbs_nodefile        = os.path.join(self.base_dir, 'adjointflows', 'nodefile')
         
         self.kernel_list         = config.get('kernel.type.list')
         self.dtype               = config.get('kernel.type.dtype')
-        self.ismooth             = config.get('kernel.smoothing.ISMOOTH')
-        self.sigma_h             = config.get('kernel.smoothing.smooth_par_gradinet.SIGMA_H')
-        self.sigma_v             = config.get('kernel.smoothing.smooth_par_gradinet.SIGMA_V')
+        self.ismooth             = ismooth
+        self.sigma_h             = sigma_h
+        self.sigma_v             = sigma_v
         self.ivtkout             = config.get('kernel.visualization.IVTKOUT')
-        self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
+        # self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
         
         self.nproc = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
         self.nspec = get_param_from_specfem_file(file=self.model_generate_file, param_name='nspec', param_type=int)
@@ -38,8 +40,9 @@ class PostProcessing:
         
         self.debug_logger  = logging.getLogger("debug_logger")
         self.result_logger = logging.getLogger("result_logger")
-        
-    def sum_and_smooth_kernels(self, precond_flag=False):
+    
+    
+    def sum_and_smooth_kernels(self, dataset_name, evlst, precond_flag=False):
         """
         Sum and smooth the kernels
         Note:
@@ -47,8 +50,8 @@ class PostProcessing:
         """
         self.result_logger.info(f"Start smoothing the kernels for the {self.current_model_num:03d} model...") 
         remove_file('INPUT_KERNELS')
-        self.make_kernels_list()
-        make_symlink(src=os.path.join(self.specfem_dir, 'KERNEL', 'DATABASE'), 
+        self.make_kernels_list(dataset_name, evlst)
+        make_symlink(src=os.path.join(self.tomo_dir, f'KERNEL_{dataset_name}', 'DATABASE'), 
                      dst=os.path.join(self.specfem_dir, 'INPUT_KERNELS'))
         
         Path("OUTPUT_SUM").mkdir(parents=True, exist_ok=True)
@@ -60,9 +63,9 @@ class PostProcessing:
         self.run_sum_kernels()
         
         move_files(src_dir = 'OUTPUT_SUM', 
-                   dst_dir = 'KERNEL/SUM', 
+                   dst_dir = f'KERNEL_{dataset_name}/SUM', 
                    pattern = '*')
-        Path(f'{self.specfem_dir}/KERNEL/SMOOTH').mkdir(parents=True, exist_ok=True)
+        Path(f'{self.specfem_dir}/KERNEL_{dataset_name}/SMOOTH').mkdir(parents=True, exist_ok=True)
         
         if self.ismooth:
             self.run_smoothing(precond_flag=precond_flag)
@@ -70,15 +73,15 @@ class PostProcessing:
             self.combine_kernels()
         
     
-    def make_kernels_list(self):
+    def make_kernels_list(self, dataset_name, evlst):
         """
         Make a list of kernels
         replace the linux command `ls KERNEL/DATABASE > kernels_list.txt`
         """
-        kernel_dir = f'{self.specfem_dir}/KERNEL/DATABASE'
+        kernel_dir = f'{self.tomo_dir}/KERNEL_{dataset_name}/DATABASE'
         event_names = None
-        if self.evlst and os.path.isfile(self.evlst):
-            with open(self.evlst, 'r') as f:
+        if evlst and os.path.isfile(evlst):
+            with open(evlst, 'r') as f:
                 event_names = [line.split()[0] for line in f if line.split()]
 
         if event_names:
@@ -122,7 +125,7 @@ class PostProcessing:
             subprocess.run([str(self.mpirun_path), '-np' , str(nproc), './bin/xsum_kernels'], 
                            check=True, env=os.environ)
     
-    def run_smoothing(self, precond_flag=False):
+    def run_smoothing(self, dataset_name, precond_flag=False):
         """
         run xsmooth_sem
         """
@@ -131,30 +134,30 @@ class PostProcessing:
 
         if nproc == 1:
             subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "alpha_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                            f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "beta_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                            f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "rho_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                            f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             if precond_flag:
                 subprocess.run(["./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "hess_inv_kernel", 
-                                "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                                f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
         else:
             subprocess.run([str(self.mpirun_path), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "alpha_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                            f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run([str(self.mpirun_path), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "beta_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                            f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             subprocess.run([str(self.mpirun_path), '-np' , str(nproc),
                             "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "rho_kernel", 
-                            "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                            f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
             if precond_flag:
                 subprocess.run([str(self.mpirun_path), '-np' , str(nproc),
                                 "./bin/xsmooth_sem", f"{self.sigma_h}", f"{self.sigma_v}", "hess_inv_kernel", 
-                                "KERNEL/SUM/", "KERNEL/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
+                                f"KERNEL_{dataset_name}/SUM/", f"KERNEL_{dataset_name}/SMOOTH/", f"{self.gpu_flag}"], check=True, env=os.environ)
     
-    def combine_kernels(self):
+    def combine_kernels(self, dataset_name):
         """
         Combine the kernels using xcombine_vol_data_vtk
         """
@@ -163,15 +166,15 @@ class PostProcessing:
         
         if self.ismooth:
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "alpha_kernel_smooth",
-                            "KERNEL/SMOOTH/", "KERNEL/VTK/", "0"], check=True, env=os.environ)
+                            f"KERNEL_{dataset_name}/SMOOTH/", f"KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "beta_kernel_smooth",
-                            "KERNEL/SMOOTH/", "KERNEL/VTK/", "0"], check=True, env=os.environ)
+                            f"KERNEL_{dataset_name}/SMOOTH/", f"KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "rho_kernel_smooth",
-                            "KERNEL/SMOOTH/", "KERNEL/VTK/", "0"], check=True, env=os.environ)
+                            f"KERNEL_{dataset_name}/SMOOTH/", f"KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
         else:
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "alpha_kernel",
-                            "KERNEL/SMOOTH/", "KERNEL/VTK/", "0"], check=True, env=os.environ)
+                            f"KERNEL_{dataset_name}/SMOOTH/", f"KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "beta_kernel",
-                            "KERNEL/SMOOTH/", "KERNEL/VTK/", "0"], check=True, env=os.environ)
+                            f"KERNEL_{dataset_name}/SMOOTH/", f"KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)
             subprocess.run(["./bin/xcombine_vol_data_vtk", "0", f"{nslice}", "rho_kernel",
-                            "KERNEL/SMOOTH/", "KERNEL/VTK/", "0"], check=True, env=os.environ)
+                            f"KERNEL_{dataset_name}/SMOOTH/", f"KERNEL_{dataset_name}/VTK/", "0"], check=True, env=os.environ)

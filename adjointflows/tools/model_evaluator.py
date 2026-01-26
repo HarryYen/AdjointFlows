@@ -1,5 +1,5 @@
 from .global_params import GLOBAL_PARAMS
-from .dataset_loader import get_by_path
+from .dataset_loader import get_by_path, resolve_dataset_list_path
 import json
 import os
 import logging
@@ -32,12 +32,13 @@ class ModelEvaluator:
         for dataset_entry in datasets:
             dataset_name = dataset_entry.get("name")
             weight = get_by_path(dataset_entry, "inversion.weight", 1.0)
-            # Determine the evlst path
-            evlst = get_by_path(dataset_entry, "list.evlst")
-            if not evlst:
-                raise ValueError("Missing list.evlst in dataset config.")
-            if not os.path.isabs(evlst):
-                evlst = os.path.join(self.base_dir, "DATA", "evlst", evlst)
+            evlst = resolve_dataset_list_path(
+                self.base_dir,
+                dataset_entry,
+                "list.evlst",
+                "evlst",
+                required=True,
+            )
             logging.info(f"Evaluating misfit for dataset: {dataset_name}")
             
             misfit = self.misfit_calculation(m_num, dataset_name, evlst)

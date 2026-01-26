@@ -64,3 +64,26 @@ def deep_merge(base, override):
     return merged
 
 
+def resolve_dataset_list_path(base_dir, dataset_entry, list_key, subdir, default=None, required=False):
+    """Resolve a dataset list file path (e.g., list.evlst) to an absolute path.
+
+    Args:
+        base_dir (str): Project base directory.
+        dataset_entry (dict): Dataset configuration entry.
+        list_key (str): Dot-separated key to the list file (e.g., "list.evlst").
+        subdir (str): DATA subdirectory (e.g., "evlst", "stlst").
+        default (str, optional): Default value if list_key is missing.
+        required (bool): If True, raise when the value is missing.
+
+    Returns:
+        str or None: Absolute path to the list file, or None when missing and not required.
+    """
+    value = get_by_path(dataset_entry, list_key, default=default)
+    if not value:
+        if required:
+            raise ValueError(f"Missing {list_key} in dataset config.")
+        return None
+    if os.path.isabs(value):
+        return value
+    return os.path.join(base_dir, "DATA", subdir, value)
+

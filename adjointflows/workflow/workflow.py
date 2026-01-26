@@ -1,6 +1,6 @@
 from tools import FileManager, ModelEvaluator
 from tools.job_utils import remove_file, wait_for_launching, copy_files
-from tools.dataset_loader import load_dataset_config, get_by_path, deep_merge
+from tools.dataset_loader import load_dataset_config, get_by_path, deep_merge, resolve_dataset_list_path
 from kernel import ModelGenerator, ForwardGenerator, PostProcessing
 from iterate import IterationProcess, StepLengthOptimizer
 import os
@@ -252,12 +252,29 @@ class WorkflowController:
             self.debug_logger.info("PASS: Misfit is reduced.")
             return True
     
-    def create_misfit_kernel(self):
+    def create_misfit_kernel_each_dataset(self):
         """
         Sum up the event kernel and smooth it
         """
-        post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config)
-        post_processing.sum_and_smooth_kernels(precond_flag=self.precondition_flag)
+        datasets = self.dataset_config.get("datasets", [])
+        for dataset_entry in datasets:
+            dataset_name = dataset_entry.get("name")
+            
+            evlst = resolve_dataset_list_path(
+                self.base_dir,
+                dataset_entry,
+                "list.evlst",
+                "evlst",
+                required=True,
+            )
+                
+            ismooth = bool(get_by_path(dataset_entry, "inversion.smoothing.ISMOOTH", 1))
+            sigma_h = get_by_path(dataset_entry, "inversion.smoothing.smooth_par_gradient.SIGMA_H", 20000)
+            sigma_v = get_by_path(dataset_entry, "inversion.smoothing.smooth_par_gradient.SIGMA_V", 15000)
+            
+            post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config,
+                                             ismooth=ismooth, sigma_h=sigma_h, sigma_v=sigma_v)
+            post_processing.sum_and_smooth_kernels(dataset_name=dataset_name, evlst=evlst, precond_flag=self.precondition_flag)
     
     def do_iteration(self):
         """

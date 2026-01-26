@@ -50,6 +50,11 @@ datasets:
       filter: {P1: 10, P2: 30}
     inversion:
       weight: 0.5
+      smoothing:
+        ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
+        smooth_par_gradient:
+          SIGMA_H: 20000        # Horizontal smoothing width (m)
+          SIGMA_V: 15000         # Vertical smoothing width (m)
   
   # - name: EQ_6_12s
   #   data:
@@ -96,3 +101,8 @@ datasets:
       filter: {P1: 8, P2: 18}
     inversion:
       weight: 0.5
+      smoothing:
+        ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
+        smooth_par_gradient:
+          SIGMA_H: 20000        # Horizontal smoothing width (m)
+          SIGMA_V: 15000         # Vertical smoothing width (m)

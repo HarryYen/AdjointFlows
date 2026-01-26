@@ -33,11 +33,6 @@ kernel:
   type:
     list: ['alpha', 'beta', 'rho']
     dtype: float32
-  smoothing:
-    ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
-    smooth_par_gradinet:
-      SIGMA_H: 15000        # Horizontal smoothing width (m)
-      SIGMA_V: 10000         # Vertical smoothing width (m)
   visualization:
     IVTKOUT: 0            # Output kernel VTK file (1: yes, 0: no)
 
