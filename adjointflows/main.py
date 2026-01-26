@@ -179,7 +179,7 @@ def main():
     # -------------------------------------------------------------------------
     if start_index <= stage_order['postprocess']:
         workflow_controller.move_to_other_directory(folder_to_move='specfem')
-        workflow_controller.create_misfit_kernel()
+        workflow_controller.create_misfit_kernel_each_dataset()
         if forward_stop_at == 'gradient':
             result_logger.info("Only compute gradient as requested by user. Stop after post-processing step.")
             
