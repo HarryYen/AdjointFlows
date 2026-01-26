@@ -63,12 +63,12 @@ class PostProcessing:
         self.run_sum_kernels()
         
         move_files(src_dir = 'OUTPUT_SUM', 
-                   dst_dir = f'KERNEL_{dataset_name}/SUM', 
+                   dst_dir = f'{self.tomo_dir}/KERNEL_{dataset_name}/SUM', 
                    pattern = '*')
-        Path(f'{self.specfem_dir}/KERNEL_{dataset_name}/SMOOTH').mkdir(parents=True, exist_ok=True)
+        Path(f'{self.tomo_dir}/KERNEL_{dataset_name}/SMOOTH').mkdir(parents=True, exist_ok=True)
         
         if self.ismooth:
-            self.run_smoothing(precond_flag=precond_flag)
+            self.run_smoothing(dataset_name=dataset_name, precond_flag=precond_flag)
         if self.ivtkout:
             self.combine_kernels()
         
