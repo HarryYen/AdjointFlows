@@ -39,6 +39,7 @@ class ForwardGenerator:
 
         self.flexwin_mode        = config.get('setup.flexwin.flexwin_mode')
         self.flexwin_user_dir    = config.get('setup.flexwin.flexwin_user_dir')
+        self.dataset_name        = get_by_path(dataset_config, "name", default="dataset")
         self.source_type         = (get_by_path(dataset_config, "source.type", default="cmt")   ).lower()
         if self.source_type not in ('cmt', 'force'):
             raise ValueError(f"Unknown source.type: {self.source_type}")
@@ -645,9 +646,15 @@ class ForwardGenerator:
             subprocess.run(['bash', 'ini_proc.bash', f'{event_name}'], env=env)
             initial_model_dir = f'm{self.stage_initial_model:03d}'
             if self.flexwin_mode == 'user':
-                windows_dir = f"../TOMO/{self.flexwin_user_dir}/MEASURE/windows/{event_name}/MEASUREMENT.WINDOWS"
+                windows_dir = (
+                    f"../TOMO/{self.flexwin_user_dir}/MEASURE_{self.dataset_name}"
+                    f"/windows/{event_name}/MEASUREMENT.WINDOWS"
+                )
             else:
-                windows_dir = f"../TOMO/{initial_model_dir}/MEASURE/adjoints/{event_name}/MEASUREMENT.WINDOWS"
+                windows_dir = (
+                    f"../TOMO/{initial_model_dir}/MEASURE_{self.dataset_name}"
+                    f"/adjoints/{event_name}/MEASUREMENT.WINDOWS"
+                )
             shutil.copy(windows_dir, "../measure_adj")
             os.chdir(self.measure_adj_dir)
             subprocess.run(['bash', 'run_adj.bash', f'{event_name}'], env=env)
