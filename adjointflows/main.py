@@ -142,7 +142,7 @@ def main():
         # (2) Forward (Pipeline or tuning parameters from FLEXWIN)  
         # -------------------------------------------------------------------------
         if run_mode == 'flexwin_test':
-            # workflow_controller.run_forward_for_tuning_flexwin(do_forward=do_wave_simulation)
+            workflow_controller.run_flexwin_test_datasets(do_forward=do_generate)
             return 0
         else:
             workflow_controller.run_all_datasets(do_adjoint=do_adjoint, do_measurement=do_measurement)

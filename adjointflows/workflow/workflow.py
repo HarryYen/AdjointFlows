@@ -176,6 +176,37 @@ class WorkflowController:
             # Merge default settings with dataset-specific settings
             merged_dataset = deep_merge(default_settings, dataset_entry)
             self.run_forward(merged_dataset, do_adjoint, do_measurement)
+
+    def run_flexwin_test_datasets(self, do_forward):
+        """
+        Run FLEXWIN tuning for all datasets.
+        """
+        default_settings = self.dataset_config.get("defaults", {})
+        datasets = self.dataset_config.get("datasets", [])
+        for dataset_entry in datasets:
+            dataset_name = dataset_entry.get("name")
+            if not dataset_name:
+                self.debug_logger.error("Dataset entry missing 'name'. Skipping this dataset.")
+                continue
+
+            self.debug_logger.info(f"Flexwin test dataset: {dataset_name}")
+            merged_dataset = deep_merge(default_settings, dataset_entry)
+            data_waveform_dir = get_by_path(merged_dataset, "data.waveform_dir")
+            syn_waveform_dir = get_by_path(merged_dataset, "synthetics.waveform_dir")
+
+            self.file_manager.ensure_dataset_dirs(dataset_name, syn_waveform_dir=syn_waveform_dir)
+            self.file_manager.link_dataset_dirs(
+                dataset_name,
+                data_waveform_dir,
+                syn_waveform_dir=syn_waveform_dir,
+            )
+            self.file_manager.link_measurement_tools(
+                flexwin_bin=get_by_path(merged_dataset, "flexwin.bin_dir"),
+                flexwin_par=get_by_path(merged_dataset, "flexwin.par_file"),
+                measure_adj_bin=get_by_path(merged_dataset, "measure_adj.bin_dir"),
+                measure_adj_par=get_by_path(merged_dataset, "measure_adj.par_file"),
+            )
+            self.run_forward_for_tuning_flexwin(merged_dataset, do_forward=do_forward)
         
             
 
@@ -220,11 +251,17 @@ class WorkflowController:
         index_evt_last = forward_generator.check_last_event()
         forward_generator.process_each_event(index_evt_last, do_forward, do_adjoint, do_measurement)
         
-    def run_forward_for_tuning_flexwin(self, do_forward):
+    def run_forward_for_tuning_flexwin(self, dataset_config, do_forward):
         """
         Run the adjoint tomography processes
         """
-        forward_generator = ForwardGenerator(current_model_num=self.current_model_num, config=self.config)        
+        dataset_config_path = self.write_dataset_config_file(dataset_config)
+        forward_generator = ForwardGenerator(
+            current_model_num=self.current_model_num,
+            config=self.config,
+            dataset_config=dataset_config,
+            dataset_config_path=dataset_config_path,
+        )
         forward_generator.preprocessing()
         forward_generator.output_vars_file()
         # index_evt_last = forward_generator.check_last_event()
