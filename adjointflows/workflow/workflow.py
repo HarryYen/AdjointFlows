@@ -1,8 +1,9 @@
 from tools import FileManager, ModelEvaluator
-from tools.job_utils import remove_file, wait_for_launching, copy_files
+from tools.job_utils import remove_file, wait_for_launching, copy_files, remove_path
 from tools.dataset_loader import load_dataset_config, get_by_path, deep_merge, resolve_dataset_list_path
 from kernel import ModelGenerator, ForwardGenerator, PostProcessing
 from iterate import IterationProcess, StepLengthOptimizer
+from pathlib import Path
 import os
 import sys
 import logging
@@ -257,6 +258,7 @@ class WorkflowController:
         Sum up the event kernel and smooth it
         """
         datasets = self.dataset_config.get("datasets", [])
+        dataset_gradient_max = {}
         for dataset_entry in datasets:
             dataset_name = dataset_entry.get("name")
             
@@ -275,6 +277,64 @@ class WorkflowController:
             post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config,
                                              ismooth=ismooth, sigma_h=sigma_h, sigma_v=sigma_v)
             post_processing.sum_and_smooth_kernels(dataset_name=dataset_name, evlst=evlst, precond_flag=self.precondition_flag)
+            post_processing.prepare_precond(
+                dataset_name=dataset_name,
+                use_smooth=ismooth,
+                precond_flag=self.precondition_flag,
+            )
+            dataset_gradient_max[dataset_name] = post_processing.compute_gradient_max(
+                dataset_name,
+                source_subdir="PRECOND",
+            )
+        if dataset_gradient_max:
+            output_path = os.path.join(self.tomo_dir, "gradient_max_by_dataset.json")
+            try:
+                with open(output_path, "w") as f:
+                    json.dump(dataset_gradient_max, f, indent=2, sort_keys=True)
+            except OSError as exc:
+                self.debug_logger.warning(f"Failed to write {output_path}: {exc}")
+        self.combine_normalized_gradients()
+
+    def combine_normalized_gradients(self):
+        """
+        Normalize and combine dataset gradients into a single directory.
+        """
+        stage_dir = os.path.join(self.base_dir, "TOMO", f"m{self.stage_initial_model:03d}")
+        stage_max_path = os.path.join(stage_dir, "gradient_max_by_dataset.json")
+        if not os.path.isfile(stage_max_path):
+            raise FileNotFoundError(
+                f"Missing stage baseline: {stage_max_path}. "
+                "Run the first model of this stage to generate it."
+            )
+        with open(stage_max_path, "r") as f:
+            dataset_gradient_max = json.load(f)
+        datasets = self.dataset_config.get("datasets", [])
+        combined_dir = os.path.join(self.tomo_dir, "KERNEL_COMBINED", "PRECOND")
+        combined_path = Path(combined_dir)
+        combined_path.mkdir(parents=True, exist_ok=True)
+        for file in combined_path.glob("proc*_kernel_smooth.bin"):
+            file.unlink()
+
+        for dataset_entry in datasets:
+            dataset_name = dataset_entry.get("name")
+            if not dataset_name:
+                continue
+            norm = dataset_gradient_max.get(dataset_name)
+
+            post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config)
+            if not norm or norm <= 0.0:
+                norm = post_processing.compute_gradient_max(dataset_name, source_subdir="PRECOND")
+            post_processing.accumulate_normalized_gradients(
+                dataset_name=dataset_name,
+                norm=norm,
+                output_dir=combined_dir,
+                use_smooth=True,
+                source_subdir="PRECOND",
+            )
+        combined_smooth = os.path.join(self.tomo_dir, "KERNEL_COMBINED", "SMOOTH")
+        if os.path.islink(combined_smooth) or os.path.exists(combined_smooth):
+            remove_path([combined_smooth])
+        os.symlink(combined_dir, combined_smooth)
     
     def do_iteration(self):
         """

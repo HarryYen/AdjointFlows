@@ -1,4 +1,4 @@
-from tools.job_utils import remove_file, remove_files_with_pattern, make_symlink, move_files, copy_files
+from tools.job_utils import remove_file, remove_files_with_pattern, make_symlink, move_files, copy_files, check_if_directory_not_empty
 from tools.matrix_utils import get_param_from_specfem_file, read_bin, kernel_pad_and_output, get_data_type
 from tools.global_params import GLOBAL_PARAMS
 from pathlib import Path
@@ -24,9 +24,11 @@ class IterationProcess:
         self.gradient_file       = os.path.join(self.adjflows_dir, 'output_inner_product.txt')
         self.pbs_nodefile        = os.path.join(self.adjflows_dir, 'nodefile')
         self.tomo_dir            = os.path.join(self.base_dir, 'TOMO', f'm{self.current_model_num:03d}')
-        self.smoothed_kernel_dir = os.path.join(self.tomo_dir, 'KERNEL', 'SMOOTH')
-        self.precond_kernel_dir  = os.path.join(self.tomo_dir, 'KERNEL', 'PRECOND')
-        self.direction_dir       = os.path.join(self.tomo_dir, 'KERNEL', 'UPDATE')
+        self.kernel_base_dir     = 'KERNEL_COMBINED'
+        self.kernel_base_path    = os.path.join(self.tomo_dir, self.kernel_base_dir)
+        self.smoothed_kernel_dir = os.path.join(self.kernel_base_path, 'SMOOTH')
+        self.precond_kernel_dir  = os.path.join(self.kernel_base_path, 'PRECOND')
+        self.direction_dir       = os.path.join(self.kernel_base_path, 'UPDATE')
         
         self.precondition_flag   = bool(config.get('inversion.precondition_flag'))
         self.kernel_list         = config.get('kernel.type.list')
@@ -112,7 +114,8 @@ class IterationProcess:
             'NGLLX': self.NGLLX,
             'NGLLY': self.NGLLY,
             'NGLLZ': self.NGLLZ,
-            'precond_flag': self.precondition_flag  
+            'precond_flag': self.precondition_flag,
+            'kernel_base_dir': self.kernel_base_dir,
         }
         with open(f'{self.adjflows_dir}/params.json', 'w') as f:
             json.dump(params, f)
@@ -148,15 +151,24 @@ class IterationProcess:
         self.result_logger.info(f"Starting calculating direction through SD on {nproc} processors...")
         
         if precond_flag:
-            self.hess_times_kernel()
+            if not check_if_directory_not_empty(self.precond_kernel_dir):
+                raise FileNotFoundError(
+                    f"PRECOND directory is empty: {self.precond_kernel_dir}. "
+                    "Prepare preconditioned kernels before calculating direction."
+                )
         else:
-            # move the gradient to precond dir
-            copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
-                       pattern="*alpha_kernel_smooth.bin")
-            copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
-                       pattern="*beta_kernel_smooth.bin")
-            copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
-                       pattern="*rho_kernel_smooth.bin")
+            if not check_if_directory_not_empty(self.precond_kernel_dir):
+                if check_if_directory_not_empty(self.smoothed_kernel_dir):
+                    copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
+                               pattern="*alpha_kernel_smooth.bin")
+                    copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
+                               pattern="*beta_kernel_smooth.bin")
+                    copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
+                               pattern="*rho_kernel_smooth.bin")
+                else:
+                    raise FileNotFoundError(
+                        f"Missing SMOOTH and PRECOND kernels under {self.kernel_base_path}."
+                    )
             
         script_dir = "iterate/calculate_direction_sd.py"
         
@@ -179,15 +191,24 @@ class IterationProcess:
         self.result_logger.info(f"Starting calculating direction through LBFGS on {nproc} processors...")
         
         if precond_flag:
-            self.hess_times_kernel()
+            if not check_if_directory_not_empty(self.precond_kernel_dir):
+                raise FileNotFoundError(
+                    f"PRECOND directory is empty: {self.precond_kernel_dir}. "
+                    "Prepare preconditioned kernels before calculating direction."
+                )
         else:
-            # move the gradient to precond dir
-            copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
-                       pattern="*alpha_kernel_smooth.bin")
-            copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
-                       pattern="*beta_kernel_smooth.bin")
-            copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
-                       pattern="*rho_kernel_smooth.bin")
+            if not check_if_directory_not_empty(self.precond_kernel_dir):
+                if check_if_directory_not_empty(self.smoothed_kernel_dir):
+                    copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
+                               pattern="*alpha_kernel_smooth.bin")
+                    copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
+                               pattern="*beta_kernel_smooth.bin")
+                    copy_files(src_dir=self.smoothed_kernel_dir, dst_dir=self.precond_kernel_dir, 
+                               pattern="*rho_kernel_smooth.bin")
+                else:
+                    raise FileNotFoundError(
+                        f"Missing SMOOTH and PRECOND kernels under {self.kernel_base_path}."
+                    )
 
 
         script_dir = "iterate/calculate_direction_lbfgs.py"

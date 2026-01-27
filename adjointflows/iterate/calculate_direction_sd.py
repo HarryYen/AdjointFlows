@@ -34,8 +34,9 @@ def main():
     mrun = params['current_model_num']
     model_num = f"m{mrun:03d}"
     
-    kernel_dir = os.path.join(params['base_dir'], "TOMO", model_num, "KERNEL", "PRECOND")
-    output_dir = os.path.join(params['base_dir'], "TOMO", model_num, "KERNEL", "UPDATE")
+    kernel_base_dir = params.get('kernel_base_dir', 'KERNEL')
+    kernel_dir = os.path.join(params['base_dir'], "TOMO", model_num, kernel_base_dir, "PRECOND")
+    output_dir = os.path.join(params['base_dir'], "TOMO", model_num, kernel_base_dir, "UPDATE")
     check_dir_exists(kernel_dir)
     check_dir_exists(output_dir)
     

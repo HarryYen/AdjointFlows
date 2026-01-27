@@ -102,7 +102,8 @@ def main():
     epsilon = 1e-12
     
     databases_dir = os.path.join(params['base_dir'], "TOMO", model_num, "DATABASES_MPI")
-    output_dir = os.path.join(params['base_dir'], "TOMO", model_num, "KERNEL", "UPDATE")
+    kernel_base_dir = params.get('kernel_base_dir', 'KERNEL')
+    output_dir = os.path.join(params['base_dir'], "TOMO", model_num, kernel_base_dir, "UPDATE")
     lbfgs_memory_range = get_range_lbfgs_memory(iter_currnet=mrun, 
                                                 n_store=n_store_lbfgs, 
                                                 mstart_min=stage_initial_model)
@@ -127,7 +128,8 @@ def main():
         base_dir=params['base_dir'], 
         NGLLX=NGLLX, NGLLY=NGLLY, NGLLZ=NGLLZ, 
         NSPEC=NSPEC, NGLOB=NGLOB, ibool_arr=ibool_kernel, 
-        dtype=get_data_type(params['dtype'])
+        dtype=get_data_type(params['dtype']),
+        kernel_base_dir=kernel_base_dir,
     )
     
     current_gradient = get_gradient(**common_params, rank=rank, model_num=mrun, kernel_list=kernel_list)

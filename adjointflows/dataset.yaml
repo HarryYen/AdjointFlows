@@ -12,8 +12,8 @@ defaults:
         criteria:
           n_wavelength: 2.0        # Distance threshold = P2 * n_wavelength * ref_velocity_km_s
           ref_velocity_km_s: 3.5   # Reference velocity for wavelength (km/s)
-    weighting:
-      type: amplitude           # amplitude: weight by amplitude; user: user-defined weight
+    gradients_weighting:
+      type: absmax_in_stage_first_iter           # absmax_in_stage_first_iter: weight by maximum amplitude in the gradient of the 1st iteration this stage; user: user-defined weight
       
 datasets:
   # Specify the parameters of a specific dataset here.

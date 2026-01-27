@@ -1,5 +1,5 @@
 from tools.job_utils import remove_file, remove_files_with_pattern, make_symlink, move_files
-from tools.matrix_utils import get_param_from_specfem_file, read_bin, kernel_pad_and_output
+from tools.matrix_utils import get_param_from_specfem_file, read_bin, kernel_pad_and_output, get_data_type
 from tools.global_params import GLOBAL_PARAMS
 from tools.dataset_loader import get_by_path
 from mpi4py import MPI
@@ -8,6 +8,8 @@ import os
 import sys
 import logging
 import subprocess
+import numpy as np
+import shutil
 
 
 
@@ -15,6 +17,7 @@ class PostProcessing:
     def __init__(self, current_model_num, config, ismooth=True, sigma_h=15000, sigma_v=10000):
         self.config              = config
         self.base_dir            = GLOBAL_PARAMS['base_dir']
+        self.adjflows_dir        = os.path.join(self.base_dir, 'adjointflows')
         self.mpirun_path         = GLOBAL_PARAMS['mpirun_path']
         self.specfem_dir         = os.path.join(self.base_dir, 'specfem3d')
         self.current_model_num   = current_model_num
@@ -71,6 +74,166 @@ class PostProcessing:
             self.run_smoothing(dataset_name=dataset_name, precond_flag=precond_flag)
         if self.ivtkout:
             self.combine_kernels()
+
+    def compute_gradient_max(self, dataset_name, use_smooth=None, source_subdir=None):
+        """
+        Compute the maximum absolute gradient value for a dataset.
+        """
+        smooth_dir = Path(self.tomo_dir) / f"KERNEL_{dataset_name}" / "SMOOTH"
+        sum_dir = Path(self.tomo_dir) / f"KERNEL_{dataset_name}" / "SUM"
+        precond_dir = Path(self.tomo_dir) / f"KERNEL_{dataset_name}" / "PRECOND"
+        kernel_dir = None
+        suffix = None
+
+        if source_subdir == "PRECOND":
+            kernel_dir = precond_dir
+            suffix = "_kernel_smooth.bin"
+        elif source_subdir == "SUM":
+            kernel_dir = sum_dir
+            suffix = "_kernel.bin"
+        elif source_subdir == "SMOOTH":
+            kernel_dir = smooth_dir
+            suffix = "_kernel_smooth.bin"
+        elif use_smooth is True:
+            kernel_dir = smooth_dir
+            suffix = "_kernel_smooth.bin"
+        elif use_smooth is False:
+            kernel_dir = sum_dir
+            suffix = "_kernel.bin"
+        else:
+            if smooth_dir.is_dir() and list(smooth_dir.glob("proc*_*_kernel_smooth.bin")):
+                kernel_dir = smooth_dir
+                suffix = "_kernel_smooth.bin"
+            elif sum_dir.is_dir() and list(sum_dir.glob("proc*_*_kernel.bin")):
+                kernel_dir = sum_dir
+                suffix = "_kernel.bin"
+
+        if kernel_dir is None or not kernel_dir.is_dir():
+            self.result_logger.warning(f"No kernel directory found for dataset {dataset_name}.")
+            return 0.0
+
+        dtype = get_data_type(self.dtype)
+        max_abs = 0.0
+        for kernel_name in self.kernel_list:
+            pattern = f"proc*_{kernel_name}{suffix}"
+            kernel_files = list(kernel_dir.glob(pattern))
+            if not kernel_files:
+                self.debug_logger.warning(f"No kernel files for {kernel_name} in {kernel_dir}.")
+                continue
+            for kernel_file in kernel_files:
+                try:
+                    data, _padding = read_bin(
+                        file_name=str(kernel_file),
+                        NGLLX=self.NGLLX,
+                        NGLLY=self.NGLLY,
+                        NGLLZ=self.NGLLZ,
+                        NSPEC=self.nspec,
+                        dtype=dtype,
+                    )
+                except Exception as exc:
+                    self.debug_logger.warning(f"Failed to read {kernel_file}: {exc}")
+                    continue
+                max_abs = max(max_abs, float(np.max(np.abs(data))))
+        return max_abs
+
+    def prepare_precond(self, dataset_name, use_smooth, precond_flag):
+        """
+        Prepare PRECOND kernels for a dataset.
+        """
+        kernel_subdir = "SMOOTH" if use_smooth else "SUM"
+        kernel_dir = Path(self.tomo_dir) / f"KERNEL_{dataset_name}" / kernel_subdir
+        precond_dir = Path(self.tomo_dir) / f"KERNEL_{dataset_name}" / "PRECOND"
+        precond_dir.mkdir(parents=True, exist_ok=True)
+
+        suffix_in = "_kernel_smooth.bin" if use_smooth else "_kernel.bin"
+        suffix_out = "_kernel_smooth.bin"
+
+        if not precond_flag:
+            for kernel_name in self.kernel_list:
+                for kernel_file in kernel_dir.glob(f"proc*_{kernel_name}{suffix_in}"):
+                    output_name = kernel_file.name.replace(suffix_in, suffix_out)
+                    shutil.copy2(kernel_file, precond_dir / output_name)
+            return
+
+        env = os.environ.copy()
+        script_path = os.path.join(self.adjflows_dir, "iterate", "hess_times_kernel.py")
+        args = [
+            "python",
+            script_path,
+            "--kernel-dir",
+            str(kernel_dir),
+            "--output-dir",
+            str(precond_dir),
+            "--use-smooth",
+            "1" if use_smooth else "0",
+        ]
+        if self.nproc == 1:
+            subprocess.run(args, check=True, env=env, cwd=self.adjflows_dir)
+        else:
+            command = [str(self.mpirun_path), "-np", str(self.nproc)] + args
+            subprocess.run(command, check=True, env=env, cwd=self.adjflows_dir)
+
+    def accumulate_normalized_gradients(self, dataset_name, norm, use_smooth, output_dir, source_subdir=None):
+        """
+        Accumulate normalized gradients into a combined directory.
+        """
+        kernel_subdir = source_subdir or ("SMOOTH" if use_smooth else "SUM")
+        kernel_dir = Path(self.tomo_dir) / f"KERNEL_{dataset_name}" / kernel_subdir
+        if not kernel_dir.is_dir():
+            self.result_logger.warning(f"Kernel directory not found for dataset {dataset_name}: {kernel_dir}")
+            return
+
+        norm_value = float(norm) if norm else 0.0
+        if norm_value <= 0.0:
+            self.result_logger.warning(f"Invalid norm for dataset {dataset_name}; use 1.0.")
+            norm_value = 1.0
+
+        if kernel_subdir == "PRECOND":
+            suffix_in = "_kernel_smooth.bin"
+        else:
+            suffix_in = "_kernel_smooth.bin" if use_smooth else "_kernel.bin"
+        suffix_out = "_kernel_smooth.bin"
+        out_dir = Path(output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        dtype = get_data_type(self.dtype)
+        for kernel_name in self.kernel_list:
+            pattern = f"proc*_{kernel_name}{suffix_in}"
+            kernel_files = list(kernel_dir.glob(pattern))
+            if not kernel_files:
+                self.debug_logger.warning(f"No kernel files for {kernel_name} in {kernel_dir}.")
+                continue
+            for kernel_file in kernel_files:
+                try:
+                    data, padding = read_bin(
+                        file_name=str(kernel_file),
+                        NGLLX=self.NGLLX,
+                        NGLLY=self.NGLLY,
+                        NGLLZ=self.NGLLZ,
+                        NSPEC=self.nspec,
+                        dtype=dtype,
+                    )
+                except Exception as exc:
+                    self.debug_logger.warning(f"Failed to read {kernel_file}: {exc}")
+                    continue
+
+                data = data / norm_value
+                output_name = kernel_file.name.replace(suffix_in, suffix_out)
+                output_file = out_dir / output_name
+                if output_file.exists():
+                    try:
+                        existing, _padding = read_bin(
+                            file_name=str(output_file),
+                            NGLLX=self.NGLLX,
+                            NGLLY=self.NGLLY,
+                            NGLLZ=self.NGLLZ,
+                            NSPEC=self.nspec,
+                            dtype=dtype,
+                        )
+                        data = data + existing
+                    except Exception as exc:
+                        self.debug_logger.warning(f"Failed to read {output_file}: {exc}")
+                kernel_pad_and_output(kernel=data, output_file=str(output_file), padding_num=padding)
         
     
     def make_kernels_list(self, dataset_name, evlst):
