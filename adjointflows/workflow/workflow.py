@@ -299,16 +299,39 @@ class WorkflowController:
         """
         Normalize and combine dataset gradients into a single directory.
         """
-        stage_dir = os.path.join(self.base_dir, "TOMO", f"m{self.stage_initial_model:03d}")
-        stage_max_path = os.path.join(stage_dir, "gradient_max_by_dataset.json")
-        if not os.path.isfile(stage_max_path):
-            raise FileNotFoundError(
-                f"Missing stage baseline: {stage_max_path}. "
-                "Run the first model of this stage to generate it."
-            )
-        with open(stage_max_path, "r") as f:
-            dataset_gradient_max = json.load(f)
         datasets = self.dataset_config.get("datasets", [])
+        weighting_type = get_by_path(
+            self.dataset_config,
+            "defaults.gradient_weighting.type",
+            default="absmax_instage_first_iter",
+        )
+        dataset_gradient_max = {}
+        dataset_weights = {}
+        if weighting_type == "absmax_instage_first_iter":
+            stage_dir = os.path.join(self.base_dir, "TOMO", f"m{self.stage_initial_model:03d}")
+            stage_max_path = os.path.join(stage_dir, "gradient_max_by_dataset.json")
+            if not os.path.isfile(stage_max_path):
+                raise FileNotFoundError(
+                    f"Missing stage baseline: {stage_max_path}. "
+                    "Run the first model of this stage to generate it."
+                )
+            with open(stage_max_path, "r") as f:
+                dataset_gradient_max = json.load(f)
+        elif weighting_type == "user":
+            total_weight = 0.0
+            for dataset_entry in datasets:
+                dataset_name = dataset_entry.get("name")
+                if not dataset_name:
+                    continue
+                weight = float(get_by_path(dataset_entry, "inversion.weight", 1.0))
+                dataset_weights[dataset_name] = weight
+                total_weight += weight
+            if total_weight <= 0.0:
+                raise ValueError("Total dataset weight is 0; cannot normalize weights.")
+            for name in dataset_weights:
+                dataset_weights[name] = dataset_weights[name] / total_weight
+        else:
+            raise ValueError(f"Unknown gradient_weighting.type: {weighting_type}")
         combined_dir = os.path.join(self.tomo_dir, "KERNEL_COMBINED", "PRECOND")
         combined_path = Path(combined_dir)
         combined_path.mkdir(parents=True, exist_ok=True)
@@ -319,17 +342,29 @@ class WorkflowController:
             dataset_name = dataset_entry.get("name")
             if not dataset_name:
                 continue
-            norm = dataset_gradient_max.get(dataset_name)
 
             post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config)
-            if not norm or norm <= 0.0:
-                norm = post_processing.compute_gradient_max(dataset_name, source_subdir="PRECOND")
+            if weighting_type == "absmax_instage_first_iter":
+                if dataset_name not in dataset_gradient_max:
+                    raise ValueError(
+                        f"Missing baseline for dataset {dataset_name} in {stage_max_path}."
+                    )
+                norm = dataset_gradient_max.get(dataset_name)
+                if not norm or norm <= 0.0:
+                    raise ValueError(
+                        f"Invalid baseline for dataset {dataset_name} in {stage_max_path}: {norm}"
+                    )
+                weight = 1.0
+            else:
+                norm = 1.0
+                weight = dataset_weights.get(dataset_name, 0.0)
             post_processing.accumulate_normalized_gradients(
                 dataset_name=dataset_name,
                 norm=norm,
                 output_dir=combined_dir,
                 use_smooth=True,
                 source_subdir="PRECOND",
+                weight=weight,
             )
         combined_smooth = os.path.join(self.tomo_dir, "KERNEL_COMBINED", "SMOOTH")
         if os.path.islink(combined_smooth) or os.path.exists(combined_smooth):

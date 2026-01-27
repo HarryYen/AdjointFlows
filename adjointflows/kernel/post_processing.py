@@ -173,7 +173,7 @@ class PostProcessing:
             command = [str(self.mpirun_path), "-np", str(self.nproc)] + args
             subprocess.run(command, check=True, env=env, cwd=self.adjflows_dir)
 
-    def accumulate_normalized_gradients(self, dataset_name, norm, use_smooth, output_dir, source_subdir=None):
+    def accumulate_normalized_gradients(self, dataset_name, norm, use_smooth, output_dir, source_subdir=None, weight=1.0):
         """
         Accumulate normalized gradients into a combined directory.
         """
@@ -187,6 +187,7 @@ class PostProcessing:
         if norm_value <= 0.0:
             self.result_logger.warning(f"Invalid norm for dataset {dataset_name}; use 1.0.")
             norm_value = 1.0
+        weight_value = float(weight) if weight is not None else 1.0
 
         if kernel_subdir == "PRECOND":
             suffix_in = "_kernel_smooth.bin"
@@ -217,7 +218,7 @@ class PostProcessing:
                     self.debug_logger.warning(f"Failed to read {kernel_file}: {exc}")
                     continue
 
-                data = data / norm_value
+                data = (data / norm_value) * weight_value
                 output_name = kernel_file.name.replace(suffix_in, suffix_out)
                 output_file = out_dir / output_name
                 if output_file.exists():
