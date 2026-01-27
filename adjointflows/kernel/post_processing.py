@@ -255,6 +255,9 @@ class PostProcessing:
                 if not event_dir.is_dir():
                     continue
                 if not list(event_dir.glob("proc*kernel.bin")):
+                    self.result_logger.warning(
+                        f"Empty kernel directory for dataset {dataset_name}, event {name}: {event_dir}"
+                    )
                     continue
                 kernel_files.append(name)
         else:
