@@ -2,11 +2,8 @@
 import argparse
 import json
 import os
-import re
 from collections import defaultdict
-
-
-PAIR_RE = re.compile(r"DATA/([^./]+)\.([^./]+)\.([^./]+)\.([^./]+)\.")
+from pathlib import Path
 
 
 def parse_pairs(lines):
@@ -50,11 +47,24 @@ def parse_pairs(lines):
 
 
 def extract_pair_key(data_line):
-    match = PAIR_RE.search(data_line)
-    if not match:
-        return None
-    event, network, station, component = match.groups()
-    return event, station, network, component
+    raw = data_line.strip().split()[0]
+    parts = Path(raw).parts
+    if "DATA" in parts:
+        data_idx = parts.index("DATA")
+        if data_idx + 2 < len(parts) and parts[data_idx + 1] == "wav":
+            event = parts[data_idx + 2]
+            filename = parts[-1]
+            name_parts = filename.split(".")
+            if len(name_parts) >= 3:
+                station, network, component = name_parts[0], name_parts[1], name_parts[2]
+                return event, station, network, component
+
+    filename = Path(raw).name
+    name_parts = filename.split(".")
+    if len(name_parts) >= 4:
+        event, network, station, component = name_parts[0], name_parts[1], name_parts[2], name_parts[3]
+        return event, station, network, component
+    return None
 
 
 def apply_deletions(pairs, deletions):
