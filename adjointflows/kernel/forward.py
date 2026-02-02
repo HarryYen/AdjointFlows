@@ -655,6 +655,12 @@ class ForwardGenerator:
                     f"../TOMO/{initial_model_dir}/MEASURE_{self.dataset_name}"
                     f"/adjoints/{event_name}/MEASUREMENT.WINDOWS"
                 )
+            if not os.path.isfile(windows_dir):
+                self.result_logger.warning(
+                    f"MEASUREMENT.WINDOWS missing for {event_name}; skip measure_adj. "
+                    f"path={windows_dir}"
+                )
+                return
             shutil.copy(windows_dir, "../measure_adj")
             os.chdir(self.measure_adj_dir)
             subprocess.run(['bash', 'run_adj.bash', f'{event_name}'], env=env)
