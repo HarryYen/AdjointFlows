@@ -128,13 +128,26 @@ class ForwardGenerator:
 
         if self.ichk == 1:
             index_evt_last = 0
+            last_existing_index = -1
             ev_list_path = self.evlst
             if os.path.exists(ev_list_path):
                 with open(ev_list_path, "r") as f:
-                    for line in f:
+                    for idx, line in enumerate(f):
                         event_name = line.split()[0]
-                        if os.path.isdir(f"KERNEL/DATABASE/{event_name}"):
-                            index_evt_last += 1
+                        adjoints_dir = os.path.join(
+                            self.base_dir,
+                            "TOMO",
+                            f"m{self.current_model_num:03d}",
+                            f"MEASURE_{self.dataset_name}",
+                            "adjoints",
+                            event_name,
+                        )
+                        if os.path.isdir(adjoints_dir):
+                            last_existing_index = idx
+                            continue
+                        break
+            if last_existing_index >= 0:
+                index_evt_last = last_existing_index
             self.debug_logger.info(f"Last time stopped at event {index_evt_last}")
             return index_evt_last
         return 0
