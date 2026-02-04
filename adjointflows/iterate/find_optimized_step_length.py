@@ -1,6 +1,7 @@
-from tools import GLOBAL_PARAMS
+from tools import GLOBAL_PARAMS, FileManager
 from tools.job_utils import remove_path, check_if_directory_not_empty, remove_file, remove_files_with_pattern, move_files, wait_for_launching, clean_and_initialize_directories, check_path_is_correct
 from tools.matrix_utils import get_param_from_specfem_file
+from tools.dataset_loader import load_dataset_config, get_by_path, deep_merge, resolve_dataset_list_path
 from pathlib import Path
 from kernel import ModelGenerator
 
@@ -13,18 +14,22 @@ import sys
 import shutil
 import time
 import csv
+import yaml
 
 class StepLengthOptimizer:
     
-    def __init__(self, current_model_num, config):
+    def __init__(self, current_model_num, config, dataset_config=None):
         """
         Args:
             config (dict): The configuration dictionary
             current_model_num (int): The current model number
         """
+        self.config            = config
         self.step_index        = 0
         self.optimized_step_length = 0.
         
+        self.debug_logger  = logging.getLogger("debug_logger")
+        self.result_logger = logging.getLogger("result_logger")
         
         self.base_dir          = GLOBAL_PARAMS['base_dir']
         self.mpirun_path       = GLOBAL_PARAMS['mpirun_path']
@@ -62,6 +67,21 @@ class StepLengthOptimizer:
         self.egf_ref_velocity_km_s = config.get('data.egf.ref_velocity_km_s')
         self.egf_max_period      = config.get('data.seismogram.filter.P2')
 
+        if dataset_config is None:
+            dataset_config = load_dataset_config(self.adjflows_dir, logger=self.debug_logger)
+        if not isinstance(dataset_config, dict):
+            dataset_config = {}
+        self.dataset_config       = dataset_config
+        self.dataset_entries      = self._build_dataset_entries(dataset_config)
+        self.dataset_config_paths = {}
+        self.dataset_config_path  = None
+        self.dataset_name         = None
+        self.file_manager         = FileManager()
+        self.file_manager.set_model_number(current_model_num=self.current_model_num)
+        self.flexwin_mode         = config.get('setup.flexwin.flexwin_mode')
+        self.flexwin_user_dir     = config.get('setup.flexwin.flexwin_user_dir')
+        self.stage_initial_model  = int(config.get('setup.stage.stage_initial_model'))
+
         
         self.step_interval       = config.get('line_search.step_interval')
         self.step_beg            = config.get('line_search.step_beg')
@@ -71,9 +91,160 @@ class StepLengthOptimizer:
         
         self.nproc               = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
 
-        self.debug_logger  = logging.getLogger("debug_logger")
-        self.result_logger = logging.getLogger("result_logger")
-            
+    def _build_dataset_entries(self, dataset_config):
+        defaults = dataset_config.get("defaults", {})
+        datasets = dataset_config.get("datasets", [])
+        merged = []
+        for entry in datasets:
+            if not isinstance(entry, dict):
+                continue
+            merged.append(deep_merge(defaults, entry))
+        return merged
+
+    def _iter_datasets(self):
+        if not self.dataset_entries:
+            yield None
+            return
+        for entry in self.dataset_entries:
+            yield entry
+
+    def _line_search_syn_dir(self, dataset_name):
+        if dataset_name:
+            return f"{self.line_search_dir}/SYN{self.step_index}_{dataset_name}"
+        return f"{self.line_search_dir}/SYN{self.step_index}"
+
+    def _line_search_measure_dir(self, dataset_name):
+        if dataset_name:
+            return f"{self.line_search_dir}/MEASURE{self.step_index}_{dataset_name}"
+        return f"{self.line_search_dir}/MEASURE{self.step_index}"
+
+    def _measure_dir_name(self, dataset_name):
+        if dataset_name:
+            return f"MEASURE_{dataset_name}"
+        return "MEASURE"
+
+    def get_script_env(self):
+        """Return environment with dataset-specific config path for scripts."""
+        env = os.environ.copy()
+        if self.dataset_config_path:
+            env["AF_CONFIG"] = self.dataset_config_path
+        return env
+
+    def write_dataset_config_file(self, dataset_config):
+        """Write a dataset-specific config file for FLEXWIN/MEASURE scripts."""
+        dataset_name = get_by_path(dataset_config, "name", default="dataset")
+        out_dir = os.path.join(self.adjflows_dir, ".dataset_configs")
+        os.makedirs(out_dir, exist_ok=True)
+        config_path = os.path.join(out_dir, f"line_search_{dataset_name}.yaml")
+
+        evchk = get_by_path(dataset_config, "list.evchk", default=self.config.get("data.list.evchk"))
+        stlst = get_by_path(dataset_config, "list.stlst", default=self.config.get("data.list.stlst"))
+
+        config_data = {
+            "source": {
+                "type": get_by_path(dataset_config, "source.type", default="cmt"),
+                "force": {
+                    "depth_km": get_by_path(dataset_config, "source.force.depth_km", default=0.0),
+                },
+            },
+            "data": {
+                "list": {
+                    "evlst": evchk,
+                    "stlst": stlst,
+                    "evchk": evchk,
+                },
+                "seismogram": {
+                    "tbeg": get_by_path(dataset_config, "seismogram.tbeg", default=self.config.get("data.seismogram.tbeg")),
+                    "tend": get_by_path(dataset_config, "seismogram.tend", default=self.config.get("data.seismogram.tend")),
+                    "tcor": get_by_path(dataset_config, "seismogram.tcor", default=self.config.get("data.seismogram.tcor")),
+                    "dt": get_by_path(dataset_config, "seismogram.dt", default=self.config.get("data.seismogram.dt")),
+                    "filter": {
+                        "P1": get_by_path(dataset_config, "seismogram.filter.P1", default=self.config.get("data.seismogram.filter.P1")),
+                        "P2": get_by_path(dataset_config, "seismogram.filter.P2", default=self.config.get("data.seismogram.filter.P2")),
+                    },
+                    "component": {
+                        "COMP": get_by_path(dataset_config, "seismogram.component.COMP", default=self.config.get("data.seismogram.component.COMP")),
+                        "EN2RT": get_by_path(dataset_config, "seismogram.component.EN2RT", default=self.config.get("data.seismogram.component.EN2RT")),
+                    },
+                },
+            },
+        }
+
+        with open(config_path, "w") as f:
+            yaml.safe_dump(config_data, f, sort_keys=False)
+        return config_path
+
+    def _configure_dataset(self, dataset_config):
+        if not dataset_config:
+            self.dataset_name = None
+            self.dataset_config_path = None
+            return
+
+        dataset_name = get_by_path(dataset_config, "name", default="dataset")
+        self.dataset_name = dataset_name
+        self.dataset_config_path = self.dataset_config_paths.get(dataset_name)
+        if not self.dataset_config_path:
+            self.dataset_config_path = self.write_dataset_config_file(dataset_config)
+            self.dataset_config_paths[dataset_name] = self.dataset_config_path
+
+        self.source_type = (get_by_path(dataset_config, "source.type", default="cmt")).lower()
+        if self.source_type not in ('cmt', 'force'):
+            raise ValueError(f"Unknown source.type: {self.source_type}")
+        self.force_depth_km = get_by_path(dataset_config, "source.force.depth_km", default=0.0)
+        if self.force_depth_km is None:
+            self.force_depth_km = 0.0
+
+        self.evlst = resolve_dataset_list_path(
+            self.base_dir,
+            dataset_config,
+            "list.evchk",
+            "evlst",
+            default=self.config.get("data.list.evchk"),
+            required=True,
+        )
+        self.stlst = resolve_dataset_list_path(
+            self.base_dir,
+            dataset_config,
+            "list.stlst",
+            "stlst",
+            default=self.config.get("data.list.stlst"),
+            required=True,
+        )
+        self.egf_n_wavelength = get_by_path(
+            dataset_config,
+            "seismogram.fine_tune.EGF.criteria.n_wavelength",
+            default=self.config.get("data.egf.n_wavelength"),
+        )
+        self.egf_ref_velocity_km_s = get_by_path(
+            dataset_config,
+            "seismogram.fine_tune.EGF.criteria.ref_velocity_km_s",
+            default=self.config.get("data.egf.ref_velocity_km_s"),
+        )
+        self.egf_max_period = get_by_path(
+            dataset_config,
+            "seismogram.filter.P2",
+            default=self.config.get("data.seismogram.filter.P2"),
+        )
+
+    def _link_dataset_resources(self, dataset_config):
+        if not dataset_config:
+            return
+        dataset_name = self.dataset_name or get_by_path(dataset_config, "name", default="dataset")
+        data_waveform_dir = get_by_path(dataset_config, "data.waveform_dir")
+        syn_waveform_dir = get_by_path(dataset_config, "synthetics.waveform_dir")
+        self.file_manager.ensure_dataset_dirs(dataset_name, syn_waveform_dir=syn_waveform_dir)
+        self.file_manager.link_dataset_dirs(
+            dataset_name,
+            data_waveform_dir,
+            syn_waveform_dir=syn_waveform_dir,
+        )
+        self.file_manager.link_measurement_tools(
+            flexwin_bin=get_by_path(dataset_config, "flexwin.bin_file"),
+            flexwin_par=get_by_path(dataset_config, "flexwin.par_file"),
+            measure_adj_bin=get_by_path(dataset_config, "measure_adj.bin_file"),
+            measure_adj_par=get_by_path(dataset_config, "measure_adj.par_file"),
+        )
+
     # --------------------------------------------------
     # ---------------- For Controlling -----------------
     # --------------------------------------------------
@@ -84,22 +255,29 @@ class StepLengthOptimizer:
         """
         
         model_generator_line_search = ModelGenerator()
+        datasets = list(self._iter_datasets())
         
         self.result_logger.info(f"Starting line search for model {self.current_model_num:03d}...")
         self.give_current_best_step_length(step_length_tmp=0.)
         for step_length in np.arange(self.step_beg, self.step_end, self.step_interval):
             
             self.result_logger.info(f"LINE SEARCH: Start step length {step_length}")
-            self.increase_step_index()        
+            self.increase_step_index()
             self.setup_directory()
             self.make_symbolic_links()
             self.update_model(step_fac=step_length, lbfgs_flag=False)
             os.chdir(self.specfem_dir)
             model_generator_line_search.model_setup(mesh_flag=False)
-            self.preprocessing()
-            self.process_each_event(index_evt_last=0)
-            
-            os.chdir(self.adjflows_dir)
+
+            for dataset_entry in datasets:
+                self._configure_dataset(dataset_entry)
+                self._link_dataset_resources(dataset_entry)
+                self.setup_directory(dataset_name=self.dataset_name)
+                self.make_symbolic_links(dataset_name=self.dataset_name)
+                os.chdir(self.specfem_dir)
+                self.preprocessing()
+                self.process_each_event(index_evt_last=0)
+                os.chdir(self.adjflows_dir)
             
             if self.is_misfit_reduced():
                 self.give_current_best_step_length(step_length_tmp=step_length)
@@ -126,17 +304,18 @@ class StepLengthOptimizer:
         """
         return self.optimized_step_length
         
-    def setup_directory(self):
+    def setup_directory(self, dataset_name=None):
         """
         Create a series of directories for inversion.
         it will call clean_and_initialize_directories to remove all files in the directories
         if the clear_directories is True.
         """
-        
+        syn_dir = self._line_search_syn_dir(dataset_name)
+        measure_dir = self._line_search_measure_dir(dataset_name)
         dirs = [
             f"{self.line_search_dir}/DATABASES_MPI",
-            f"{self.line_search_dir}/SYN{self.step_index}",
-            f"{self.line_search_dir}/MEASURE{self.step_index}",
+            syn_dir,
+            measure_dir,
     ]
     
         for dir in dirs:
@@ -144,12 +323,13 @@ class StepLengthOptimizer:
         
         clean_and_initialize_directories(dirs[1:])
     
-    def make_symbolic_links(self):
+    def make_symbolic_links(self, dataset_name=None):
         """
         We need to create the symbolic links for the SEM simulation.
         Here, it will link 
         """
-
+        syn_dir = self._line_search_syn_dir(dataset_name)
+        measure_dir = self._line_search_measure_dir(dataset_name)
         link_directories = [
             f'{self.specfem_dir}/DATABASES_MPI', 
             f'{self.base_dir}/SYN',  
@@ -157,8 +337,8 @@ class StepLengthOptimizer:
         ]
         target_directories = [
             f"{self.line_search_dir}/DATABASES_MPI",
-            f"{self.line_search_dir}/SYN{self.step_index}",
-            f"{self.line_search_dir}/MEASURE{self.step_index}",
+            syn_dir,
+            measure_dir,
         ]
         
         remove_path(link_directories)
@@ -522,29 +702,45 @@ class StepLengthOptimizer:
         
     def select_windows_and_measure_misfit(self, event_name):
         """
-        Run measure_adj by directly using the MEASUREMENT.WINDOWS calculated by this model
+        Run flexwin and measure_adj
         """
         os.chdir(self.flexwin_dir)
-        
-        subprocess.run(['bash', 'ini_proc.bash', f'{event_name}'])
-        initial_model_dir = f'm{self.current_model_num:03d}'
-        shutil.copy(f"../TOMO/{initial_model_dir}/MEASURE/adjoints/{event_name}/MEASUREMENT.WINDOWS", "../measure_adj")
-        os.chdir(self.measure_adj_dir)
-        subprocess.run(['bash', 'run_adj.bash', f'{event_name}'])
-        
-        
-    def misfit_calculation(self, step_index):
-        """
-        Calculate the misfit for the given model number
-        Return:
-            misfit (float): The misfit value
-        """
-        if step_index == 0:
-            measure_dir = f'{self.current_tomo_dir}/MEASURE/adjoints'
+        env = self.get_script_env()
+        measure_dir_name = self._measure_dir_name(self.dataset_name)
+
+        if (self.flexwin_mode == 'every_stage' and (self.stage_initial_model == self.current_model_num)) or (self.flexwin_mode == 'every_iter'):
+            subprocess.run(['bash', 'run_win.bash', f'{event_name}'], env=env)
         else:
-            measure_dir = f'{self.line_search_dir}/MEASURE{step_index}'
-    
-        evt_df = pd.read_csv(self.evlst, header=None, sep=r'\s+')
+            subprocess.run(['bash', 'ini_proc.bash', f'{event_name}'], env=env)
+            initial_model_dir = f'm{self.stage_initial_model:03d}'
+            if self.flexwin_mode == 'user':
+                windows_dir = (
+                    f"../TOMO/{self.flexwin_user_dir}/{measure_dir_name}"
+                    f"/windows/{event_name}/MEASUREMENT.WINDOWS"
+                )
+            else:
+                windows_dir = (
+                    f"../TOMO/{initial_model_dir}/{measure_dir_name}"
+                    f"/adjoints/{event_name}/MEASUREMENT.WINDOWS"
+                )
+            if not os.path.isfile(windows_dir):
+                self.result_logger.warning(
+                    f"MEASUREMENT.WINDOWS missing for {event_name}; skip measure_adj. "
+                    f"path={windows_dir}"
+                )
+                return
+            shutil.copy(windows_dir, "../measure_adj")
+            os.chdir(self.measure_adj_dir)
+            subprocess.run(['bash', 'run_adj.bash', f'{event_name}'], env=env)
+        
+        
+    def _misfit_for_dataset(self, step_index, dataset_name, evlst):
+        if step_index == 0:
+            measure_dir = f'{self.current_tomo_dir}/{self._measure_dir_name(dataset_name)}/adjoints'
+        else:
+            measure_dir = self._line_search_measure_dir(dataset_name)
+
+        evt_df = pd.read_csv(evlst, header=None, sep=r'\s+')
         chi_df = pd.DataFrame()
         missing_chi = []
         for evt in evt_df[0]:
@@ -567,15 +763,49 @@ class StepLengthOptimizer:
         if chi_df.empty:
             self.result_logger.warning("No window_chi files found; misfit set to 0.")
             return 0.0
-            
+
         chi_filtered_df = chi_df[(chi_df[28] != 0.) | (chi_df[29] != 0.)]
         if chi_filtered_df.empty:
             self.result_logger.warning("No valid windows; misfit set to 0.")
             return 0.0
         total_misfit = chi_filtered_df[28].sum()
         win_num = len(chi_filtered_df)
+        if win_num == 0:
+            self.result_logger.warning("No valid windows; misfit set to 0.")
+            return 0.0
         average_misfit = round(total_misfit / win_num, 5)
-        return total_misfit
+        return average_misfit
+
+    def misfit_calculation(self, step_index):
+        """
+        Calculate the misfit for the given model number
+        Return:
+            misfit (float): The misfit value
+        """
+        if not self.dataset_entries:
+            return self._misfit_for_dataset(step_index, None, self.evlst)
+
+        total_misfit = 0.0
+        total_weight = 0.0
+        for dataset_entry in self.dataset_entries:
+            dataset_name = get_by_path(dataset_entry, "name", default="dataset")
+            weight = float(get_by_path(dataset_entry, "inversion.weight", 1.0))
+            evlst = resolve_dataset_list_path(
+                self.base_dir,
+                dataset_entry,
+                "list.evchk",
+                "evlst",
+                default=self.config.get("data.list.evchk"),
+                required=True,
+            )
+            misfit = self._misfit_for_dataset(step_index, dataset_name, evlst)
+            total_misfit += misfit * weight
+            total_weight += weight
+
+        if total_weight == 0.0:
+            self.result_logger.warning("Total dataset weight is 0; misfit set to 0.")
+            return 0.0
+        return total_misfit / total_weight
     
     def is_misfit_reduced(self):
         """
@@ -636,6 +866,7 @@ class StepLengthOptimizer:
         """
         
         model_generator_line_search = ModelGenerator()
+        datasets = list(self._iter_datasets())
         
         self.result_logger.info(f"Starting backtracking line search for model {self.current_model_num:03d}...")
         self.give_current_best_step_length(step_length_tmp=0.)
@@ -662,10 +893,15 @@ class StepLengthOptimizer:
             self.update_model(step_fac=alpha, lbfgs_flag=True)
             os.chdir(self.specfem_dir)
             model_generator_line_search.model_setup(mesh_flag=False)
-            self.preprocessing()
-            self.process_each_event(index_evt_last=0)
-            
-            os.chdir(self.adjflows_dir)
+            for dataset_entry in datasets:
+                self._configure_dataset(dataset_entry)
+                self._link_dataset_resources(dataset_entry)
+                self.setup_directory(dataset_name=self.dataset_name)
+                self.make_symbolic_links(dataset_name=self.dataset_name)
+                os.chdir(self.specfem_dir)
+                self.preprocessing()
+                self.process_each_event(index_evt_last=0)
+                os.chdir(self.adjflows_dir)
             
             misfit_new = self.misfit_calculation(self.step_index)
             misfit_old = self.misfit_calculation(self.step_index - 1)                
