@@ -722,36 +722,26 @@ class StepLengthOptimizer:
         
     def select_windows_and_measure_misfit(self, event_name):
         """
-        Run flexwin and measure_adj
+        Run measure_adj using windows from the current iteration.
         """
         os.chdir(self.flexwin_dir)
         env = self.get_script_env()
         measure_dir_name = self._measure_dir_name(self.dataset_name)
-
-        if (self.flexwin_mode == 'every_stage' and (self.stage_initial_model == self.current_model_num)) or (self.flexwin_mode == 'every_iter'):
-            subprocess.run(['bash', 'run_win.bash', f'{event_name}'], env=env)
-        else:
-            subprocess.run(['bash', 'ini_proc.bash', f'{event_name}'], env=env)
-            initial_model_dir = f'm{self.stage_initial_model:03d}'
-            if self.flexwin_mode == 'user':
-                windows_dir = (
-                    f"../TOMO/{self.flexwin_user_dir}/{measure_dir_name}"
-                    f"/windows/{event_name}/MEASUREMENT.WINDOWS"
-                )
-            else:
-                windows_dir = (
-                    f"../TOMO/{initial_model_dir}/{measure_dir_name}"
-                    f"/adjoints/{event_name}/MEASUREMENT.WINDOWS"
-                )
-            if not os.path.isfile(windows_dir):
-                self.result_logger.warning(
-                    f"MEASUREMENT.WINDOWS missing for {event_name}; skip measure_adj. "
-                    f"path={windows_dir}"
-                )
-                return
-            shutil.copy(windows_dir, "../measure_adj")
-            os.chdir(self.measure_adj_dir)
-            subprocess.run(['bash', 'run_adj.bash', f'{event_name}'], env=env)
+        subprocess.run(['bash', 'ini_proc.bash', f'{event_name}'], env=env)
+        current_model_dir = f'm{self.current_model_num:03d}'
+        windows_dir = (
+            f"../TOMO/{current_model_dir}/{measure_dir_name}"
+            f"/adjoints/{event_name}/MEASUREMENT.WINDOWS"
+        )
+        if not os.path.isfile(windows_dir):
+            self.result_logger.warning(
+                f"MEASUREMENT.WINDOWS missing for {event_name}; skip measure_adj. "
+                f"path={windows_dir}"
+            )
+            return
+        shutil.copy(windows_dir, "../measure_adj")
+        os.chdir(self.measure_adj_dir)
+        subprocess.run(['bash', 'run_adj.bash', f'{event_name}'], env=env)
         
         
     def _misfit_for_dataset(self, step_index, dataset_name, evlst):
