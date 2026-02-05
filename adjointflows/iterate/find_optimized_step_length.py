@@ -44,17 +44,9 @@ class StepLengthOptimizer:
         self.measure_adj_dir   = os.path.join(self.base_dir, 'measure_adj')
         self.flexwin_dir       = os.path.join(self.base_dir, 'flexwin')
         
-        self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evchk'))
-        self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', config.get('data.list.stlst'))
         self.specfem_par_file    = os.path.join(self.specfem_dir, 'DATA', 'Par_file')
         self.adjflows_dir        = os.path.join(self.base_dir, 'adjointflows')
         self.pbs_nodefile        = os.path.join(self.adjflows_dir, 'nodefile')
-        self.source_type         = (config.get('source.type') or 'cmt').lower()
-        if self.source_type not in ('cmt', 'force'):
-            raise ValueError(f"Unknown source.type: {self.source_type}")
-        self.force_depth_km      = config.get('source.force.depth_km', 0.0)
-        if self.force_depth_km is None:
-            self.force_depth_km = 0.0
         self.dummy_cmt_date      = '2000/01/01'
         self.dummy_cmt_time      = '00:00:00'
         self.dummy_cmt_mag       = 1.0
@@ -63,10 +55,6 @@ class StepLengthOptimizer:
         self.force_direction     = (0.0, 0.0, -1.0)
         self.force_stf_type      = 0
         self.force_hdurorf0      = 0.0
-        self.egf_n_wavelength    = config.get('data.egf.n_wavelength')
-        self.egf_ref_velocity_km_s = config.get('data.egf.ref_velocity_km_s')
-        self.egf_max_period      = config.get('data.seismogram.filter.P2')
-
         if dataset_config is None:
             dataset_config = load_dataset_config(self.adjflows_dir, logger=self.debug_logger)
         if not isinstance(dataset_config, dict):
@@ -76,6 +64,30 @@ class StepLengthOptimizer:
         self.dataset_config_paths = {}
         self.dataset_config_path  = None
         self.dataset_name         = None
+        self.default_evlst_name   = get_by_path(dataset_config, "defaults.list.evchk")
+        self.default_stlst_name   = get_by_path(dataset_config, "defaults.list.stlst")
+        self.evlst                = None
+        self.stlst                = None
+        self.default_source_type  = get_by_path(dataset_config, "defaults.source.type", default="cmt")
+        if self.default_source_type not in ('cmt', 'force'):
+            raise ValueError(f"Unknown source.type: {self.default_source_type}")
+        self.default_force_depth_km = get_by_path(dataset_config, "defaults.source.force.depth_km", default=0.0)
+        if self.default_force_depth_km is None:
+            self.default_force_depth_km = 0.0
+        self.source_type          = self.default_source_type
+        self.force_depth_km       = self.default_force_depth_km
+        self.default_egf_n_wavelength = get_by_path(
+            dataset_config, "defaults.seismogram.fine_tune.EGF.criteria.n_wavelength"
+        )
+        self.default_egf_ref_velocity_km_s = get_by_path(
+            dataset_config, "defaults.seismogram.fine_tune.EGF.criteria.ref_velocity_km_s"
+        )
+        self.default_egf_max_period = get_by_path(
+            dataset_config, "defaults.seismogram.filter.P2"
+        )
+        self.egf_n_wavelength     = self.default_egf_n_wavelength
+        self.egf_ref_velocity_km_s = self.default_egf_ref_velocity_km_s
+        self.egf_max_period       = self.default_egf_max_period
         self.file_manager         = FileManager()
         self.file_manager.set_model_number(current_model_num=self.current_model_num)
         self.flexwin_mode         = config.get('setup.flexwin.flexwin_mode')
@@ -102,9 +114,6 @@ class StepLengthOptimizer:
         return merged
 
     def _iter_datasets(self):
-        if not self.dataset_entries:
-            yield None
-            return
         for entry in self.dataset_entries:
             yield entry
 
@@ -137,8 +146,10 @@ class StepLengthOptimizer:
         os.makedirs(out_dir, exist_ok=True)
         config_path = os.path.join(out_dir, f"line_search_{dataset_name}.yaml")
 
-        evchk = get_by_path(dataset_config, "list.evchk", default=self.config.get("data.list.evchk"))
-        stlst = get_by_path(dataset_config, "list.stlst", default=self.config.get("data.list.stlst"))
+        evchk = get_by_path(dataset_config, "list.evchk")
+        stlst = get_by_path(dataset_config, "list.stlst")
+        if not evchk or not stlst:
+            raise ValueError("Dataset config missing list.evchk or list.stlst.")
 
         config_data = {
             "source": {
@@ -154,17 +165,17 @@ class StepLengthOptimizer:
                     "evchk": evchk,
                 },
                 "seismogram": {
-                    "tbeg": get_by_path(dataset_config, "seismogram.tbeg", default=self.config.get("data.seismogram.tbeg")),
-                    "tend": get_by_path(dataset_config, "seismogram.tend", default=self.config.get("data.seismogram.tend")),
-                    "tcor": get_by_path(dataset_config, "seismogram.tcor", default=self.config.get("data.seismogram.tcor")),
-                    "dt": get_by_path(dataset_config, "seismogram.dt", default=self.config.get("data.seismogram.dt")),
+                    "tbeg": get_by_path(dataset_config, "seismogram.tbeg"),
+                    "tend": get_by_path(dataset_config, "seismogram.tend"),
+                    "tcor": get_by_path(dataset_config, "seismogram.tcor"),
+                    "dt": get_by_path(dataset_config, "seismogram.dt"),
                     "filter": {
-                        "P1": get_by_path(dataset_config, "seismogram.filter.P1", default=self.config.get("data.seismogram.filter.P1")),
-                        "P2": get_by_path(dataset_config, "seismogram.filter.P2", default=self.config.get("data.seismogram.filter.P2")),
+                        "P1": get_by_path(dataset_config, "seismogram.filter.P1"),
+                        "P2": get_by_path(dataset_config, "seismogram.filter.P2"),
                     },
                     "component": {
-                        "COMP": get_by_path(dataset_config, "seismogram.component.COMP", default=self.config.get("data.seismogram.component.COMP")),
-                        "EN2RT": get_by_path(dataset_config, "seismogram.component.EN2RT", default=self.config.get("data.seismogram.component.EN2RT")),
+                        "COMP": get_by_path(dataset_config, "seismogram.component.COMP"),
+                        "EN2RT": get_by_path(dataset_config, "seismogram.component.EN2RT"),
                     },
                 },
             },
@@ -178,6 +189,13 @@ class StepLengthOptimizer:
         if not dataset_config:
             self.dataset_name = None
             self.dataset_config_path = None
+            self.source_type = self.default_source_type
+            self.force_depth_km = self.default_force_depth_km
+            self.evlst = None
+            self.stlst = None
+            self.egf_n_wavelength = self.default_egf_n_wavelength
+            self.egf_ref_velocity_km_s = self.default_egf_ref_velocity_km_s
+            self.egf_max_period = self.default_egf_max_period
             return
 
         dataset_name = get_by_path(dataset_config, "name", default="dataset")
@@ -199,7 +217,7 @@ class StepLengthOptimizer:
             dataset_config,
             "list.evchk",
             "evlst",
-            default=self.config.get("data.list.evchk"),
+            default=self.default_evlst_name,
             required=True,
         )
         self.stlst = resolve_dataset_list_path(
@@ -207,23 +225,23 @@ class StepLengthOptimizer:
             dataset_config,
             "list.stlst",
             "stlst",
-            default=self.config.get("data.list.stlst"),
+            default=self.default_stlst_name,
             required=True,
         )
         self.egf_n_wavelength = get_by_path(
             dataset_config,
             "seismogram.fine_tune.EGF.criteria.n_wavelength",
-            default=self.config.get("data.egf.n_wavelength"),
+            default=self.default_egf_n_wavelength,
         )
         self.egf_ref_velocity_km_s = get_by_path(
             dataset_config,
             "seismogram.fine_tune.EGF.criteria.ref_velocity_km_s",
-            default=self.config.get("data.egf.ref_velocity_km_s"),
+            default=self.default_egf_ref_velocity_km_s,
         )
         self.egf_max_period = get_by_path(
             dataset_config,
             "seismogram.filter.P2",
-            default=self.config.get("data.seismogram.filter.P2"),
+            default=self.default_egf_max_period,
         )
 
     def _link_dataset_resources(self, dataset_config):
@@ -256,6 +274,8 @@ class StepLengthOptimizer:
         
         model_generator_line_search = ModelGenerator()
         datasets = list(self._iter_datasets())
+        if not datasets:
+            raise ValueError("No datasets defined in dataset.yaml; line search requires dataset entries.")
         
         self.result_logger.info(f"Starting line search for model {self.current_model_num:03d}...")
         self.give_current_best_step_length(step_length_tmp=0.)
@@ -783,7 +803,7 @@ class StepLengthOptimizer:
             misfit (float): The misfit value
         """
         if not self.dataset_entries:
-            return self._misfit_for_dataset(step_index, None, self.evlst)
+            raise ValueError("No datasets defined in dataset.yaml; misfit calculation requires dataset entries.")
 
         total_misfit = 0.0
         total_weight = 0.0
@@ -795,7 +815,7 @@ class StepLengthOptimizer:
                 dataset_entry,
                 "list.evchk",
                 "evlst",
-                default=self.config.get("data.list.evchk"),
+                default=self.default_evlst_name,
                 required=True,
             )
             misfit = self._misfit_for_dataset(step_index, dataset_name, evlst)
@@ -867,6 +887,8 @@ class StepLengthOptimizer:
         
         model_generator_line_search = ModelGenerator()
         datasets = list(self._iter_datasets())
+        if not datasets:
+            raise ValueError("No datasets defined in dataset.yaml; line search requires dataset entries.")
         
         self.result_logger.info(f"Starting backtracking line search for model {self.current_model_num:03d}...")
         self.give_current_best_step_length(step_length_tmp=0.)
