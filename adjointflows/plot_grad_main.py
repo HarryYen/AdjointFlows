@@ -2,6 +2,7 @@ from visualizer import TomographyVisualizer
 from tools import ConfigManager
 from tools import GLOBAL_PARAMS
 import numpy as np
+import os
 
 
 def normalize_grad(arr):
@@ -10,12 +11,31 @@ def normalize_grad(arr):
         return arr
     return arr / max_abs
 
+def resolve_kernels_dir(tomo_dir, kernel_source, dataset_name, kernel_subdir):
+    kernel_source = kernel_source.lower()
+    kernel_subdir = kernel_subdir.upper()
+    if kernel_subdir not in ("PRECOND", "SMOOTH"):
+        raise ValueError(f"Unsupported kernel_subdir: {kernel_subdir}")
+    if kernel_source in ("combined", "kernel_combined"):
+        kernel_base_dir = "KERNEL_COMBINED"
+    elif kernel_source in ("dataset", "kernel_dataset"):
+        if not dataset_name:
+            raise ValueError("dataset_name is required when kernel_source is 'dataset'.")
+        kernel_base_dir = f"KERNEL_{dataset_name}"
+    else:
+        raise ValueError(f"Unknown kernel_source: {kernel_source}")
+
+    return os.path.join(tomo_dir, kernel_base_dir, kernel_subdir)
+
 def main():
     # ---------------------------
     # Setting up the parameters
     # ---------------------------
 
     model_n = 0
+    kernel_source = "combined"  # "combined" or "dataset"
+    dataset_name = None  # required when kernel_source == "dataset"
+    kernel_subdir = "PRECOND"  # PRECOND or SMOOTH
     lon_range = [119.0, 123.0]
     lat_range = [21.0, 26.0]
     dep_range = [0., 200]
@@ -30,6 +50,11 @@ def main():
                                       global_params=GLOBAL_PARAMS, 
                                       specified_model_num=model_n)
     visualizer.load_params()
+    visualizer.kernels_dir = resolve_kernels_dir(
+        visualizer.tomo_dir, kernel_source, dataset_name, kernel_subdir
+    )
+    if not os.path.isdir(visualizer.kernels_dir):
+        raise FileNotFoundError(f"Kernel directory not found: {visualizer.kernels_dir}")
     visualizer.setup_spatial_range(lon_range=lon_range, lat_range=lat_range, dep_range=dep_range,
                                    lon_interval=lon_interval, lat_interval=lat_interval, dep_interval=dep_interval)
     visualizer.from_bin_to_vtu_gradient(kernel_name='alpha_kernel_smooth')
