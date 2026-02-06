@@ -85,13 +85,13 @@ class ForwardGenerator:
         self.debug_logger      = logging.getLogger("debug_logger")
         self.result_logger     = logging.getLogger("result_logger")
 
-    def preprocessing(self):
+    def preprocessing(self, require_databases=True):
         """
         some preprocessing before forward simulation
         check if the DATABASES_MPI is not empty, then we can do the forward simulation
         """
         
-        if not check_if_directory_not_empty(self.databases_mpi_dir):
+        if require_databases and not check_if_directory_not_empty(self.databases_mpi_dir):
             self.debug_logger.error(f"STOP: {self.databases_mpi_dir} is empty!")
             sys.exit()
         

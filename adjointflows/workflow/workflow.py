@@ -201,9 +201,9 @@ class WorkflowController:
                 syn_waveform_dir=syn_waveform_dir,
             )
             self.file_manager.link_measurement_tools(
-                flexwin_bin=get_by_path(merged_dataset, "flexwin.bin_dir"),
+                flexwin_bin=get_by_path(merged_dataset, "flexwin.bin_file"),
                 flexwin_par=get_by_path(merged_dataset, "flexwin.par_file"),
-                measure_adj_bin=get_by_path(merged_dataset, "measure_adj.bin_dir"),
+                measure_adj_bin=get_by_path(merged_dataset, "measure_adj.bin_file"),
                 measure_adj_par=get_by_path(merged_dataset, "measure_adj.par_file"),
             )
             self.run_forward_for_tuning_flexwin(merged_dataset, do_forward=do_forward)
@@ -246,7 +246,7 @@ class WorkflowController:
             dataset_config=dataset_config,
             dataset_config_path=dataset_config_path,
         )
-        forward_generator.preprocessing()
+        forward_generator.preprocessing(require_databases=do_forward)
         forward_generator.output_vars_file()
         index_evt_last = forward_generator.check_last_event()
         forward_generator.process_each_event(index_evt_last, do_forward, do_adjoint, do_measurement)
