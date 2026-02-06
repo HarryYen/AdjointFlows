@@ -81,12 +81,19 @@ class FileManager:
         if not source_path:
             return
         target = Path(target_path)
-        if target.exists() and not target.is_symlink():
-            self.debug_logger.info(f"{label or 'Target'} exists as a real file; keep {target}")
-            return
         source = Path(source_path)
         if not source.exists():
             raise FileNotFoundError(f"Tool file not found: {source}")
+        if target.exists() and not target.is_symlink():
+            if target.is_dir():
+                raise ValueError(f"{label or 'Target'} is a directory; cannot replace: {target}")
+            try:
+                if os.path.realpath(source) == os.path.realpath(target):
+                    return
+            except OSError:
+                pass
+            self.debug_logger.info(f"{label or 'Target'} exists; replacing with symlink: {target}")
+            target.unlink()
         if target.is_symlink():
             try:
                 if os.path.realpath(source) == os.path.realpath(target):
