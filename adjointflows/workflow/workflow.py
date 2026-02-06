@@ -60,8 +60,14 @@ class WorkflowController:
         The first element is the misfit of previous model
         This is for the L-BFGS method
         """
-        model_evaluator_tmp = ModelEvaluator(current_model_num=self.current_model_num, config=self.config)
-        previous_misfit = model_evaluator_tmp.misfit_calculation(m_num=self.current_model_num - 1)
+        model_evaluator_tmp = ModelEvaluator(
+            current_model_num=self.current_model_num,
+            config=self.config,
+            dataset_config=self.dataset_config,
+        )
+        previous_misfit = model_evaluator_tmp.run_all_datasets_misfit_evaluation(
+            m_num=self.current_model_num - 1
+        )
         self.misfit_list = [previous_misfit]
     
     def construct_step_length_list(self):
@@ -339,7 +345,7 @@ class WorkflowController:
         datasets = self.dataset_config.get("datasets", [])
         weighting_type = get_by_path(
             self.dataset_config,
-            "defaults.gradient_weighting.type",
+            "defaults.seismogram.gradients_weighting.type",
             default="absmax_instage_first_iter",
         )
         dataset_gradient_max = {}
