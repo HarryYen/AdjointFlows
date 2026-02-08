@@ -151,12 +151,12 @@ EOF
 
 if [ $en2rt -eq 1 ]; then
 # rotate recorded N/E traces to filtered R/T components to better identify phase windows
-if [ -f ../DATA/wav/$dir/$stnm*N.*sac -a -f ../DATA/wav/$dir/$stnm*E.*sac -a -f ../SYN/$dir/*$stnm*N.$comp.*convolved.sac -a -f ../SYN/$dir/*$stnm*E.$comp.*convolved.sac]; then
+if [ -f ../DATA/wav/$dir/$stnm.*N.*sac -a -f ../DATA/wav/$dir/$stnm.*E.*sac -a -f ../SYN/$dir/*$stnm.*N.$comp.*convolved.sac -a -f ../SYN/$dir/*$stnm.*E.$comp.*convolved.sac ]; then
 
 sac<<EOF
 cuterr fillz
 cut $tbeg $tend
-r ../DATA/wav/$dir/$stnm*N.*sac ../DATA/wav/$dir/$stnm*E.*sac
+r ../DATA/wav/$dir/$stnm.*N.*sac ../DATA/wav/$dir/$stnm.*E.*sac
 rotate to GCP
 rmean
 rtr; rtr; rtr
@@ -192,11 +192,11 @@ else
 
 # filtered E & N components
 echo $dir $stnm $comp
-if [ -f ../DATA/wav/$dir/$stnm*E.*sac -a -f ../SYN/$dir/*$stnm*E.$comp.*convolved.sac ]; then
+if [ -f ../DATA/wav/$dir/$stnm.*E.*sac -a -f ../SYN/$dir/*$stnm.*E.$comp.*convolved.sac ]; then
 sac<<EOF
 cuterr fillz
 cut $tbeg $tend
-r ../DATA/wav/$dir/*$stnm*E.*sac ../SYN/$dir/*$stnm*E.$comp.*convolved.sac
+r ../DATA/wav/$dir/*$stnm.*E.*sac ../SYN/$dir/*$stnm.*E.$comp.*convolved.sac
 rmean
 rtr; rtr; rtr
 taper
@@ -210,11 +210,11 @@ normalize_sac ../DATA/wav/$dir/$stnm.TW.BHE.sac.tomo
 normalize_sac ../SYN/$dir/$stnm.TW.BHE.$comp.sac.tomo
 fi
 fi
-if [ -f ../DATA/wav/$dir/$stnm*N.*sac -a -f ../SYN/$dir/*$stnm*N.$comp.*convolved.sac ]; then
+if [ -f ../DATA/wav/$dir/$stnm.*N.*sac -a -f ../SYN/$dir/*$stnm.*N.$comp.*convolved.sac ]; then
 sac<<EOF
 cuterr fillz
 cut $tbeg $tend
-r ../DATA/wav/$dir/$stnm*N.*sac ../SYN/$dir/*$stnm*N.$comp.*convolved.sac
+r ../DATA/wav/$dir/$stnm.*N.*sac ../SYN/$dir/*$stnm.*N.$comp.*convolved.sac
 rmean
 rtr; rtr; rtr
 taper
@@ -232,11 +232,11 @@ fi
 fi
 
 # filtered Z components as well
-if [ -f ../DATA/wav/$dir/$stnm*Z.*sac -a -f ../SYN/$dir/*$stnm*Z.$comp.*convolved.sac ]; then
+if [ -f ../DATA/wav/$dir/$stnm.*Z.*sac -a -f ../SYN/$dir/*$stnm.*Z.$comp.*convolved.sac ]; then
 sac<<EOF
 cuterr fillz
 cut $tbeg $tend
-r ../DATA/wav/$dir/$stnm*Z.*sac ../SYN/$dir/*$stnm*Z.$comp.*convolved.sac
+r ../DATA/wav/$dir/$stnm.*Z.*sac ../SYN/$dir/*$stnm.*Z.$comp.*convolved.sac
 rmean
 rtr; rtr; rtr
 taper
