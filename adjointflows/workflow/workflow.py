@@ -183,7 +183,7 @@ class WorkflowController:
             merged_dataset = deep_merge(default_settings, dataset_entry)
             self.run_forward(merged_dataset, do_adjoint, do_measurement)
 
-    def run_flexwin_test_datasets(self, do_forward):
+    def run_flexwin_test_datasets(self):
         """
         Run FLEXWIN tuning for all datasets.
         """
@@ -197,6 +197,7 @@ class WorkflowController:
 
             self.debug_logger.info(f"Flexwin test dataset: {dataset_name}")
             merged_dataset = deep_merge(default_settings, dataset_entry)
+            do_forward = bool(get_by_path(merged_dataset, "synthetics.do_wave_simulation", default=1))
             data_waveform_dir = get_by_path(merged_dataset, "data.waveform_dir")
             syn_waveform_dir = get_by_path(merged_dataset, "synthetics.waveform_dir")
 
