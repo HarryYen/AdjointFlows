@@ -275,7 +275,7 @@ class ForwardGenerator:
                 remove_files_with_pattern('OUTPUT_FILES/*.sem?')
                 self.run_simulator()
                 self.debug_logger.info(f'Done {event_name} forward simulation')
-                self.prepare_adjoint_simulation(event_name)
+                self.prepare_adjoint_simulation(event_name=event_name, keep_syn_wav=False)
             else:
                 self.debug_logger.info(f'TUNING FLEXWIN: Skip forward modeling!')          
             self.select_windows_for_tuning_flexwin(event_name=event_name)
