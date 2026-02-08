@@ -38,7 +38,7 @@ class ForwardGenerator:
         self.ichk                = config.get('preprocessing.ICHK')
 
         self.flexwin_mode        = config.get('setup.flexwin.flexwin_mode')
-        self.flexwin_user_dir    = config.get('setup.flexwin.flexwin_user_dir')
+        self.flexwin_user_dir    = get_by_path(dataset_config, "flexwin.user_dir")
         self.dataset_name        = get_by_path(dataset_config, "name", default="dataset")
         self.source_type         = (get_by_path(dataset_config, "source.type", default="cmt")   ).lower()
         if self.source_type not in ('cmt', 'force'):
@@ -659,10 +659,29 @@ class ForwardGenerator:
             subprocess.run(['bash', 'ini_proc.bash', f'{event_name}'], env=env)
             initial_model_dir = f'm{self.stage_initial_model:03d}'
             if self.flexwin_mode == 'user':
-                windows_dir = (
+                if not self.flexwin_user_dir:
+                    raise ValueError(
+                        "flexwin_mode is 'user' but flexwin.user_dir is not set "
+                        f"for dataset {self.dataset_name}."
+                    )
+                preferred_dir = (
+                    f"../TOMO/{self.flexwin_user_dir}/MEASURE_{self.dataset_name}"
+                    f"/adjoints/{event_name}/MEASUREMENT.WINDOWS"
+                )
+                legacy_dir = (
                     f"../TOMO/{self.flexwin_user_dir}/MEASURE_{self.dataset_name}"
                     f"/windows/{event_name}/MEASUREMENT.WINDOWS"
                 )
+                if os.path.isfile(preferred_dir):
+                    windows_dir = preferred_dir
+                elif os.path.isfile(legacy_dir):
+                    self.result_logger.warning(
+                        "Found user windows in legacy path; consider moving to "
+                        f"adjoints/. path={legacy_dir}"
+                    )
+                    windows_dir = legacy_dir
+                else:
+                    windows_dir = preferred_dir
             else:
                 windows_dir = (
                     f"../TOMO/{initial_model_dir}/MEASURE_{self.dataset_name}"
@@ -690,5 +709,22 @@ class ForwardGenerator:
         move_files(src_dir = f'{self.flexwin_dir}', 
                        dst_dir = f'{put_windows_file_dir}', 
                        pattern = 'MEASUREMENT.WINDOWS')
+        windows_file = os.path.join(put_windows_file_dir, 'MEASUREMENT.WINDOWS')
+        if os.path.isfile(windows_file):
+            adjoints_dir = os.path.join(
+                self.base_dir,
+                "TOMO",
+                f"m{self.current_model_num:03d}",
+                f"MEASURE_{self.dataset_name}",
+                "adjoints",
+                event_name,
+            )
+            os.makedirs(adjoints_dir, exist_ok=True)
+            shutil.copy2(windows_file, os.path.join(adjoints_dir, "MEASUREMENT.WINDOWS"))
+        else:
+            self.result_logger.warning(
+                f"MEASUREMENT.WINDOWS missing for {event_name} after flexwin tuning; "
+                "skip copying to adjoints."
+            )
 
             

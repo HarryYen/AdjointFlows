@@ -28,6 +28,10 @@ datasets:
   # - list: event/station list under DATA/evlst and DATA/stlst, respectively
   # - seismogram: seismogram parameters
   #  - filter: {P1: min period, P2: max period} for bandpass filter
+  # - flexwin:
+  #   - par_file: parameter file under FLEXWIN/
+  #   - bin_file: output windows dir under FLEXWIN/
+  #   - user_dir: windows dir under TOMO/ when flexwin_mode == 'user'
   - name: EQ_10_30s
     data:
       waveform_dir: wav_EQ

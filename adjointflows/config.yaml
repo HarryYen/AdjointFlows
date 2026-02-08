@@ -13,8 +13,7 @@ setup:
     current_stage_num: 1                 # Which leg (stage) you start (start from 1)
     stage_initial_model: 0               # First model in this period (leg), determines SD or LBFGS
   flexwin:
-    flexwin_mode: every_stage                   # every_iter: re-pick each rounds, every_stage: re-pick only in the first round of a stage, user: use the time windows specified by user
-    flexwin_user_dir: m010_windows_no_smooth       # **(under TOMO/)** the directory of time-windows if you use 'user' mode 
+    flexwin_mode: every_stage                   # every_iter: re-pick each rounds, every_stage: re-pick only in the first round of a stage, user: use dataset flexwin.user_dir
     
 
 preprocessing:

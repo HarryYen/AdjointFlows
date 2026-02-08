@@ -91,7 +91,6 @@ class StepLengthOptimizer:
         self.file_manager         = FileManager()
         self.file_manager.set_model_number(current_model_num=self.current_model_num)
         self.flexwin_mode         = config.get('setup.flexwin.flexwin_mode')
-        self.flexwin_user_dir     = config.get('setup.flexwin.flexwin_user_dir')
         self.stage_initial_model  = int(config.get('setup.stage.stage_initial_model'))
 
         
