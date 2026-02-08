@@ -41,6 +41,7 @@ datasets:
     flexwin:
       par_file: Joint_par_and_bin/EQ_10_30/PAR_FILE      # **(under FLEXWIN/)** the parameter file for FLEXWIN
       bin_file: Joint_par_and_bin/EQ_10_30/flexwin    # **(under FLEXWIN/)** the directory to store time-windows picked by FLEXWIN
+      user_dir: eq_user_dir
     measure_adj:
       par_file: Joint_par/EQ_10_30/MEASUREMENT.PAR  # **(under MEASURE_ADJ/)** the parameter file for measuring adjoint sources
       bin_file: measure_adj
@@ -92,6 +93,7 @@ datasets:
     flexwin:
       par_file: Joint_par_and_bin/EGF_8_18/PAR_FILE      # **(under FLEXWIN/)** the parameter file for FLEXWIN
       bin_file: Joint_par_and_bin/EGF_8_18/flexwin     # **(under FLEXWIN/)** the directory to store time-windows picked by FLEXWIN
+      user_dir: egf_user_dir
     measure_adj:
       par_file: Joint_par/EGF_8_18/MEASUREMENT.PAR  # **(under MEASURE_ADJ/)** the parameter file for measuring adjoint sources
       bin_file: measure_adj
