@@ -43,13 +43,13 @@ def project_gll_to_regular(databases_dir, kernel_name, query_lon_arr, query_lat_
 
     # 3) Sampling through each depth
     abs_list = []
-
+    
+    pts = vtk.vtkPoints()
+    pts.SetNumberOfPoints(nxy)
     for specified_dep in query_dep_arr:
         z0 = float(specified_dep)
 
         # 3a) Preparing (x, y, z0) points cloud
-        pts = vtk.vtkPoints()
-        pts.SetNumberOfPoints(nxy)
         for i in range(nxy):
             pts.SetPoint(i, float(query_x[i]), float(query_y[i]), z0)
 
@@ -139,12 +139,12 @@ if __name__ == '__main__':
     # -------------------------
     # Parameters Setup
     # -------------------------
-    model_num = 16
+    model_num = 26
     lon_range = [700010.642, 1331760.679]
     lat_range = [2356665.767, 2911482.965]
     dep_range = [-200000.0, 5000.0]
-    lon_interval, lat_interval, dep_interval = 5000.0, 5000.0, 5000.0
-    default_values = [5000, 3000, 1736] # vp, vs, rho
+    lon_interval, lat_interval, dep_interval = 2500.0, 2500.0, 2500.0
+    default_values = [3000, 1600, 1736] # vp, vs, rho
     # -------------------------
 
     kernel_list = ['vp', 'vs', 'rho']
@@ -173,7 +173,6 @@ if __name__ == '__main__':
                                                     query_dep_arr=query_dep_arr,
                                                     default_value=default_values[index])
         val_list.append(interp_data_points)
-
 
     output_model_txt_file(query_lon_arr=query_lon_arr, query_lat_arr=query_lat_arr, query_dep_arr=query_dep_arr, 
                           lon_interval=lon_interval, lat_interval=lat_interval, dep_interval=dep_interval, 
