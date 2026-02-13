@@ -347,11 +347,11 @@ class WorkflowController:
         weighting_type = get_by_path(
             self.dataset_config,
             "defaults.seismogram.gradients_weighting.type",
-            default="absmax_instage_first_iter",
+            default="absmax_in_stage_first_iter",
         )
         dataset_gradient_max = {}
         dataset_weights = {}
-        if weighting_type == "absmax_instage_first_iter":
+        if weighting_type == "absmax_in_stage_first_iter":
             stage_dir = os.path.join(self.base_dir, "TOMO", f"m{self.stage_initial_model:03d}")
             stage_max_path = os.path.join(stage_dir, "gradient_max_by_dataset.json")
             if not os.path.isfile(stage_max_path):
@@ -388,7 +388,7 @@ class WorkflowController:
                 continue
 
             post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config)
-            if weighting_type == "absmax_instage_first_iter":
+            if weighting_type == "absmax_in_stage_first_iter":
                 if dataset_name not in dataset_gradient_max:
                     raise ValueError(
                         f"Missing baseline for dataset {dataset_name} in {stage_max_path}."
