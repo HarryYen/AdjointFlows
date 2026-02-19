@@ -116,15 +116,19 @@ class StepLengthOptimizer:
         for entry in self.dataset_entries:
             yield entry
 
-    def _line_search_syn_dir(self, dataset_name):
+    def _line_search_syn_dir(self, dataset_name, step_index=None):
+        if step_index is None:
+            step_index = self.step_index
         if dataset_name:
-            return f"{self.line_search_dir}/SYN{self.step_index}_{dataset_name}"
-        return f"{self.line_search_dir}/SYN{self.step_index}"
+            return f"{self.line_search_dir}/SYN{step_index}_{dataset_name}"
+        return f"{self.line_search_dir}/SYN{step_index}"
 
-    def _line_search_measure_dir(self, dataset_name):
+    def _line_search_measure_dir(self, dataset_name, step_index=None):
+        if step_index is None:
+            step_index = self.step_index
         if dataset_name:
-            return f"{self.line_search_dir}/MEASURE{self.step_index}_{dataset_name}"
-        return f"{self.line_search_dir}/MEASURE{self.step_index}"
+            return f"{self.line_search_dir}/MEASURE{step_index}_{dataset_name}"
+        return f"{self.line_search_dir}/MEASURE{step_index}"
 
     def _measure_dir_name(self, dataset_name):
         if dataset_name:
@@ -747,7 +751,10 @@ class StepLengthOptimizer:
         if step_index == 0:
             measure_dir = f'{self.current_tomo_dir}/{self._measure_dir_name(dataset_name)}/adjoints'
         else:
-            measure_dir = self._line_search_measure_dir(dataset_name)
+            measure_dir = self._line_search_measure_dir(dataset_name, step_index=step_index)
+        self.debug_logger.info(
+            f"Line search misfit: step_index={step_index}, dataset={dataset_name}, measure_dir={measure_dir}"
+        )
 
         evt_df = pd.read_csv(evlst, header=None, sep=r'\s+')
         chi_df = pd.DataFrame()
