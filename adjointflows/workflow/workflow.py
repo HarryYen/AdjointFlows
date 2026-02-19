@@ -36,9 +36,8 @@ class WorkflowController:
         # initialize file_manager
         self.file_manager = FileManager()
         self.file_manager.set_model_number(current_model_num=self.current_model_num)
-        self.determine_inversion_method()
-
         self.dataset_config = load_dataset_config(self.adjointflows_dir, logger=self.debug_logger)
+        self.determine_inversion_method()
 
         self.setup_dir()
         self.iteration_process = IterationProcess(current_model_num=self.current_model_num, config=self.config)
