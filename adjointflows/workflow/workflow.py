@@ -24,7 +24,7 @@ class WorkflowController:
         self.max_fail            = int(self.config.get('inversion.max_fail'))
         self.max_model_update    = self.config.get('inversion.max_model_update')
         self.sd_runs_num         = int(self.config.get('inversion.sd_runs_num'))
-        self.do_backtracking_ls  = int(self.config.get('inversion.do_backtracking_line_search'))
+        self.do_backtracking_ls  = int(self.config.get('backtracking_line_search.enabled', 0))
         
         self.precondition_flag   = bool(self.config.get('inversion.precondition_flag'))
 

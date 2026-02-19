@@ -25,8 +25,6 @@ inversion:
   n_store_lbfgs: 5          # Number of models used for approximating Hessian
   max_fail: 3               # Maximum allowed failures to reduce the misfit
   max_model_update: 999     # Max amount you can accept when updating the model (new - old)
-  do_backtracking_line_search: 1 # Do backtracking line search (1: yes, 0: no), only for L-BFGS
-  backtracking_shrink: 0.8  # Shrink ratio of step length in backtracking line search
 
 kernel:
   type:
@@ -39,3 +37,7 @@ line_search:
   step_interval: 0.01  # Step interval for steepest descent
   step_beg: 0.01
   step_end: 1.0          # Maximum step length
+
+backtracking_line_search:
+  enabled: 1        # Do backtracking line search (1: yes, 0: no), only for L-BFGS
+  shrink: 0.8       # Shrink ratio of step length in backtracking line search

@@ -98,7 +98,7 @@ class StepLengthOptimizer:
         self.step_beg            = config.get('line_search.step_beg')
         self.step_end            = config.get('line_search.step_end')
         self.max_fail            = config.get('inversion.max_fail')
-        self.shrink_factor       = config.get('inversion.backtracking_shrink')
+        self.shrink_factor       = config.get('backtracking_line_search.shrink', 0.8)
         
         self.nproc               = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
 
