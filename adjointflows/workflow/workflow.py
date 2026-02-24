@@ -450,6 +450,7 @@ class WorkflowController:
         
         rollback_model = self.current_model_num - 1
         re_iteration_process = IterationProcess(current_model_num=rollback_model, config=self.config)
+        re_iteration_process.update_specfem_params()
         re_iteration_process.save_params_json()
         
         re_steplength_optimizer = StepLengthOptimizer(current_model_num=rollback_model, config=self.config)
