@@ -83,7 +83,7 @@ class TomographyVisualizer:
         """
         os.chdir(self.specfem_dir)
         target_file_name = f'{model_name}.vtu'
-        remove_file(target_file_name)
+        remove_file(os.path.join(self.databases_dir, target_file_name))
         
         subprocess.run(
             ['./bin/xcombine_vol_data_vtu', '0', f'{self.nproc-1}', f'{model_name}', f'{self.databases_dir}', f'{self.databases_dir}', '0'],
@@ -98,7 +98,7 @@ class TomographyVisualizer:
         """
         os.chdir(self.specfem_dir)
         target_file_name = f'{kernel_name}.vtu'
-        remove_file(target_file_name)
+        remove_file(os.path.join(self.databases_dir, target_file_name))
         
         subprocess.run(
             ['./bin/xcombine_vol_data_vtu', '0', f'{self.nproc-1}', f'{kernel_name}', f'{self.kernels_dir}', f'{self.databases_dir}', '0'],
