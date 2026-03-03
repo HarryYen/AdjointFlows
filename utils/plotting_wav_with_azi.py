@@ -35,10 +35,10 @@ import sys
 import pygmt
 
 def create_meca_dataframe(file):
-    df = pd.read_csv(file, sep="\s+", header=None, usecols=range(20), names=[
+    df = pd.read_csv(file, sep="\s+", header=None, usecols=range(14), names=[
         'formatted_datetime', 'date', 'time', 'long', 'lat', 'depth', 
         'strike1', 'dip1', 'rake1', 'strike2', 'dip2', 'rake2',
-        'Mw', 'MR', 'mrr', 'mtt', 'mpp', 'mrt', 'mrp', 'mtp'
+        'Mw', 'MR'
     ])
     return df
 
@@ -65,6 +65,9 @@ def generate_evt_win_dict(win_dir):
     for dir in glob.glob(f'{win_dir}/*'):
         evt = dir.split('/')[-1]
         win_file = f'{dir}/window_index'
+        if not os.path.isfile(win_file):
+            print(f'WARNING: missing window_index: {win_file}, skip {evt}')
+            continue
         df = pd.read_csv(win_file, delimiter='\s+', header=None, 
                          names=['net', 'sta', 'comp', 'u1', 'u2', 'u3', 'u4', 't1', 't2'])
        
