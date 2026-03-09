@@ -1,9 +1,10 @@
 setup:
   workflow:
+    inversion_execution_mode: single  # single: allow fine-tune controls below; continuous: enforce full forward->inversion pipeline
     run_mode: pipeline          # pipeline: Normal inversion process, flexwin_test: Test FLEXWIN only
-    start_from_stage: forward   # [forward, postprocess, inversion]
-    end_at_stage: forward      # [forward, postprocess, inversion]
-    forward_stop_at: misfit           # [full, misfit, gradient, synthetics], only effective when end_at_stage == 'forward'
+    start_from_stage: forward   # [forward, postprocess, inversion], fine-tune for single mode
+    end_at_stage: forward      # [forward, postprocess, inversion], fine-tune for single mode
+    forward_stop_at: misfit           # [full, misfit, gradient, synthetics], fine-tune for single mode
     
   model:
     current_model_num: 0                # The model number that you choose to start (start from 0) 
@@ -24,6 +25,8 @@ inversion:
   sd_runs_num: 3            # number of run using SD (e.g. 2 means using SD in the first 2 runs, then use LBFGS) 
   n_store_lbfgs: 5          # Number of models used for approximating Hessian
   max_fail: 3               # Maximum allowed failures to reduce the misfit
+  min_improvement_pct: 1.0  # Stop inversion if misfit improvement (%) is smaller than this threshold
+  max_effective_updates: 0  # Continuous mode only; stop after this many successful model updates (0 = unlimited)
   max_model_update: 999     # Max amount you can accept when updating the model (new - old)
 
 kernel:

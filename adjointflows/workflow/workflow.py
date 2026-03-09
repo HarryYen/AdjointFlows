@@ -24,6 +24,8 @@ class WorkflowController:
         self.max_fail            = int(self.config.get('inversion.max_fail'))
         self.max_model_update    = self.config.get('inversion.max_model_update')
         self.sd_runs_num         = int(self.config.get('inversion.sd_runs_num'))
+        if self.sd_runs_num <= 0:
+            raise ValueError("inversion.sd_runs_num must be a positive integer (> 0).")
         self.do_backtracking_ls  = int(self.config.get('backtracking_line_search.enabled', 0))
         
         self.precondition_flag   = bool(self.config.get('inversion.precondition_flag'))
@@ -274,27 +276,79 @@ class WorkflowController:
         forward_generator.process_each_event_for_tuning_flexwin(index_evt_last=0, do_forward=do_forward)
         
         
-    def misfit_check(self):
+    def misfit_check(self, min_improvement_pct=0.0):
         model_evaluator = ModelEvaluator(current_model_num=self.current_model_num, config=self.config, dataset_config=self.dataset_config)
-        misfit = model_evaluator.run_all_datasets_misfit_evaluation(m_num=self.current_model_num)
+        current_misfit = model_evaluator.run_all_datasets_misfit_evaluation(m_num=self.current_model_num)
         
         if self.inversion_method == 'LBFGS':
-            self.misfit_list.append(misfit)
-        
-        is_misfit_reduced = model_evaluator.is_misfit_reduced()
+            self.misfit_list.append(current_misfit)
+
+        previous_misfit = None
+        improvement_pct = None
+        stop_due_to_small_improvement = False
+
+        if self.current_model_num == self.stage_initial_model:
+            self.debug_logger.info("PASS: skip misfit evaluation for the first model in this stage.")
+            return {
+                "misfit_reduced": True,
+                "current_misfit": current_misfit,
+                "previous_misfit": previous_misfit,
+                "improvement_pct": improvement_pct,
+                "threshold_pct": float(min_improvement_pct),
+                "stop_due_to_small_improvement": stop_due_to_small_improvement,
+                "decision": "PASS_INITIAL_MODEL",
+                "inversion_method": self.inversion_method,
+            }
+
+        previous_misfit = model_evaluator.run_all_datasets_misfit_evaluation(m_num=self.current_model_num - 1)
+        is_misfit_reduced = current_misfit < previous_misfit
+        if previous_misfit != 0:
+            improvement_pct = ((previous_misfit - current_misfit) / abs(previous_misfit)) * 100.0
+        elif current_misfit == 0:
+            improvement_pct = 0.0
         
         if not is_misfit_reduced:
-            if self.stage_initial_model >= self.current_model_num - self.sd_runs_num: 
+            if self.stage_initial_model >= self.current_model_num - self.sd_runs_num + 1: 
                 error_message = "STOP: [Steepest Descent] Misfit is not reduced!"
                 self.debug_logger.error(error_message)
                 raise ValueError(error_message)
             else:
                 self.debug_logger.warning("[L-BFGS] Misfit is not reduced. Rollback the model.")
                 self.add_fail_num()
-                return False
+                return {
+                    "misfit_reduced": False,
+                    "current_misfit": current_misfit,
+                    "previous_misfit": previous_misfit,
+                    "improvement_pct": improvement_pct,
+                    "threshold_pct": float(min_improvement_pct),
+                    "stop_due_to_small_improvement": False,
+                    "decision": "RETRY_ROLLBACK",
+                    "inversion_method": self.inversion_method,
+                }
         else:
-            self.debug_logger.info("PASS: Misfit is reduced.")
-            return True
+            if (
+                improvement_pct is not None
+                and float(min_improvement_pct) > 0.0
+                and improvement_pct < float(min_improvement_pct)
+            ):
+                stop_due_to_small_improvement = True
+                self.debug_logger.info(
+                    f"STOP: Misfit improvement {improvement_pct:.3f}% is smaller than "
+                    f"threshold {float(min_improvement_pct):.3f}%."
+                )
+            else:
+                self.debug_logger.info("PASS: Misfit is reduced.")
+
+            return {
+                "misfit_reduced": True,
+                "current_misfit": current_misfit,
+                "previous_misfit": previous_misfit,
+                "improvement_pct": improvement_pct,
+                "threshold_pct": float(min_improvement_pct),
+                "stop_due_to_small_improvement": stop_due_to_small_improvement,
+                "decision": "STOP_SMALL_IMPROVEMENT" if stop_due_to_small_improvement else "ACCEPT_REDUCED",
+                "inversion_method": self.inversion_method,
+            }
     
     def create_misfit_kernel_each_dataset(self):
         """

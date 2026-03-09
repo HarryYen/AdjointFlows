@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from .config import ConfigManager
 from .processing import FileManager
 from .model_evaluator import ModelEvaluator
+from .run_state import RunStateManager
 from .global_params import GLOBAL_PARAMS
 from . import matrix_utils
 from . import job_utils
-
