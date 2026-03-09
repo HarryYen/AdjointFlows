@@ -12,6 +12,7 @@ __pycache__/
 error*
 sync.sh
 *.json
+!utils/remove_specified_windows/remove_measurement_windows.json
 *.grd
 *.vtu
 *.mesh

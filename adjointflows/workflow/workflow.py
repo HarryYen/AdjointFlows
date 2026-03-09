@@ -1,11 +1,14 @@
 from tools import FileManager, ModelEvaluator
-from tools.job_utils import remove_file, wait_for_launching, copy_files
+from tools.job_utils import remove_file, wait_for_launching, copy_files, remove_path
+from tools.dataset_loader import load_dataset_config, get_by_path, deep_merge, resolve_dataset_list_path
 from kernel import ModelGenerator, ForwardGenerator, PostProcessing
 from iterate import IterationProcess, StepLengthOptimizer
+from pathlib import Path
 import os
 import sys
 import logging
 import json
+import yaml
 
 class WorkflowController:
     def __init__(self, config, global_params):
@@ -21,10 +24,9 @@ class WorkflowController:
         self.max_fail            = int(self.config.get('inversion.max_fail'))
         self.max_model_update    = self.config.get('inversion.max_model_update')
         self.sd_runs_num         = int(self.config.get('inversion.sd_runs_num'))
-        self.do_backtracking_ls  = int(self.config.get('inversion.do_backtracking_line_search'))
+        self.do_backtracking_ls  = int(self.config.get('backtracking_line_search.enabled', 0))
         
         self.precondition_flag   = bool(self.config.get('inversion.precondition_flag'))
-        self.do_wave_simulation = bool(config.get('setup.workflow.do_wave_simulation'))
 
         self.tomo_dir     = os.path.join(self.base_dir, 'TOMO', f'm{self.current_model_num:03d}')
 
@@ -34,6 +36,7 @@ class WorkflowController:
         # initialize file_manager
         self.file_manager = FileManager()
         self.file_manager.set_model_number(current_model_num=self.current_model_num)
+        self.dataset_config = load_dataset_config(self.adjointflows_dir, logger=self.debug_logger)
         self.determine_inversion_method()
 
         self.setup_dir()
@@ -50,15 +53,20 @@ class WorkflowController:
             self.inversion_method = 'LBFGS'
             self.setup_for_fail()
 
-
     def construct_misfit_list(self):
         """
         Construct a list to store the misfit values
         The first element is the misfit of previous model
         This is for the L-BFGS method
         """
-        model_evaluator_tmp = ModelEvaluator(current_model_num=self.current_model_num, config=self.config)
-        previous_misfit = model_evaluator_tmp.misfit_calculation(m_num=self.current_model_num - 1)
+        model_evaluator_tmp = ModelEvaluator(
+            current_model_num=self.current_model_num,
+            config=self.config,
+            dataset_config=self.dataset_config,
+        )
+        previous_misfit = model_evaluator_tmp.run_all_datasets_misfit_evaluation(
+            m_num=self.current_model_num - 1
+        )
         self.misfit_list = [previous_misfit]
     
     def construct_step_length_list(self):
@@ -83,14 +91,7 @@ class WorkflowController:
         """
         Setup files and directories for the following adjoint tomography processes
         """
-        clear_dir_flag = self.do_wave_simulation and not self.ichk
-        # if the L-BFGS fail number is NOT 0, remove the directories
-        if self.inversion_method == 'LBFGS':
-            if self.lbfgs_fail_num != 0:
-                clear_dir_flag = True
-        
-
-        self.file_manager.setup_directory(clear_directories=clear_dir_flag)
+        self.file_manager.setup_directory()
         self.file_manager.make_symbolic_links()
     
     def setup_for_fail(self):
@@ -122,21 +123,151 @@ class WorkflowController:
         self.iteration_process.update_specfem_params()
         self.iteration_process.save_params_json()
 
-    def run_forward(self, do_forward, do_adjoint, do_measurement):
+    def write_dataset_config_file(self, dataset_config):
+        """Write a dataset-specific config file for FLEXWIN/MEASURE scripts."""
+        dataset_name = get_by_path(dataset_config, "name", default="dataset")
+        out_dir = os.path.join(self.adjointflows_dir, ".dataset_configs")
+        os.makedirs(out_dir, exist_ok=True)
+        config_path = os.path.join(out_dir, f"{dataset_name}.yaml")
+
+        config_data = {
+            "source": {
+                "type": get_by_path(dataset_config, "source.type", default="cmt"),
+                "force": {
+                    "depth_km": get_by_path(dataset_config, "source.force.depth_km", default=0.0),
+                },
+            },
+            "data": {
+                "list": {
+                    "evlst": get_by_path(dataset_config, "list.evlst", default=self.config.get("data.list.evlst")),
+                    "stlst": get_by_path(dataset_config, "list.stlst", default=self.config.get("data.list.stlst")),
+                    "evchk": get_by_path(dataset_config, "list.evchk", default=self.config.get("data.list.evchk")),
+                },
+                "seismogram": {
+                    "tbeg": get_by_path(dataset_config, "seismogram.tbeg", default=self.config.get("data.seismogram.tbeg")),
+                    "tend": get_by_path(dataset_config, "seismogram.tend", default=self.config.get("data.seismogram.tend")),
+                    "tcor": get_by_path(dataset_config, "seismogram.tcor", default=self.config.get("data.seismogram.tcor")),
+                    "dt": get_by_path(dataset_config, "seismogram.dt", default=self.config.get("data.seismogram.dt")),
+                    "filter": {
+                        "P1": get_by_path(dataset_config, "seismogram.filter.P1", default=self.config.get("data.seismogram.filter.P1")),
+                        "P2": get_by_path(dataset_config, "seismogram.filter.P2", default=self.config.get("data.seismogram.filter.P2")),
+                    },
+                    "component": {
+                        "COMP": get_by_path(dataset_config, "seismogram.component.COMP", default=self.config.get("data.seismogram.component.COMP")),
+                        "EN2RT": get_by_path(dataset_config, "seismogram.component.EN2RT", default=self.config.get("data.seismogram.component.EN2RT")),
+                    },
+                },
+            },
+        }
+
+        with open(config_path, "w") as f:
+            yaml.safe_dump(config_data, f, sort_keys=False)
+        return config_path
+    
+
+    def run_all_datasets(self, do_adjoint, do_measurement):
+        """
+        Run all datasets defined in dataset.yaml
+        """
+        default_settings = self.dataset_config.get("defaults", {})
+        datasets = self.dataset_config.get("datasets", [])
+        for dataset_entry in datasets:
+            dataset_name = dataset_entry.get("name")
+            if not dataset_name:
+                self.debug_logger.error("Dataset entry missing 'name'. Skipping this dataset.")
+                continue
+            
+            self.debug_logger.info(f"Processing dataset: {dataset_name}")
+            # Merge default settings with dataset-specific settings
+            merged_dataset = deep_merge(default_settings, dataset_entry)
+            self.run_forward(merged_dataset, do_adjoint, do_measurement)
+
+    def run_flexwin_test_datasets(self):
+        """
+        Run FLEXWIN tuning for all datasets.
+        """
+        default_settings = self.dataset_config.get("defaults", {})
+        datasets = self.dataset_config.get("datasets", [])
+        for dataset_entry in datasets:
+            dataset_name = dataset_entry.get("name")
+            if not dataset_name:
+                self.debug_logger.error("Dataset entry missing 'name'. Skipping this dataset.")
+                continue
+
+            self.debug_logger.info(f"Flexwin test dataset: {dataset_name}")
+            merged_dataset = deep_merge(default_settings, dataset_entry)
+            do_forward = bool(get_by_path(merged_dataset, "synthetics.do_wave_simulation", default=1))
+            data_waveform_dir = get_by_path(merged_dataset, "data.waveform_dir")
+            syn_waveform_dir = get_by_path(merged_dataset, "synthetics.waveform_dir")
+
+            self.file_manager.ensure_dataset_dirs(dataset_name, syn_waveform_dir=syn_waveform_dir)
+            self.file_manager.link_dataset_dirs(
+                dataset_name,
+                data_waveform_dir,
+                syn_waveform_dir=syn_waveform_dir,
+            )
+            self.file_manager.link_measurement_tools(
+                flexwin_bin=get_by_path(merged_dataset, "flexwin.bin_file"),
+                flexwin_par=get_by_path(merged_dataset, "flexwin.par_file"),
+                measure_adj_bin=get_by_path(merged_dataset, "measure_adj.bin_file"),
+                measure_adj_par=get_by_path(merged_dataset, "measure_adj.par_file"),
+            )
+            self.run_forward_for_tuning_flexwin(merged_dataset, do_forward=do_forward)
+        
+            
+
+    def run_forward(self, dataset_config, do_adjoint, do_measurement):
         """
         Run the adjoint tomography processes
         """
-        forward_generator = ForwardGenerator(current_model_num=self.current_model_num, config=self.config)        
-        forward_generator.preprocessing()
+        dataset_name = get_by_path(dataset_config, "name", default="dataset")
+        do_forward = bool(get_by_path(dataset_config, "synthetics.do_wave_simulation", default=1))
+        data_waveform_dir = get_by_path(dataset_config, "data.waveform_dir")
+        syn_waveform_dir = get_by_path(dataset_config, "synthetics.waveform_dir")
+        self.file_manager.ensure_dataset_dirs(dataset_name, syn_waveform_dir=syn_waveform_dir)
+        self.file_manager.link_dataset_dirs(
+            dataset_name,
+            data_waveform_dir,
+            syn_waveform_dir=syn_waveform_dir,
+        )
+        self.file_manager.link_measurement_tools(
+            flexwin_bin=get_by_path(dataset_config, "flexwin.bin_file"),
+            flexwin_par=get_by_path(dataset_config, "flexwin.par_file"),
+            measure_adj_bin=get_by_path(dataset_config, "measure_adj.bin_file"),
+            measure_adj_par=get_by_path(dataset_config, "measure_adj.par_file"),
+        )
+        if not self.ichk:
+            self.file_manager.clear_dataset_dirs(
+                dataset_name,
+                syn_waveform_dir=syn_waveform_dir,
+                clear_syn=do_forward,
+                clear_syn_intermediate=not do_forward,
+                clear_measure=True,
+                clear_kernel=True,
+            )
+        dataset_config_path = self.write_dataset_config_file(dataset_config)
+        forward_generator = ForwardGenerator(
+            current_model_num=self.current_model_num,
+            config=self.config,
+            dataset_config=dataset_config,
+            dataset_config_path=dataset_config_path,
+        )
+        forward_generator.preprocessing(require_databases=do_forward)
         forward_generator.output_vars_file()
         index_evt_last = forward_generator.check_last_event()
         forward_generator.process_each_event(index_evt_last, do_forward, do_adjoint, do_measurement)
         
-    def run_forward_for_tuning_flexwin(self, do_forward):
+    def run_forward_for_tuning_flexwin(self, dataset_config, do_forward):
         """
         Run the adjoint tomography processes
         """
-        forward_generator = ForwardGenerator(current_model_num=self.current_model_num, config=self.config)        
+        dataset_config_path = self.write_dataset_config_file(dataset_config)
+        forward_generator = ForwardGenerator(
+            current_model_num=self.current_model_num,
+            config=self.config,
+            dataset_config=dataset_config,
+            dataset_config_path=dataset_config_path,
+        )
         forward_generator.preprocessing()
         forward_generator.output_vars_file()
         # index_evt_last = forward_generator.check_last_event()
@@ -144,8 +275,8 @@ class WorkflowController:
         
         
     def misfit_check(self):
-        model_evaluator = ModelEvaluator(current_model_num=self.current_model_num, config=self.config)
-        misfit = model_evaluator.misfit_calculation(m_num=self.current_model_num)
+        model_evaluator = ModelEvaluator(current_model_num=self.current_model_num, config=self.config, dataset_config=self.dataset_config)
+        misfit = model_evaluator.run_all_datasets_misfit_evaluation(m_num=self.current_model_num)
         
         if self.inversion_method == 'LBFGS':
             self.misfit_list.append(misfit)
@@ -165,12 +296,123 @@ class WorkflowController:
             self.debug_logger.info("PASS: Misfit is reduced.")
             return True
     
-    def create_misfit_kernel(self):
+    def create_misfit_kernel_each_dataset(self):
         """
         Sum up the event kernel and smooth it
         """
-        post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config)
-        post_processing.sum_and_smooth_kernels(precond_flag=self.precondition_flag)
+        datasets = self.dataset_config.get("datasets", [])
+        dataset_gradient_max = {}
+        for dataset_entry in datasets:
+            dataset_name = dataset_entry.get("name")
+            
+            evlst = resolve_dataset_list_path(
+                self.base_dir,
+                dataset_entry,
+                "list.evlst",
+                "evlst",
+                required=True,
+            )
+                
+            ismooth = bool(get_by_path(dataset_entry, "inversion.smoothing.ISMOOTH", 1))
+            sigma_h = get_by_path(dataset_entry, "inversion.smoothing.smooth_par_gradient.SIGMA_H", 20000)
+            sigma_v = get_by_path(dataset_entry, "inversion.smoothing.smooth_par_gradient.SIGMA_V", 15000)
+            
+            post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config,
+                                             ismooth=ismooth, sigma_h=sigma_h, sigma_v=sigma_v)
+            post_processing.sum_and_smooth_kernels(dataset_name=dataset_name, evlst=evlst, precond_flag=self.precondition_flag)
+            post_processing.prepare_precond(
+                dataset_name=dataset_name,
+                use_smooth=ismooth,
+                precond_flag=self.precondition_flag,
+            )
+            dataset_gradient_max[dataset_name] = post_processing.compute_gradient_max(
+                dataset_name,
+                source_subdir="PRECOND",
+            )
+        if dataset_gradient_max:
+            output_path = os.path.join(self.tomo_dir, "gradient_max_by_dataset.json")
+            try:
+                with open(output_path, "w") as f:
+                    json.dump(dataset_gradient_max, f, indent=2, sort_keys=True)
+            except OSError as exc:
+                self.debug_logger.warning(f"Failed to write {output_path}: {exc}")
+        self.combine_normalized_gradients()
+
+    def combine_normalized_gradients(self):
+        """
+        Normalize and combine dataset gradients into a single directory.
+        """
+        datasets = self.dataset_config.get("datasets", [])
+        weighting_type = get_by_path(
+            self.dataset_config,
+            "defaults.seismogram.gradients_weighting.type",
+            default="absmax_in_stage_first_iter",
+        )
+        dataset_gradient_max = {}
+        dataset_weights = {}
+        if weighting_type == "absmax_in_stage_first_iter":
+            stage_dir = os.path.join(self.base_dir, "TOMO", f"m{self.stage_initial_model:03d}")
+            stage_max_path = os.path.join(stage_dir, "gradient_max_by_dataset.json")
+            if not os.path.isfile(stage_max_path):
+                raise FileNotFoundError(
+                    f"Missing stage baseline: {stage_max_path}. "
+                    "Run the first model of this stage to generate it."
+                )
+            with open(stage_max_path, "r") as f:
+                dataset_gradient_max = json.load(f)
+        elif weighting_type == "user":
+            total_weight = 0.0
+            for dataset_entry in datasets:
+                dataset_name = dataset_entry.get("name")
+                if not dataset_name:
+                    continue
+                weight = float(get_by_path(dataset_entry, "inversion.weight", 1.0))
+                dataset_weights[dataset_name] = weight
+                total_weight += weight
+            if total_weight <= 0.0:
+                raise ValueError("Total dataset weight is 0; cannot normalize weights.")
+            for name in dataset_weights:
+                dataset_weights[name] = dataset_weights[name] / total_weight
+        else:
+            raise ValueError(f"Unknown gradient_weighting.type: {weighting_type}")
+        combined_dir = os.path.join(self.tomo_dir, "KERNEL_COMBINED", "PRECOND")
+        combined_path = Path(combined_dir)
+        combined_path.mkdir(parents=True, exist_ok=True)
+        for file in combined_path.glob("proc*_kernel_smooth.bin"):
+            file.unlink()
+
+        for dataset_entry in datasets:
+            dataset_name = dataset_entry.get("name")
+            if not dataset_name:
+                continue
+
+            post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config)
+            if weighting_type == "absmax_in_stage_first_iter":
+                if dataset_name not in dataset_gradient_max:
+                    raise ValueError(
+                        f"Missing baseline for dataset {dataset_name} in {stage_max_path}."
+                    )
+                norm = dataset_gradient_max.get(dataset_name)
+                if not norm or norm <= 0.0:
+                    raise ValueError(
+                        f"Invalid baseline for dataset {dataset_name} in {stage_max_path}: {norm}"
+                    )
+                weight = 1.0
+            else:
+                norm = 1.0
+                weight = dataset_weights.get(dataset_name, 0.0)
+            post_processing.accumulate_normalized_gradients(
+                dataset_name=dataset_name,
+                norm=norm,
+                output_dir=combined_dir,
+                use_smooth=True,
+                source_subdir="PRECOND",
+                weight=weight,
+            )
+        combined_smooth = os.path.join(self.tomo_dir, "KERNEL_COMBINED", "SMOOTH")
+        if os.path.islink(combined_smooth) or os.path.exists(combined_smooth):
+            remove_path([combined_smooth])
+        os.symlink(combined_dir, combined_smooth)
     
     def do_iteration(self):
         """
@@ -208,6 +450,7 @@ class WorkflowController:
         
         rollback_model = self.current_model_num - 1
         re_iteration_process = IterationProcess(current_model_num=rollback_model, config=self.config)
+        re_iteration_process.update_specfem_params()
         re_iteration_process.save_params_json()
         
         re_steplength_optimizer = StepLengthOptimizer(current_model_num=rollback_model, config=self.config)

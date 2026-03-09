@@ -102,7 +102,8 @@ def main():
     epsilon = 1e-12
     
     databases_dir = os.path.join(params['base_dir'], "TOMO", model_num, "DATABASES_MPI")
-    output_dir = os.path.join(params['base_dir'], "TOMO", model_num, "KERNEL", "UPDATE")
+    kernel_base_dir = params.get('kernel_base_dir', 'KERNEL')
+    output_dir = os.path.join(params['base_dir'], "TOMO", model_num, kernel_base_dir, "UPDATE")
     lbfgs_memory_range = get_range_lbfgs_memory(iter_currnet=mrun, 
                                                 n_store=n_store_lbfgs, 
                                                 mstart_min=stage_initial_model)
@@ -124,13 +125,14 @@ def main():
                                     dtype=dtype_int)
     
     common_params = dict(
-        base_dir=params['base_dir'], 
-        NGLLX=NGLLX, NGLLY=NGLLY, NGLLZ=NGLLZ, 
-        NSPEC=NSPEC, NGLOB=NGLOB, ibool_arr=ibool_kernel, 
-        dtype=get_data_type(params['dtype'])
+        base_dir=params['base_dir'],
+        NGLLX=NGLLX, NGLLY=NGLLY, NGLLZ=NGLLZ,
+        NSPEC=NSPEC, NGLOB=NGLOB, ibool_arr=ibool_kernel,
+        dtype=get_data_type(params['dtype']),
     )
+    gradient_params = dict(common_params, kernel_base_dir=kernel_base_dir)
     
-    current_gradient = get_gradient(**common_params, rank=rank, model_num=mrun, kernel_list=kernel_list)
+    current_gradient = get_gradient(**gradient_params, rank=rank, model_num=mrun, kernel_list=kernel_list)
     # if precond_flag:
     #     current_hess_inv = get_hess_inv(**common_params, rank=rank, model_num=mrun, kernel_list=kernel_list)
     # else:
@@ -149,9 +151,9 @@ def main():
         model_1 = iter + 1
         model_0 = iter
 
-        gradient1_arr = get_gradient(**common_params, rank=rank, model_num=model_1, kernel_list=kernel_list)
+        gradient1_arr = get_gradient(**gradient_params, rank=rank, model_num=model_1, kernel_list=kernel_list)
         model1_arr    = get_model(**common_params, rank=rank, model_num=model_1, model_list=model_list)
-        gradient0_arr = get_gradient(**common_params, rank=rank, model_num=model_0, kernel_list=kernel_list)
+        gradient0_arr = get_gradient(**gradient_params, rank=rank, model_num=model_0, kernel_list=kernel_list)
         model0_arr    = get_model(**common_params, rank=rank, model_num=model_0, model_list=model_list)
         
         grad_diff = gradient1_arr - gradient0_arr
@@ -186,9 +188,9 @@ def main():
         
     iter = mrun - 1
     
-    gradient1_arr = get_gradient(**common_params, rank=rank, model_num=iter+1, kernel_list=kernel_list)
+    gradient1_arr = get_gradient(**gradient_params, rank=rank, model_num=iter+1, kernel_list=kernel_list)
     model1_arr    = get_model(**common_params, rank=rank, model_num=iter+1, model_list=model_list)
-    gradient0_arr = get_gradient(**common_params, rank=rank, model_num=iter, kernel_list=kernel_list)
+    gradient0_arr = get_gradient(**gradient_params, rank=rank, model_num=iter, kernel_list=kernel_list)
     model0_arr    = get_model(**common_params, rank=rank, model_num=iter, model_list=model_list)
     
     grad_diff = gradient1_arr - gradient0_arr
@@ -222,9 +224,9 @@ def main():
         model_1 = iter + 1
         model_0 = iter
     
-        gradient1_arr = get_gradient(**common_params, rank=rank, model_num=model_1, kernel_list=kernel_list)
+        gradient1_arr = get_gradient(**gradient_params, rank=rank, model_num=model_1, kernel_list=kernel_list)
         model1_arr    = get_model(**common_params, rank=rank, model_num=model_1, model_list=model_list)
-        gradient0_arr = get_gradient(**common_params, rank=rank, model_num=model_0, kernel_list=kernel_list)
+        gradient0_arr = get_gradient(**gradient_params, rank=rank, model_num=model_0, kernel_list=kernel_list)
         model0_arr    = get_model(**common_params, rank=rank, model_num=model_0, model_list=model_list)
 
         grad_diff = gradient1_arr - gradient0_arr

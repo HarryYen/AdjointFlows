@@ -68,7 +68,6 @@ def main():
     start_from_stage = config.get('setup.workflow.start_from_stage')
     end_at_stage = config.get('setup.workflow.end_at_stage')
     forward_stop_at = config.get('setup.workflow.forward_stop_at')
-    do_wave_simulation = bool(config.get('setup.workflow.do_wave_simulation'))
     
 
     attempt = 0
@@ -97,9 +96,7 @@ def main():
     
     do_measurement = forward_stop_at != 'synthetics'
     do_adjoint = forward_stop_at not in ('misfit', 'synthetics')
-    if forward_stop_at == 'synthetics' and not do_wave_simulation:
-        result_logger.error("synthetics mode requires do_wave_simulation=1. STOP!.")
-        return 0
+
     
     # ---------------------------------------------------------------------------
     # (0c) Initiation
@@ -124,7 +121,12 @@ def main():
         5. do inversion (Steepest descent or L-BFGS)
     """
     
-    while not misfit_reduced and attempt < MAX_ATTEMPTS and stage_order[start_from_stage] <= stage_order['forward']:
+    while (
+        not misfit_reduced
+        and attempt < MAX_ATTEMPTS
+        and stage_order[start_from_stage] <= stage_order['forward']
+        and stage_order['forward'] <= end_index
+    ):
         
         attempt += 1
         # -------------------------------------------------------------------------
@@ -140,10 +142,10 @@ def main():
         # (2) Forward (Pipeline or tuning parameters from FLEXWIN)  
         # -------------------------------------------------------------------------
         if run_mode == 'flexwin_test':
-            workflow_controller.run_forward_for_tuning_flexwin(do_forward=do_wave_simulation)
+            workflow_controller.run_flexwin_test_datasets()
             return 0
         else:
-            workflow_controller.run_forward(do_forward=do_wave_simulation, do_adjoint=do_adjoint, do_measurement=do_measurement)
+            workflow_controller.run_all_datasets(do_adjoint=do_adjoint, do_measurement=do_measurement)
         
         # -------------------------------------------------------------------------
         # (2a) Handle forward-stop modes:
@@ -180,9 +182,9 @@ def main():
     # -------------------------------------------------------------------------
     # (5) Post-processing: smoothing and summing up kernels
     # -------------------------------------------------------------------------
-    if start_index <= stage_order['postprocess']:
+    if start_index <= stage_order['postprocess'] <= end_index:
         workflow_controller.move_to_other_directory(folder_to_move='specfem')
-        workflow_controller.create_misfit_kernel()
+        workflow_controller.create_misfit_kernel_each_dataset()
         if forward_stop_at == 'gradient':
             result_logger.info("Only compute gradient as requested by user. Stop after post-processing step.")
             
@@ -190,7 +192,7 @@ def main():
     # -------------------------------------------------------------------------
     # (6) Inversion
     # -------------------------------------------------------------------------
-    if start_index <= stage_order['inversion']:
+    if start_index <= stage_order['inversion'] <= end_index:
         workflow_controller.move_to_other_directory(folder_to_move='adjointflows')
         workflow_controller.do_iteration()
 

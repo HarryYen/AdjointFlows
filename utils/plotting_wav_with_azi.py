@@ -35,20 +35,37 @@ import sys
 import pygmt
 
 def create_meca_dataframe(file):
-    df = pd.read_csv(file, sep="\s+", header=None, usecols=range(20), names=[
+    df = pd.read_csv(file, sep="\s+", header=None, usecols=range(14), names=[
         'formatted_datetime', 'date', 'time', 'long', 'lat', 'depth', 
         'strike1', 'dip1', 'rake1', 'strike2', 'dip2', 'rake2',
-        'Mw', 'MR', 'mrr', 'mtt', 'mpp', 'mrt', 'mrp', 'mtp'
-    ])
+        'Mw', 'MR'
+    ], dtype={'formatted_datetime': str})
     return df
 
+def get_evt_info(df, evt):
+    evt_str = str(evt).strip()
+    evt_col = df['formatted_datetime'].astype(str).str.strip()
+
+    evt_match = df[evt_col == evt_str]
+    if not evt_match.empty:
+        return evt_match.iloc[0]
+
+    # Backward-compatible fallback for numeric event IDs (old datetime naming).
+    evt_num = pd.to_numeric(pd.Series([evt_str]), errors='coerce').iloc[0]
+    if pd.notna(evt_num):
+        evt_col_num = pd.to_numeric(df['formatted_datetime'], errors='coerce')
+        evt_match = df[evt_col_num == evt_num]
+        if not evt_match.empty:
+            return evt_match.iloc[0]
+
+    raise KeyError(f"Event '{evt}' not found in event file column 'formatted_datetime'.")
+
 def modify_meca_format(df, evt):
-    
-    df_sort = df[df.formatted_datetime == float(evt)]
-    df_meca = df_sort[['long', 'lat', 'depth', 'strike1', 'dip1', 'rake1', 'Mw']]
-    # df_meca.columns = ['longitude','latitude', 'depth',
-                    # 'strike', 'dip', 'rake', 'magnitude']
-    meca_info = np.array(list(df_meca.iloc[0]))
+    evt_info = get_evt_info(df, evt)
+    meca_info = np.array([
+        evt_info.long, evt_info.lat, evt_info.depth,
+        evt_info.strike1, evt_info.dip1, evt_info.rake1, evt_info.Mw
+    ])
 
     return meca_info
     
@@ -65,6 +82,9 @@ def generate_evt_win_dict(win_dir):
     for dir in glob.glob(f'{win_dir}/*'):
         evt = dir.split('/')[-1]
         win_file = f'{dir}/window_index'
+        if not os.path.isfile(win_file):
+            print(f'WARNING: missing window_index: {win_file}, skip {evt}')
+            continue
         df = pd.read_csv(win_file, delimiter='\s+', header=None, 
                          names=['net', 'sta', 'comp', 'u1', 'u2', 'u3', 'u4', 't1', 't2'])
        
@@ -204,49 +224,71 @@ def read_sac_data(sac, t0, t1, time):
         times = np.nan
     return wav, times
 
-def plot_waveforms(fig, evt, evt_time, channel, waveform_time_range, chunk_df, win_dict_evt, ref_syn_wav_dir, final_syn_wav_dir, ref_wav_dir):
+def plot_waveforms(fig, evt, evt_time, channel, waveform_time_range, chunk_df, win_dict_evt, ref_syn_wav_dir, final_syn_wav_dir, ref_wav_dir, data_comp_prefix='HH', normalize_waveform=True):
     global wav_start_time, chunksize, model_ref, model_final
     
     fig.shift_origin(xshift="22c")
-    with fig.subplot(nrows=chunksize, ncols=2, subsize=('17c', '5c'), margins=["0.6c", "0.6c"], 
+    comp_single = channel[2]
+
+    valid_sta_info = []
+    for i in range(len(chunk_df)):
+        sta_info = chunk_df.iloc[i]
+        sta = sta_info.sta
+        ref_data_name = f'{ref_wav_dir}/{evt}/{sta}.{data_comp_prefix}{comp_single}*.sac'
+        ref_data_matches = glob.glob(ref_data_name)
+        if not ref_data_matches:
+            print(f"{ref_data_name} doesn't exist!")
+            continue
+        valid_sta_info.append((sta_info, ref_data_matches[0]))
+
+    if len(valid_sta_info) == 0:
+        print(f'WARNING: no valid waveform files for evt={evt}, channel={channel}. Skip this chunk.')
+        return fig
+
+    with fig.subplot(nrows=len(valid_sta_info), ncols=2, subsize=('17c', '5c'), margins=["0.6c", "0.6c"], 
                      sharex='b', sharey='r'):
-        for i in range(len(chunk_df)):
-            sta_info = chunk_df.iloc[i]
+        for i, (sta_info, ref_data_sac) in enumerate(valid_sta_info):
             sta = sta_info.sta
-            
-            comp = channel[1:]
-            comp_single = channel[2]
+
             # ref_syn_sac = f'{ref_syn_wav_dir}/{evt}/{sta}.TW.{channel}.semv.sac.tomo'
             # final_syn_sac = f'{final_syn_wav_dir}/{evt}/{sta}.TW.{channel}.semv.sac.tomo'
             ref_syn_sac = f'{ref_syn_wav_dir}/{evt}/*.{sta}.BX{comp_single}.semv.convolved.sac'
-            final_syn_sac = f'{final_syn_wav_dir}/{evt}/*.{sta}.BX{comp_single}.semv.convolved.sac'            
-            ref_data_name = f'{ref_wav_dir}/{evt}/{sta}.H{comp}*.sac'
-            
-            try:
-                ref_data_sac = glob.glob(ref_data_name)[0]
-            except IndexError:
-                print(f"{ref_data_name} doesn't exist!")
-                continue
-            
+            final_syn_sac = f'{final_syn_wav_dir}/{evt}/*.{sta}.BX{comp_single}.semv.convolved.sac'
+
             syn_sac_list = [ref_syn_sac, final_syn_sac]
-            title_list = [model_ref, model_final]        
-                      
-            for j, syn_sac in enumerate(syn_sac_list): 
-                index = i * 2 + j  
+            title_list = [model_ref, model_final]
+
+            for j, syn_sac in enumerate(syn_sac_list):
+                index = i * 2 + j
                 # get waveform
-                wav_data, data_time  = read_sac_data(ref_data_sac, waveform_time_range[0], waveform_time_range[1], evt_time)
-                wav_syn, syn_time    = read_sac_syn(syn_sac, waveform_time_range[0], waveform_time_range[1], evt_time)
-                
-                max_val = np.max(np.abs(np.hstack([wav_data, wav_syn])))
-                
-                # normalize
-                wav_data = wav_data / max_val
-                wav_syn = wav_syn / max_val
+                wav_data, data_time = read_sac_data(ref_data_sac, waveform_time_range[0], waveform_time_range[1], evt_time)
+                wav_syn, syn_time = read_sac_syn(syn_sac, waveform_time_range[0], waveform_time_range[1], evt_time)
+                if np.isscalar(wav_data) or np.isscalar(wav_syn):
+                    print(f'WARNING: waveform read failed for evt={evt}, sta={sta}, channel={channel}, syn={syn_sac}')
+                    continue
+
+                if normalize_waveform:
+                    data_max = np.max(np.abs(wav_data))
+                    syn_max = np.max(np.abs(wav_syn))
+                    if data_max == 0 or syn_max == 0:
+                        print(f'WARNING: zero amplitude for evt={evt}, sta={sta}, channel={channel}, syn={syn_sac}')
+                        continue
+                    wav_data = wav_data / data_max
+                    wav_syn = wav_syn / syn_max
+                    y_min, y_max = -1.3, 1.3
+                else:
+                    max_val = np.max(np.abs(np.hstack([wav_data, wav_syn])))
+                    if max_val == 0:
+                        print(f'WARNING: zero amplitude for evt={evt}, sta={sta}, channel={channel}, syn={syn_sac}')
+                        continue
+                    y_lim = max_val * 1.1
+                    y_min, y_max = -y_lim, y_lim
+
                 formatted_title = f'{sta} {channel} {title_list[j]}'
                 with fig.set_panel(panel=index):
-                    fig.basemap(region = [waveform_time_range[0], waveform_time_range[1], -1.3, 1.3], 
-                                frame = ['xa20f10', 'yf1',f'+t{formatted_title}'], projection = 'X?')
-                    
+                    fig.basemap(region=[waveform_time_range[0], waveform_time_range[1], y_min, y_max],
+                                frame=['xa20f10', 'yf1', f'+t{formatted_title}'], projection='X?')
+
                     # get window info
                     try:
                         win_values = win_dict_evt[(sta, channel)]
@@ -257,8 +299,8 @@ def plot_waveforms(fig, evt, evt_time, channel, waveform_time_range, chunk_df, w
                         pass
                     # fig.plot(x = data_time + wav_start_time, y = wav_data, pen='2.5p,black')
                     # fig.plot(x = syn_time + wav_start_time, y = wav_syn, pen='2.5p,red')
-                    fig.plot(x = data_time, y = wav_data, pen='2.5p,black')
-                    fig.plot(x = syn_time, y = wav_syn, pen='2.5p,red')
+                    fig.plot(x=data_time, y=wav_data, pen='2.5p,black')
+                    fig.plot(x=syn_time, y=wav_syn, pen='2.5p,red')
     return fig
         
 def ensure_directory_exists(path):
@@ -289,15 +331,17 @@ if __name__ == '__main__':
     """
     
     # ---------------- PARAMETER -----------------#
-    model_ref, model_final = 0, 16
-    period_min, period_max = 5, 30
+    model_ref, model_final = 0, 7
+    period_min, period_max = 8, 18
     map_region = [119, 123, 21, 26]
-    result_dir = '/home/harry/Work/AdjointFlows/TOMO'
-    data_dir = '/home/harry/Work/AdjointFlows/DATA/wav'
-    evt_file = '/home/harry/Work/AdjointFlows/DATA/evlst/fwi_new_cat_version4.txt'
+    result_dir = '/home/harry/Work/adjflows_for_ambient_noise/Pure_EGF_Testing/AdjointFlows_inital/TOMO'
+    data_dir = '/home/harry/Work/adjflows_for_ambient_noise/Pure_EGF_Testing/AdjointFlows_inital/DATA/wav'
+    evt_file = '/home/harry/Work/adjflows_for_ambient_noise/Pure_EGF_Testing/AdjointFlows_inital/DATA/evlst/sta_91_EGF.txt.flexwin'
     waveform_time_range = [0, 150]
+    data_comp_prefix = 'BH'  # e.g., HH, EH, BH
+    normalize_waveform = True  # True: normalize to [-1, 1], False: use raw amplitude
     wav_start_time = -30.
-    output_dir = '/home/harry/Work/AdjointFlows/TOMO/OUTPUT'
+    output_dir = '/home/harry/Work/adjflows_for_ambient_noise/Pure_EGF_Testing/AdjointFlows_inital/TOMO/OUTPUT'
     chunksize = 6
     # --------------------------------------------#
     
@@ -328,7 +372,7 @@ if __name__ == '__main__':
         ensure_directory_exists(out_dir_evt)
         print(f'Start plotting event {evt} ({evt_list.index(evt)+1}/{total_evt_num})...')
         obs_wav_dir = f'{ref_wav_dir}/{evt}'
-        evt_info = evt_meca_df[evt_meca_df.formatted_datetime == float(evt)].iloc[0]
+        evt_info = get_evt_info(evt_meca_df, evt)
         evt_time = UTCDateTime(evt_info.date + 'T' + evt_info.time)
         
         for comp in ['BHZ', 'BHN', 'BHE']:
@@ -340,9 +384,10 @@ if __name__ == '__main__':
             for ii, chunk_df in enumerate(chunk_list):
                 fig = plot_map(map_region, chunk_df, meca_info)
                 fig = plot_waveforms(fig, evt, evt_time, comp, waveform_time_range, chunk_df, win_dict_evt, 
-                            ref_syn_wav_dir, final_syn_wav_dir, ref_wav_dir)
+                            ref_syn_wav_dir, final_syn_wav_dir, ref_wav_dir, data_comp_prefix=data_comp_prefix,
+                            normalize_waveform=normalize_waveform)
 
-                # fig.savefig(f'{out_dir_evt}/{evt}_{comp}_{ii+1:02d}.jpg')
+                fig.savefig(f'{out_dir_evt}/{evt}_{comp}_{ii+1:02d}.jpg')
 
 
 

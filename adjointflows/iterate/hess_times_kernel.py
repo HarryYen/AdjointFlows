@@ -1,6 +1,7 @@
 import sys
 import os
 import json
+import argparse
 from mpi4py import MPI
 
     
@@ -24,25 +25,37 @@ def main():
     # --------------------------------------------------------------------------------------------
 
     if rank == 0:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--kernel-dir", default=None)
+        parser.add_argument("--output-dir", default=None)
+        parser.add_argument("--use-smooth", default="1", choices=("0", "1"))
+        args = parser.parse_args()
         with open("params.json", "r") as f:
             params = json.load(f)
     else:
         params = None
+        args = None
     
     params = comm.bcast(params, root=0)
+    args = comm.bcast(args, root=0)
 
     mrun = params['current_model_num']
     model_num = f"m{mrun:03d}"
     
-    kernel_dir = os.path.join(params['base_dir'], "TOMO", model_num, "KERNEL", "SMOOTH")
-    output_dir = os.path.join(params['base_dir'], "TOMO", model_num, "KERNEL", "PRECOND")
+    kernel_base_dir = params.get('kernel_base_dir', 'KERNEL')
+    use_smooth = args.use_smooth == "1"
+    kernel_suffix = "_kernel_smooth.bin" if use_smooth else "_kernel.bin"
+    hess_suffix = "hess_inv_kernel_smooth.bin" if use_smooth else "hess_inv_kernel.bin"
+
+    kernel_dir = args.kernel_dir or os.path.join(params['base_dir'], "TOMO", model_num, kernel_base_dir, "SMOOTH")
+    output_dir = args.output_dir or os.path.join(params['base_dir'], "TOMO", model_num, kernel_base_dir, "PRECOND")
     
     check_dir_exists(kernel_dir)
     check_dir_exists(output_dir)
     
     for kernel_name in params['kernel_list']:
-        kernel_file = os.path.join(kernel_dir, f"proc{rank:06d}_{kernel_name}_kernel_smooth.bin")
-        hess_inv_file = os.path.join(kernel_dir, f"proc{rank:06d}_hess_inv_kernel_smooth.bin")
+        kernel_file = os.path.join(kernel_dir, f"proc{rank:06d}_{kernel_name}{kernel_suffix}")
+        hess_inv_file = os.path.join(kernel_dir, f"proc{rank:06d}_{hess_suffix}")
         hess_inv, padding_num = read_bin(file_name=hess_inv_file, 
                                             NGLLX=params['NGLLX'], 
                                             NGLLY=params['NGLLY'], 

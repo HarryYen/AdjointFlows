@@ -1,0 +1,19 @@
+{
+  "windows_root": "TOMO/m026/MEASURE_EQ_10_30s/adjoints",
+  "operations": [
+    {
+      "event": "9818433",
+      "network": "CI",
+      "station": "MPM",
+      "component": "BHR",
+      "window_index": 2
+    },
+    {
+      "event": "9818433",
+      "network": "CI",
+      "station": "MPM",
+      "component": "BHT",
+      "window_index": 1
+    }
+  ]
+}

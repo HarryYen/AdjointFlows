@@ -16,7 +16,7 @@ mkdir -p PLOTS/RECON
 mkdir -p PACK
 rm -rf PACK/$1
 mkdir PACK/$1
-par_file=../adjointflows/config.yaml
+par_file=${AF_CONFIG:-../adjointflows/config.yaml}
 p1=`grep P1 $par_file | gawk '{print $2}'`        # min period for bandpass
 p2=`grep P2 $par_file | gawk '{print $2}'`        # max period for bandpass
 en2rt=`grep EN2RT $par_file | gawk '{print $2}'`  # rotate the E & N component to R & T

@@ -109,7 +109,7 @@ def kernel_pad_and_output(kernel, output_file, padding_num=1e-27):
     kernel_pad = np.pad(kernel, (1, 1), mode='constant', constant_values=padding_num)
     kernel_pad.tofile(output_file)
     
-def get_gradient(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, ibool_arr, kernel_list, dtype):
+def get_gradient(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, ibool_arr, kernel_list, dtype, kernel_base_dir="KERNEL"):
     """
     get the gradient from all the different kernels type and combine together.
     Args:
@@ -129,7 +129,7 @@ def get_gradient(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, i
     """
     model_num = f"m{model_num:03d}"
     print(NGLOB)
-    kernel_dir = os.path.join(base_dir, "TOMO", model_num, "KERNEL", "SMOOTH")
+    kernel_dir = os.path.join(base_dir, "TOMO", model_num, kernel_base_dir, "SMOOTH")
     vector_gll = np.zeros((len(kernel_list), NGLOB), dtype=dtype)
     for iker, kernel_name in enumerate(kernel_list):
         gradient_file = os.path.join(kernel_dir, f"proc{rank:06d}_{kernel_name}_kernel_smooth.bin")
@@ -142,7 +142,7 @@ def get_gradient(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, i
     gradient_arr = np.hstack(vector_gll)
     return gradient_arr
 
-def get_direction(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, ibool_arr, kernel_list, dtype):
+def get_direction(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, ibool_arr, kernel_list, dtype, kernel_base_dir="KERNEL"):
     """
     get the direction from all the different kernels type and combine together.
     Args:
@@ -162,7 +162,7 @@ def get_direction(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, 
     """
     model_num = f"m{model_num:03d}"
     print(NGLOB)
-    kernel_dir = os.path.join(base_dir, "TOMO", model_num, "KERNEL", "UPDATE")
+    kernel_dir = os.path.join(base_dir, "TOMO", model_num, kernel_base_dir, "UPDATE")
     vector_gll = np.zeros((len(kernel_list), NGLOB), dtype=dtype)
     for iker, kernel_name in enumerate(kernel_list):
         direction_file = os.path.join(kernel_dir, f"proc{rank:06d}_{kernel_name}_kernel_smooth.bin")
@@ -175,7 +175,7 @@ def get_direction(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, 
     direction_arr = np.hstack(vector_gll)
     return direction_arr
 
-def get_precond(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, ibool_arr, kernel_list, dtype):
+def get_precond(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, ibool_arr, kernel_list, dtype, kernel_base_dir="KERNEL"):
     """
     get the PRECOND gradient from all the different kernels type and combine together.
     Args:
@@ -195,7 +195,7 @@ def get_precond(base_dir, rank, model_num, NGLLX, NGLLY, NGLLZ, NSPEC, NGLOB, ib
     """
     model_num = f"m{model_num:03d}"
     print(NGLOB)
-    kernel_dir = os.path.join(base_dir, "TOMO", model_num, "KERNEL", "PRECOND")
+    kernel_dir = os.path.join(base_dir, "TOMO", model_num, kernel_base_dir, "PRECOND")
     vector_gll = np.zeros((len(kernel_list), NGLOB), dtype=dtype)
     for iker, kernel_name in enumerate(kernel_list):
         gradient_file = os.path.join(kernel_dir, f"proc{rank:06d}_{kernel_name}_kernel_smooth.bin")

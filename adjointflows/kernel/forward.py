@@ -1,6 +1,8 @@
 from tools import GLOBAL_PARAMS
+
 from tools.job_utils import check_if_directory_not_empty, remove_file, remove_files_with_pattern, move_files, wait_for_launching, check_path_is_correct
 from tools.matrix_utils import get_param_from_specfem_file
+from tools.dataset_loader import get_by_path
 from pathlib import Path
 
 import pandas as pd
@@ -15,15 +17,18 @@ import csv
 
 class ForwardGenerator:
     
-    def __init__(self, current_model_num, config):
+    def __init__(self, current_model_num, config, dataset_config=None, dataset_config_path=None):
         """
         Args:
             config (dict): The configuration dictionary
             current_model_num (int): The current model number
         """
+        if dataset_config is None:
+            dataset_config = {}
         self.base_dir          = GLOBAL_PARAMS['base_dir']
         self.mpirun_path       = GLOBAL_PARAMS['mpirun_path']
         self.current_model_num = current_model_num
+        self.dataset_config_path = dataset_config_path
         self.specfem_dir       = os.path.join(self.base_dir, 'specfem3d')
         self.databases_mpi_dir = os.path.join(self.specfem_dir, 'DATABASES_MPI')
         self.measure_adj_dir   = os.path.join(self.base_dir, 'measure_adj')
@@ -31,16 +36,14 @@ class ForwardGenerator:
         
         self.stage_initial_model = config.get('setup.stage.stage_initial_model')
         self.ichk                = config.get('preprocessing.ICHK')
-        # self.flexwin_flag        = config.get('setup.flexwin.FLEXWIN_FLAG')
+
         self.flexwin_mode        = config.get('setup.flexwin.flexwin_mode')
-        self.flexwin_user_dir    = config.get('setup.flexwin.flexwin_user_dir')
-        self.source_type         = (config.get('source.type') or 'cmt').lower()
+        self.flexwin_user_dir    = get_by_path(dataset_config, "flexwin.user_dir")
+        self.dataset_name        = get_by_path(dataset_config, "name", default="dataset")
+        self.source_type         = (get_by_path(dataset_config, "source.type", default="cmt")   ).lower()
         if self.source_type not in ('cmt', 'force'):
             raise ValueError(f"Unknown source.type: {self.source_type}")
-        self.force_depth_km      = config.get('source.force.depth_km', 0.0)
-        if self.force_depth_km is None:
-            self.force_depth_km = 0.0
-        self.force_auto_set_par  = bool(config.get('source.force.auto_set_par_file', True))
+        self.force_depth_km      = 0.0
         self.dummy_cmt_date      = '2000/01/01'
         self.dummy_cmt_time      = '00:00:00'
         self.dummy_cmt_mag       = 1.0
@@ -49,15 +52,31 @@ class ForwardGenerator:
         self.force_direction     = (0.0, 0.0, -1.0)
         self.force_stf_type      = 0
         self.force_hdurorf0      = 0.0
-        self.synthetic_comp      = config.get('data.seismogram.component.COMP')
-        self.synthetic_tcor      = float(config.get('data.seismogram.tcor', 0.0))
+        self.synthetic_comp      = get_by_path(
+            dataset_config,
+            'seismogram.component.COMP',
+            default='semv',
+        )
+        self.synthetic_tcor      = float(
+            get_by_path(dataset_config, 'seismogram.tcor', default=0.0)
+        )
         self.half_duration_file  = os.path.join(self.specfem_dir, "half_duration.out")
-        self.egf_n_wavelength    = config.get('data.egf.n_wavelength')
-        self.egf_ref_velocity_km_s = config.get('data.egf.ref_velocity_km_s')
-        self.egf_max_period      = config.get('data.seismogram.filter.P2')
+        self.egf_n_wavelength    = get_by_path(dataset_config, 'seismogram.fine_tune.EGF.criteria.n_wavelength')
+        self.egf_ref_velocity_km_s = get_by_path(dataset_config, 'seismogram.fine_tune.EGF.criteria.ref_velocity_km_s')
+        self.egf_max_period      = get_by_path(dataset_config, 'seismogram.filter.P2')
         
-        self.evlst               = os.path.join(self.base_dir, 'DATA', 'evlst', config.get('data.list.evlst'))
-        self.stlst               = os.path.join(self.base_dir, 'DATA', 'stlst', config.get('data.list.stlst'))
+        self.evlst               = os.path.join(
+            self.base_dir,
+            'DATA',
+            'evlst',
+            get_by_path(dataset_config, 'list.evlst'),
+        )
+        self.stlst               = os.path.join(
+            self.base_dir,
+            'DATA',
+            'stlst',
+            get_by_path(dataset_config, 'list.stlst'), 
+        )
         self.specfem_par_file    = os.path.join(self.specfem_dir, 'DATA', 'Par_file')   
         
         self.nproc               = get_param_from_specfem_file(file=self.specfem_par_file, param_name='NPROC', param_type=int)
@@ -66,13 +85,13 @@ class ForwardGenerator:
         self.debug_logger      = logging.getLogger("debug_logger")
         self.result_logger     = logging.getLogger("result_logger")
 
-    def preprocessing(self):
+    def preprocessing(self, require_databases=True):
         """
         some preprocessing before forward simulation
         check if the DATABASES_MPI is not empty, then we can do the forward simulation
         """
         
-        if not check_if_directory_not_empty(self.databases_mpi_dir):
+        if require_databases and not check_if_directory_not_empty(self.databases_mpi_dir):
             self.debug_logger.error(f"STOP: {self.databases_mpi_dir} is empty!")
             sys.exit()
         
@@ -80,8 +99,7 @@ class ForwardGenerator:
             error_message = f"STOP: the current directory is not {self.specfem_dir}!"
             self.debug_logger.error(error_message)
             raise ValueError(error_message)
-        if self.source_type == 'force':
-            self.ensure_force_point_source()
+        self.ensure_force_point_source()
 
     def output_vars_file(self):
         """
@@ -110,13 +128,26 @@ class ForwardGenerator:
 
         if self.ichk == 1:
             index_evt_last = 0
+            last_existing_index = -1
             ev_list_path = self.evlst
             if os.path.exists(ev_list_path):
                 with open(ev_list_path, "r") as f:
-                    for line in f:
+                    for idx, line in enumerate(f):
                         event_name = line.split()[0]
-                        if os.path.isdir(f"KERNEL/DATABASE/{event_name}"):
-                            index_evt_last += 1
+                        adjoints_dir = os.path.join(
+                            self.base_dir,
+                            "TOMO",
+                            f"m{self.current_model_num:03d}",
+                            f"MEASURE_{self.dataset_name}",
+                            "adjoints",
+                            event_name,
+                        )
+                        if os.path.isdir(adjoints_dir):
+                            last_existing_index = idx
+                            continue
+                        break
+            if last_existing_index >= 0:
+                index_evt_last = last_existing_index
             self.debug_logger.info(f"Last time stopped at event {index_evt_last}")
             return index_evt_last
         return 0
@@ -244,7 +275,7 @@ class ForwardGenerator:
                 remove_files_with_pattern('OUTPUT_FILES/*.sem?')
                 self.run_simulator()
                 self.debug_logger.info(f'Done {event_name} forward simulation')
-                self.prepare_adjoint_simulation(event_name)
+                self.prepare_adjoint_simulation(event_name=event_name, keep_syn_wav=False)
             else:
                 self.debug_logger.info(f'TUNING FLEXWIN: Skip forward modeling!')          
             self.select_windows_for_tuning_flexwin(event_name=event_name)
@@ -369,8 +400,10 @@ class ForwardGenerator:
         self.write_cmt_file(event_info)
 
     def ensure_force_point_source(self):
-        if not self.force_auto_set_par:
-            return
+        """
+        Ensure that USE_FORCE_POINT_SOURCE in Par_file is set correctly
+        """
+        target_value = '.true.' if self.source_type == 'force' else '.false.'
         updated = False
         output_lines = []
         with open(self.specfem_par_file, 'r') as f:
@@ -385,10 +418,10 @@ class ForwardGenerator:
                 if '#' in rest:
                     value_part, comment = rest.split('#', 1)
                     comment = '#' + comment.rstrip('\n')
-                if '.true.' in value_part:
+                if target_value in value_part.lower():
                     output_lines.append(line)
                     continue
-                new_line = f"{key}= .true."
+                new_line = f"{key}= {target_value}"
                 if comment:
                     new_line += f" {comment}"
                 output_lines.append(new_line.rstrip() + "\n")
@@ -482,6 +515,13 @@ class ForwardGenerator:
         except ValueError:
             self.debug_logger.warning("Invalid MEASUREMENT.WINDOWS header; treat as 0 windows.")
             return 0
+
+    def get_script_env(self):
+        """Return environment with dataset-specific config path for scripts."""
+        env = os.environ.copy()
+        if self.dataset_config_path:
+            env["AF_CONFIG"] = self.dataset_config_path
+        return env
 
     def write_station_file(self, sta_df):
         """
@@ -611,30 +651,80 @@ class ForwardGenerator:
         Run flexwin and measure_adj
         """
         os.chdir(self.flexwin_dir)
+        env = self.get_script_env()
         
         if (self.flexwin_mode == 'every_stage' and (self.stage_initial_model == self.current_model_num)) or (self.flexwin_mode == 'every_iter'):
-            subprocess.run(['bash', 'run_win.bash', f'{event_name}'])
+            subprocess.run(['bash', 'run_win.bash', f'{event_name}'], env=env)
         else:
-            subprocess.run(['bash', 'ini_proc.bash', f'{event_name}'])
+            subprocess.run(['bash', 'ini_proc.bash', f'{event_name}'], env=env)
             initial_model_dir = f'm{self.stage_initial_model:03d}'
             if self.flexwin_mode == 'user':
-                windows_dir = f"../TOMO/{self.flexwin_user_dir}/MEASURE/windows/{event_name}/MEASUREMENT.WINDOWS"
+                if not self.flexwin_user_dir:
+                    raise ValueError(
+                        "flexwin_mode is 'user' but flexwin.user_dir is not set "
+                        f"for dataset {self.dataset_name}."
+                    )
+                preferred_dir = (
+                    f"../TOMO/{self.flexwin_user_dir}/MEASURE_{self.dataset_name}"
+                    f"/adjoints/{event_name}/MEASUREMENT.WINDOWS"
+                )
+                legacy_dir = (
+                    f"../TOMO/{self.flexwin_user_dir}/MEASURE_{self.dataset_name}"
+                    f"/windows/{event_name}/MEASUREMENT.WINDOWS"
+                )
+                if os.path.isfile(preferred_dir):
+                    windows_dir = preferred_dir
+                elif os.path.isfile(legacy_dir):
+                    self.result_logger.warning(
+                        "Found user windows in legacy path; consider moving to "
+                        f"adjoints/. path={legacy_dir}"
+                    )
+                    windows_dir = legacy_dir
+                else:
+                    windows_dir = preferred_dir
             else:
-                windows_dir = f"../TOMO/{initial_model_dir}/MEASURE/adjoints/{event_name}/MEASUREMENT.WINDOWS"
+                windows_dir = (
+                    f"../TOMO/{initial_model_dir}/MEASURE_{self.dataset_name}"
+                    f"/adjoints/{event_name}/MEASUREMENT.WINDOWS"
+                )
+            if not os.path.isfile(windows_dir):
+                self.result_logger.warning(
+                    f"MEASUREMENT.WINDOWS missing for {event_name}; skip measure_adj. "
+                    f"path={windows_dir}"
+                )
+                return
             shutil.copy(windows_dir, "../measure_adj")
             os.chdir(self.measure_adj_dir)
-            subprocess.run(['bash', 'run_adj.bash', f'{event_name}'])
+            subprocess.run(['bash', 'run_adj.bash', f'{event_name}'], env=env)
     
     def select_windows_for_tuning_flexwin(self, event_name):
         """
         Run flexwin for tuning the flexwin parameters
         """
         os.chdir(self.flexwin_dir)
-        subprocess.run(['bash', 'run_win_for_tune_par.bash', f'{event_name}'])
+        env = self.get_script_env()
+        subprocess.run(['bash', 'run_win_for_tune_par.bash', f'{event_name}'], env=env)
         
         put_windows_file_dir = os.path.join(f'{self.flexwin_dir}', 'PACK', f'{event_name}')
         move_files(src_dir = f'{self.flexwin_dir}', 
                        dst_dir = f'{put_windows_file_dir}', 
                        pattern = 'MEASUREMENT.WINDOWS')
+        windows_file = os.path.join(put_windows_file_dir, 'MEASUREMENT.WINDOWS')
+        if os.path.isfile(windows_file):
+            adjoints_dir = os.path.join(
+                self.base_dir,
+                "TOMO",
+                f"m{self.current_model_num:03d}",
+                f"MEASURE_{self.dataset_name}",
+                "adjoints",
+                event_name,
+            )
+            os.makedirs(adjoints_dir, exist_ok=True)
+            shutil.copy2(windows_file, os.path.join(adjoints_dir, "MEASUREMENT.WINDOWS"))
+        else:
+            self.result_logger.warning(
+                f"MEASUREMENT.WINDOWS missing for {event_name} after flexwin tuning; "
+                "skip copying to adjoints."
+            )
 
             

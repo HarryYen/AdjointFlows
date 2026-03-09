@@ -119,7 +119,8 @@ def main():
         new_model_dir = os.path.join(params['base_dir'], "TOMO", f"mtest{mrun:03d}", "DATABASES_MPI")
     else:   
         new_model_dir = os.path.join(params['base_dir'], "TOMO", model_next_num, "DATABASES_MPI")
-    direction_dir = os.path.join(params['base_dir'], "TOMO", model_num, "KERNEL", "UPDATE")
+    kernel_base_dir = params.get('kernel_base_dir', 'KERNEL')
+    direction_dir = os.path.join(params['base_dir'], "TOMO", model_num, kernel_base_dir, "UPDATE")
 
     
     # --------------------------------------------------------------------------------------------
