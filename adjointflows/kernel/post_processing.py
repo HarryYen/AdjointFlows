@@ -75,10 +75,7 @@ class PostProcessing:
         if self.ivtkout:
             self.combine_kernels()
 
-    def compute_gradient_max(self, dataset_name, use_smooth=None, source_subdir=None):
-        """
-        Compute the maximum absolute gradient value for a dataset.
-        """
+    def _resolve_gradient_kernel_source(self, dataset_name, use_smooth=None, source_subdir=None):
         smooth_dir = Path(self.tomo_dir) / f"KERNEL_{dataset_name}" / "SMOOTH"
         sum_dir = Path(self.tomo_dir) / f"KERNEL_{dataset_name}" / "SUM"
         precond_dir = Path(self.tomo_dir) / f"KERNEL_{dataset_name}" / "PRECOND"
@@ -110,10 +107,20 @@ class PostProcessing:
 
         if kernel_dir is None or not kernel_dir.is_dir():
             self.result_logger.warning(f"No kernel directory found for dataset {dataset_name}.")
-            return 0.0
+            return None, None
 
+        return kernel_dir, suffix
+
+    def _iter_gradient_arrays(self, dataset_name, use_smooth=None, source_subdir=None):
+        kernel_dir, suffix = self._resolve_gradient_kernel_source(
+            dataset_name,
+            use_smooth=use_smooth,
+            source_subdir=source_subdir,
+        )
+        if kernel_dir is None:
+            return
+        
         dtype = get_data_type(self.dtype)
-        max_abs = 0.0
         for kernel_name in self.kernel_list:
             pattern = f"proc*_{kernel_name}{suffix}"
             kernel_files = list(kernel_dir.glob(pattern))
@@ -133,8 +140,40 @@ class PostProcessing:
                 except Exception as exc:
                     self.debug_logger.warning(f"Failed to read {kernel_file}: {exc}")
                     continue
-                max_abs = max(max_abs, float(np.max(np.abs(data))))
+                yield data
+
+    def compute_gradient_max(self, dataset_name, use_smooth=None, source_subdir=None):
+        """
+        Compute the maximum absolute gradient value for a dataset.
+        """
+        max_abs = 0.0
+        for data in self._iter_gradient_arrays(
+            dataset_name,
+            use_smooth=use_smooth,
+            source_subdir=source_subdir,
+        ):
+            max_abs = max(max_abs, float(np.max(np.abs(data))))
         return max_abs
+
+    def compute_gradient_percentile(self, dataset_name, percentile=95.0, use_smooth=None, source_subdir=None):
+        """
+        Compute the percentile of absolute gradient values for a dataset.
+        """
+        abs_values = []
+        for data in self._iter_gradient_arrays(
+            dataset_name,
+            use_smooth=use_smooth,
+            source_subdir=source_subdir,
+        ):
+            abs_data = np.abs(data)
+            finite_values = abs_data[np.isfinite(abs_data)]
+            if finite_values.size:
+                abs_values.append(finite_values.reshape(-1))
+
+        if not abs_values:
+            return 0.0
+
+        return float(np.percentile(np.concatenate(abs_values), percentile))
 
     def prepare_precond(self, dataset_name, use_smooth, precond_flag):
         """

@@ -355,7 +355,13 @@ class WorkflowController:
         Sum up the event kernel and smooth it
         """
         datasets = self.dataset_config.get("datasets", [])
-        dataset_gradient_max = {}
+        weighting_type = get_by_path(
+            self.dataset_config,
+            "defaults.seismogram.gradients_weighting.type",
+            default="absmax_in_stage_first_iter",
+        )
+        dataset_gradient_scale = {}
+        baseline_output_path = None
         for dataset_entry in datasets:
             dataset_name = dataset_entry.get("name")
             
@@ -379,17 +385,25 @@ class WorkflowController:
                 use_smooth=ismooth,
                 precond_flag=self.precondition_flag,
             )
-            dataset_gradient_max[dataset_name] = post_processing.compute_gradient_max(
-                dataset_name,
-                source_subdir="PRECOND",
-            )
-        if dataset_gradient_max:
-            output_path = os.path.join(self.tomo_dir, "gradient_max_by_dataset.json")
+            if weighting_type == "absmax_in_stage_first_iter":
+                dataset_gradient_scale[dataset_name] = post_processing.compute_gradient_max(
+                    dataset_name,
+                    source_subdir="PRECOND",
+                )
+                baseline_output_path = os.path.join(self.tomo_dir, "gradient_max_by_dataset.json")
+            elif weighting_type == "p95_in_stage_first_iter":
+                dataset_gradient_scale[dataset_name] = post_processing.compute_gradient_percentile(
+                    dataset_name,
+                    percentile=95.0,
+                    source_subdir="PRECOND",
+                )
+                baseline_output_path = os.path.join(self.tomo_dir, "gradient_p95_by_dataset.json")
+        if dataset_gradient_scale and baseline_output_path:
             try:
-                with open(output_path, "w") as f:
-                    json.dump(dataset_gradient_max, f, indent=2, sort_keys=True)
+                with open(baseline_output_path, "w") as f:
+                    json.dump(dataset_gradient_scale, f, indent=2, sort_keys=True)
             except OSError as exc:
-                self.debug_logger.warning(f"Failed to write {output_path}: {exc}")
+                self.debug_logger.warning(f"Failed to write {baseline_output_path}: {exc}")
         self.combine_normalized_gradients()
 
     def combine_normalized_gradients(self):
@@ -402,18 +416,28 @@ class WorkflowController:
             "defaults.seismogram.gradients_weighting.type",
             default="absmax_in_stage_first_iter",
         )
-        dataset_gradient_max = {}
+        dataset_gradient_scale = {}
         dataset_weights = {}
         if weighting_type == "absmax_in_stage_first_iter":
             stage_dir = os.path.join(self.base_dir, "TOMO", f"m{self.stage_initial_model:03d}")
-            stage_max_path = os.path.join(stage_dir, "gradient_max_by_dataset.json")
-            if not os.path.isfile(stage_max_path):
+            baseline_path = os.path.join(stage_dir, "gradient_max_by_dataset.json")
+            if not os.path.isfile(baseline_path):
                 raise FileNotFoundError(
-                    f"Missing stage baseline: {stage_max_path}. "
+                    f"Missing stage baseline: {baseline_path}. "
                     "Run the first model of this stage to generate it."
                 )
-            with open(stage_max_path, "r") as f:
-                dataset_gradient_max = json.load(f)
+            with open(baseline_path, "r") as f:
+                dataset_gradient_scale = json.load(f)
+        elif weighting_type == "p95_in_stage_first_iter":
+            stage_dir = os.path.join(self.base_dir, "TOMO", f"m{self.stage_initial_model:03d}")
+            baseline_path = os.path.join(stage_dir, "gradient_p95_by_dataset.json")
+            if not os.path.isfile(baseline_path):
+                raise FileNotFoundError(
+                    f"Missing stage baseline: {baseline_path}. "
+                    "Run the first model of this stage to generate it."
+                )
+            with open(baseline_path, "r") as f:
+                dataset_gradient_scale = json.load(f)
         elif weighting_type == "user":
             total_weight = 0.0
             for dataset_entry in datasets:
@@ -441,15 +465,15 @@ class WorkflowController:
                 continue
 
             post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config)
-            if weighting_type == "absmax_in_stage_first_iter":
-                if dataset_name not in dataset_gradient_max:
+            if weighting_type in ("absmax_in_stage_first_iter", "p95_in_stage_first_iter"):
+                if dataset_name not in dataset_gradient_scale:
                     raise ValueError(
-                        f"Missing baseline for dataset {dataset_name} in {stage_max_path}."
+                        f"Missing baseline for dataset {dataset_name} in {baseline_path}."
                     )
-                norm = dataset_gradient_max.get(dataset_name)
+                norm = dataset_gradient_scale.get(dataset_name)
                 if not norm or norm <= 0.0:
                     raise ValueError(
-                        f"Invalid baseline for dataset {dataset_name} in {stage_max_path}: {norm}"
+                        f"Invalid baseline for dataset {dataset_name} in {baseline_path}: {norm}"
                     )
                 weight = 1.0
             else:
