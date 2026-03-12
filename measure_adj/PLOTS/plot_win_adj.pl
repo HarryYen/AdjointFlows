@@ -42,6 +42,15 @@ END
   exit(1);
 }
 
+sub first_existing_file {
+  my ($pattern) = @_;
+  my @matches = grep { -f $_ } glob($pattern);
+  if (@matches) {
+    return $matches[0];
+  }
+  return "";
+}
+
 if (@ARGV == 0) { Usage(); }
 if (!getopts('k:m:l:n:b:ra:d:s:c:w:i:j:p')) {die('Check input arguments\n');}
 print "STATIONS file is $opt_a\n";
@@ -179,13 +188,13 @@ $suffix = ".tomo";     # USER MUST CHANGE
 #$d_tag = "${opt_d}/$eid.$net.$sta";
 $d_tag = "${opt_d}/$sta.$net";
 if ($opt_p) {
-$Tdat = `ls ${d_tag}.*T.sac*`; chomp($Tdat);
-$Rdat = `ls ${d_tag}.*R.sac*`; chomp($Rdat);
-$Zdat = `ls ${d_tag}.*Z.sac*`; chomp($Zdat);}
+$Tdat = first_existing_file("${d_tag}.*T.sac*");
+$Rdat = first_existing_file("${d_tag}.*R.sac*");
+$Zdat = first_existing_file("${d_tag}.*Z.sac*");}
 else {
-$Tdat = `ls ${d_tag}.*E.sac*`; chomp($Tdat);
-$Rdat = `ls ${d_tag}.*N.sac*`; chomp($Rdat);
-$Zdat = `ls ${d_tag}.*Z.sac*`; chomp($Zdat);}
+$Tdat = first_existing_file("${d_tag}.*E.sac*");
+$Rdat = first_existing_file("${d_tag}.*N.sac*");
+$Zdat = first_existing_file("${d_tag}.*Z.sac*");}
 #$Tdat = "$opt_d/$eid.$net.$sta.BHT.sac${suffix}";
 #$Rdat = "$opt_d/$eid.$net.$sta.BHR.sac${suffix}";
 #$Zdat = "$opt_d/$eid.$net.$sta.BHZ.sac${suffix}";
@@ -202,7 +211,7 @@ if(-f $Zdat) {$Zflag = 1} else {$Zflag = 0}
 
 # SYNTHETICS -- component label always has the form BH_ or LH_,
 # even if the data file is something else (HH_, LH_).
-# We assume that ALL components exist.
+# Missing components are allowed and will be skipped in the plot.
 $lab = "$sta.$net.${chan}";
 if ($opt_p) {
 $Tlab = "$sta.$net.${chan}T";
@@ -212,9 +221,9 @@ else {
 $Tlab = "$sta.$net.${chan}E";
 $Rlab = "$sta.$net.${chan}N";
 $Zlab = "$sta.$net.${chan}Z";}
-$Tsyn = `ls ${opt_s}/${Tlab}*`; chomp($Tsyn);
-$Rsyn = `ls ${opt_s}/${Rlab}*`; chomp($Rsyn);
-$Zsyn = `ls ${opt_s}/${Zlab}*`; chomp($Zsyn);
+$Tsyn = first_existing_file("${opt_s}/${Tlab}*");
+$Rsyn = first_existing_file("${opt_s}/${Rlab}*");
+$Zsyn = first_existing_file("${opt_s}/${Zlab}*");
 #$Tsyn = "${opt_s}/${Tlab}.semd.sac${suffix}";
 #$Rsyn = "${opt_s}/${Rlab}.semd.sac${suffix}";
 #$Zsyn = "${opt_s}/${Zlab}.semd.sac${suffix}";
@@ -229,8 +238,19 @@ $Zrecon = "${opt_c}/${Zlab}${suffix}";
 
 #print "\n checking files: \n -- $Tdat -- $Rdat -- $Zdat -- \n -- $Tsyn -- $Rsyn -- $Zsyn -- \n -- $Trecon -- $Rrecon -- $Zrecon -- \n"; die("testing");
 
-# get the receiver location, azimuth, distance (from the $Zsyn file)
-(undef,$tmin0,$tmax0,$slon,$slat,$dist,$az,$Tchan) = split(" ",`$saclst b e stlo stla dist az kcmpnm f $Zsyn`);
+# get the receiver location, azimuth, distance from any available trace
+$geo_file = "";
+foreach $candidate ($Zsyn, $Rsyn, $Tsyn, $Zdat, $Rdat, $Tdat) {
+  if ($candidate && -f $candidate) {
+    $geo_file = $candidate;
+    last;
+  }
+}
+if (!$geo_file) {
+  print STDERR "\nNo waveform file found for $sta.$net; skip plotting.\n";
+  exit(0);
+}
+(undef,$tmin0,$tmax0,$slon,$slat,$dist,$az,$Tchan) = split(" ",`$saclst b e stlo stla dist az kcmpnm f $geo_file`);
 $edate  = sprintf("%4.4i . %2.2i . %2.2i",$year,$month,$day);
 $stedep = sprintf("depth = %.2f km",$edep);
 $strec  = "$sta . $net";
@@ -392,12 +412,10 @@ if($Rflag==1) {(undef,$minR,$maxR)=split(" ",`$saclst depmin depmax f $Rdat`); $
 if($Zflag==1) {(undef,$minZ,$maxZ)=split(" ",`$saclst depmin depmax f $Zdat`); $maxZ=max(abs($minZ),abs($maxZ));}
 
 # limits for synthetic records
-(undef,$minT2,$maxT2) = split(" ",`$saclst depmin depmax f $Tsyn`);
-$maxT2 = max(abs($minT2),abs($maxT2));
-(undef,$minR2,$maxR2) = split(" ",`$saclst depmin depmax f $Rsyn`);
-$maxR2 = max(abs($minR2),abs($maxR2));
-(undef,$minZ2,$maxZ2) = split(" ",`$saclst depmin depmax f $Zsyn`);
-$maxZ2 = max(abs($minZ2),abs($maxZ2));
+$maxT2 = 0; $maxR2 = 0; $maxZ2 = 0;
+if (-f $Tsyn) {(undef,$minT2,$maxT2) = split(" ",`$saclst depmin depmax f $Tsyn`); $maxT2 = max(abs($minT2),abs($maxT2));}
+if (-f $Rsyn) {(undef,$minR2,$maxR2) = split(" ",`$saclst depmin depmax f $Rsyn`); $maxR2 = max(abs($minR2),abs($maxR2));}
+if (-f $Zsyn) {(undef,$minZ2,$maxZ2) = split(" ",`$saclst depmin depmax f $Zsyn`); $maxZ2 = max(abs($minZ2),abs($maxZ2));}
 
 # overall max values
 $maxTDS = max($maxT,$maxT2);
@@ -406,9 +424,10 @@ $maxZDS = max($maxZ,$maxZ2);
 $maxD = max($maxT,max($maxR,$maxZ));
 $maxS = max($maxT2,max($maxR2,$maxZ2));
 $max = max($maxD,$maxS);
-if ($maxTDS == 0) {$maxTDS=$maxD;}
-if ($maxRDS == 0) {$maxRDS=$maxD;}
-if ($maxZDS == 0) {$maxZDS=$maxD;}
+if ($max <= 0) {$max = 1.0;}
+if ($maxTDS <= 0) {$maxTDS=$max;}
+if ($maxRDS <= 0) {$maxRDS=$max;}
+if ($maxZDS <= 0) {$maxZDS=$max;}
 
 print "\n-- $Tsyn -- $Tdat\n -- $Rsyn -- $Rdat\n -- $Zsyn -- $Zdat\n";
 print "\n Overall max values: $maxD (data), $maxS (syn) $max (overall)\n";
@@ -437,6 +456,8 @@ if ($opt_r) {
 }
 $maxsize=max($sizeT,$sizeR,$sizeZ);
 $maxsize2=max($sizeT2,$sizeR2,$sizeZ2);
+if ($maxsize == 0) {$maxsize = $size;}
+if ($maxsize2 == 0) {$maxsize2 = $size;}
 
 if ($sizeT == 0) {$sizeT = $maxsize;}
 if ($sizeR == 0) {$sizeR = $maxsize;}
@@ -446,7 +467,7 @@ if ($sizeR2 == 0) {$sizeR2 = $maxsize2;}
 if ($sizeZ2 == 0) {$sizeZ2 = $maxsize2;}
 
 # limits for reconstructed records
-if ($Tflag && $ntline) {
+if ($Tflag && $ntline && -f $Trecon) {
   (undef,$minT3,$maxT3) = split(" ",`$saclst depmin depmax f $Trecon`);
   $maxT3 = max(abs($minT3),abs($maxT3));
   if ($opt_r) {
@@ -455,7 +476,7 @@ if ($Tflag && $ntline) {
     $sizeT3 = $size*$maxT3/$maxTDS;
   }
 }
-if ($Rflag && $nrline) {
+if ($Rflag && $nrline && -f $Rrecon) {
   (undef,$minR3,$maxR3) = split(" ",`$saclst depmin depmax f $Rrecon`);
   $maxR3 = max(abs($minR3),abs($maxR3));
    if ($opt_r) {
@@ -464,7 +485,7 @@ if ($Rflag && $nrline) {
     $sizeR3 = $size*$maxR3/$maxRDS;
   }
 }
-if ($Zflag && $nzline) {
+if ($Zflag && $nzline && -f $Zrecon) {
   (undef,$minZ3,$maxZ3) = split(" ",`$saclst depmin depmax f $Zrecon`);
   $maxZ3 = max(abs($minZ3),abs($maxZ3));
   if ($opt_r) {
@@ -483,8 +504,9 @@ $strZ = sprintf('%.2e',$maxZ2/$sizeZ2);
 
 # TRANSVERSE component: data, synthetics, and windows
 #print "pssac2 $Tsyn -X-2 -Y4.5 $proj $bounds -Ent-3 -M${sizeT2} $red_pen -N -K -O $tick \n";
+`psbasemap -X-3 -Y4.5 $proj $bounds $tick -K -O >> $ps_file`;
 if (-f $Tsyn){
-`./pssac2 $Tsyn -X-3 -Y4.5 $proj $bounds -Ent-3 -M${sizeT2} $red_pen -N -K -O $tick >> $ps_file`;	# synthetics
+`./pssac2 $Tsyn $proj $bounds -Ent-3 -M${sizeT2} $red_pen -N -K -O >> $ps_file`;	# synthetics
 if ($ntline) {
   if ($iplot_win==1) {
     for ($i=0; $i<$nT; $i++) {
@@ -514,14 +536,15 @@ if ($ntline) {
 if ($Tflag==1) {`./pssac2 $Tdat $proj $bounds -Ent-3 -M${sizeT} $black_pen -N -K -O >> $ps_file`;}    # data
 if (-f $Tsyn){
 `./pssac2 $Tsyn $proj $bounds -Ent-3 -M${sizeT2} $red_pen -N -K -O >> $ps_file`;}                     # synthetics
-if ($Tflag && $ntline && ($iplot_recon==1)) {`./pssac2 $Trecon $proj $bounds -Ent-3 -M${sizeT3} $recon_pen -N -K -O >> $ps_file`;}   # reconstructed
+if ($Tflag && $ntline && -f $Trecon && ($iplot_recon==1)) {`./pssac2 $Trecon $proj $bounds -Ent-3 -M${sizeT3} $recon_pen -N -K -O >> $ps_file`;}   # reconstructed
 if ($opt_p) {`echo \"$xtextpos1 $ytextpos2 14 0 1 BC T\" | pstext $proj $bounds -N -O -K >> $ps_file`;}
 else {`echo \"$xtextpos1 $ytextpos2 14 0 1 BC E\" | pstext $proj $bounds -N -O -K >> $ps_file`;}
 `echo \"$xtextpos1 $ytextpos1 9 0 1 CM $strT\" | pstext $proj $bounds -N -O -K >> $ps_file`;
 
 # RADIAL component: data, synthetics, and windows
+`psbasemap -Y$dY $proj $bounds $tick2 -K -O >> $ps_file`;
 if (-f $Rsyn) {
-`./pssac2 $Rsyn -Y$dY $proj $bounds -Ent-3 -M${sizeR2} $red_pen -N -K -O $tick2 >> $ps_file`;}
+`./pssac2 $Rsyn $proj $bounds -Ent-3 -M${sizeR2} $red_pen -N -K -O >> $ps_file`;}
 if ($nrline) {
   if ($iplot_win==1) {
     for ($i=0; $i<$nR; $i++) {
@@ -547,14 +570,15 @@ if ($nrline) {
 if ($Rflag==1) {`./pssac2 $Rdat $proj $bounds -Ent-3 -M${sizeR} $black_pen -N -K -O >> $ps_file`;}
 if (-f $Rsyn){
 `./pssac2 $Rsyn $proj $bounds -Ent-3 -M${sizeR2} $red_pen -N -K -O >> $ps_file`;}
-if ($Rflag && $nrline && ($iplot_recon==1)) {`./pssac2 $Rrecon $proj $bounds -Ent-3 -M${sizeR3} $recon_pen -N -K -O >> $ps_file`;}
+if ($Rflag && $nrline && -f $Rrecon && ($iplot_recon==1)) {`./pssac2 $Rrecon $proj $bounds -Ent-3 -M${sizeR3} $recon_pen -N -K -O >> $ps_file`;}
 if ($opt_p) {`echo \"$xtextpos1 $ytextpos2 14 0 1 BC R\" | pstext $proj $bounds -N -O -K >> $ps_file`;}
 else {`echo \"$xtextpos1 $ytextpos2 14 0 1 BC N\" | pstext $proj $bounds -N -O -K >> $ps_file`;}
 `echo \"$xtextpos1 $ytextpos1 9 0 1 CM $strR\" | pstext $proj $bounds -N -O -K >> $ps_file`;
 
 # VERTICAL component: data, synthetics, and windows
+`psbasemap -Y$dY $proj $bounds $tick2 -K -O >> $ps_file`;
 if (-f $Zsyn) {
-`./pssac2 $Zsyn -Y$dY $proj $bounds -Ent-3 -M${sizeZ2} $red_pen -N -K -O  $tick2 >> $ps_file`;
+`./pssac2 $Zsyn $proj $bounds -Ent-3 -M${sizeZ2} $red_pen -N -K -O >> $ps_file`;
 if ($nzline) {
   if ($iplot_win==1) {
     for ($i=0; $i<$nZ; $i++) {
@@ -581,7 +605,7 @@ if ($nzline) {
 if ($Zflag==1) {`./pssac2 $Zdat $proj $bounds -Ent-3 -M${sizeZ}  $black_pen -N -K -O $tick2 >> $ps_file`;}
 if (-f $Zsyn){
 `./pssac2 $Zsyn $proj $bounds -Ent-3 -M${sizeZ2} $red_pen -N -O -K >> $ps_file`;}
-if ($Zflag && $nzline && ($iplot_recon==1)) {`./pssac2 $Zrecon $proj $bounds -Ent-3 -M${sizeZ3} $recon_pen -N -K -O >> $ps_file`;}
+if ($Zflag && $nzline && -f $Zrecon && ($iplot_recon==1)) {`./pssac2 $Zrecon $proj $bounds -Ent-3 -M${sizeZ3} $recon_pen -N -K -O >> $ps_file`;}
 `echo \"$xtextpos1 $ytextpos2 14 0 1 BC Z\" | pstext $proj $bounds -N -K -O >> $ps_file`;
 `echo \"$xtextpos1 $ytextpos1 9 0 1 CM $strZ\" | pstext $proj $bounds -N -O -K >> $ps_file`;
 
