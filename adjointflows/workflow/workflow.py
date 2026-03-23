@@ -55,6 +55,74 @@ class WorkflowController:
             self.inversion_method = 'LBFGS'
             self.setup_for_fail()
 
+    def _get_gradient_normalization_type(self):
+        """
+        Return the dataset-gradient normalization mode used before combination.
+
+        This reads:
+            defaults.seismogram.gradients_weighting.normalization
+
+        Supported values:
+            - "absmax_in_stage_first_iter"
+            - "p95_in_stage_first_iter"
+            - "none"
+        """
+        normalization = get_by_path(
+            self.dataset_config,
+            "defaults.seismogram.gradients_weighting.normalization",
+            default="absmax_in_stage_first_iter",
+        )
+        return normalization
+
+    def _use_dataset_gradient_weight(self):
+        """
+        Return whether per-dataset gradient weights should be applied after
+        normalization during gradient combination.
+
+        This reads:
+            defaults.seismogram.gradients_weighting.use_dataset_gradient_weight
+        """
+        explicit_flag = get_by_path(
+            self.dataset_config,
+            "defaults.seismogram.gradients_weighting.use_dataset_gradient_weight",
+            default=False,
+        )
+        return bool(explicit_flag)
+
+    def _get_normalized_dataset_gradient_weights(self, datasets):
+        """
+        Return per-dataset gradient-combination weights normalized to sum to 1.
+
+        Weight lookup order:
+            1. inversion.gradient_weight
+            2. inversion.weight
+
+        The fallback keeps the config compact when users want misfit weighting
+        and gradient weighting to be identical.
+        """
+        dataset_weights = {}
+        total_weight = 0.0
+        for dataset_entry in datasets:
+            dataset_name = dataset_entry.get("name")
+            if not dataset_name:
+                continue
+            weight = float(
+                get_by_path(
+                    dataset_entry,
+                    "inversion.gradient_weight",
+                    get_by_path(dataset_entry, "inversion.weight", 1.0),
+                )
+            )
+            dataset_weights[dataset_name] = weight
+            total_weight += weight
+
+        if total_weight <= 0.0:
+            raise ValueError("Total dataset gradient weight is 0; cannot normalize weights.")
+
+        for name in dataset_weights:
+            dataset_weights[name] = dataset_weights[name] / total_weight
+        return dataset_weights
+
     def construct_misfit_list(self):
         """
         Construct a list to store the misfit values
@@ -352,14 +420,15 @@ class WorkflowController:
     
     def create_misfit_kernel_each_dataset(self):
         """
-        Sum up the event kernel and smooth it
+        Build each dataset kernel, prepare PRECOND output, and write any
+        normalization baseline needed for later combination.
+
+        For normalization modes that depend on the first model in a stage
+        (currently absmax and p95), this method stores one baseline value per
+        dataset in TOMO/m### so combine_normalized_gradients() can reuse it.
         """
         datasets = self.dataset_config.get("datasets", [])
-        weighting_type = get_by_path(
-            self.dataset_config,
-            "defaults.seismogram.gradients_weighting.type",
-            default="absmax_in_stage_first_iter",
-        )
+        normalization_type = self._get_gradient_normalization_type()
         dataset_gradient_scale = {}
         baseline_output_path = None
         for dataset_entry in datasets:
@@ -385,13 +454,13 @@ class WorkflowController:
                 use_smooth=ismooth,
                 precond_flag=self.precondition_flag,
             )
-            if weighting_type == "absmax_in_stage_first_iter":
+            if normalization_type == "absmax_in_stage_first_iter":
                 dataset_gradient_scale[dataset_name] = post_processing.compute_gradient_max(
                     dataset_name,
                     source_subdir="PRECOND",
                 )
                 baseline_output_path = os.path.join(self.tomo_dir, "gradient_max_by_dataset.json")
-            elif weighting_type == "p95_in_stage_first_iter":
+            elif normalization_type == "p95_in_stage_first_iter":
                 dataset_gradient_scale[dataset_name] = post_processing.compute_gradient_percentile(
                     dataset_name,
                     percentile=95.0,
@@ -408,17 +477,29 @@ class WorkflowController:
 
     def combine_normalized_gradients(self):
         """
-        Normalize and combine dataset gradients into a single directory.
+        Combine dataset PRECOND gradients into TOMO/m###/KERNEL_COMBINED/PRECOND.
+
+        The combination is done in two explicit steps:
+            1. Normalize each dataset gradient according to
+               defaults.seismogram.gradients_weighting.normalization.
+            2. Optionally multiply the normalized gradient by the dataset
+               gradient weight when
+               defaults.seismogram.gradients_weighting.use_dataset_gradient_weight
+               is enabled.
+
+        In formula form:
+            combined_gradient += normalized_gradient * gradient_weight
+
+        where gradient_weight comes from inversion.gradient_weight and falls back
+        to inversion.weight if gradient_weight is not provided.
         """
         datasets = self.dataset_config.get("datasets", [])
-        weighting_type = get_by_path(
-            self.dataset_config,
-            "defaults.seismogram.gradients_weighting.type",
-            default="absmax_in_stage_first_iter",
-        )
+        normalization_type = self._get_gradient_normalization_type()
+        use_dataset_gradient_weight = self._use_dataset_gradient_weight()
         dataset_gradient_scale = {}
         dataset_weights = {}
-        if weighting_type == "absmax_in_stage_first_iter":
+        baseline_path = None
+        if normalization_type == "absmax_in_stage_first_iter":
             stage_dir = os.path.join(self.base_dir, "TOMO", f"m{self.stage_initial_model:03d}")
             baseline_path = os.path.join(stage_dir, "gradient_max_by_dataset.json")
             if not os.path.isfile(baseline_path):
@@ -428,7 +509,7 @@ class WorkflowController:
                 )
             with open(baseline_path, "r") as f:
                 dataset_gradient_scale = json.load(f)
-        elif weighting_type == "p95_in_stage_first_iter":
+        elif normalization_type == "p95_in_stage_first_iter":
             stage_dir = os.path.join(self.base_dir, "TOMO", f"m{self.stage_initial_model:03d}")
             baseline_path = os.path.join(stage_dir, "gradient_p95_by_dataset.json")
             if not os.path.isfile(baseline_path):
@@ -438,21 +519,11 @@ class WorkflowController:
                 )
             with open(baseline_path, "r") as f:
                 dataset_gradient_scale = json.load(f)
-        elif weighting_type == "user":
-            total_weight = 0.0
-            for dataset_entry in datasets:
-                dataset_name = dataset_entry.get("name")
-                if not dataset_name:
-                    continue
-                weight = float(get_by_path(dataset_entry, "inversion.weight", 1.0))
-                dataset_weights[dataset_name] = weight
-                total_weight += weight
-            if total_weight <= 0.0:
-                raise ValueError("Total dataset weight is 0; cannot normalize weights.")
-            for name in dataset_weights:
-                dataset_weights[name] = dataset_weights[name] / total_weight
-        else:
-            raise ValueError(f"Unknown gradient_weighting.type: {weighting_type}")
+        elif normalization_type != "none":
+            raise ValueError(f"Unknown gradients_weighting.normalization: {normalization_type}")
+
+        if use_dataset_gradient_weight:
+            dataset_weights = self._get_normalized_dataset_gradient_weights(datasets)
         combined_dir = os.path.join(self.tomo_dir, "KERNEL_COMBINED", "PRECOND")
         combined_path = Path(combined_dir)
         combined_path.mkdir(parents=True, exist_ok=True)
@@ -465,7 +536,7 @@ class WorkflowController:
                 continue
 
             post_processing = PostProcessing(current_model_num=self.current_model_num, config=self.config)
-            if weighting_type in ("absmax_in_stage_first_iter", "p95_in_stage_first_iter"):
+            if normalization_type in ("absmax_in_stage_first_iter", "p95_in_stage_first_iter"):
                 if dataset_name not in dataset_gradient_scale:
                     raise ValueError(
                         f"Missing baseline for dataset {dataset_name} in {baseline_path}."
@@ -475,10 +546,9 @@ class WorkflowController:
                     raise ValueError(
                         f"Invalid baseline for dataset {dataset_name} in {baseline_path}: {norm}"
                     )
-                weight = 1.0
             else:
                 norm = 1.0
-                weight = dataset_weights.get(dataset_name, 0.0)
+            weight = dataset_weights.get(dataset_name, 1.0) if use_dataset_gradient_weight else 1.0
             post_processing.accumulate_normalized_gradients(
                 dataset_name=dataset_name,
                 norm=norm,

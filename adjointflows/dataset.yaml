@@ -3,7 +3,7 @@ defaults:
     tbeg: -30              # Cutting time: start (seconds)
     tend: 150              # Cutting time: end (seconds)
     tcor: 0.0              # Systematic time shift to correct (if any)
-    dt: 0.0325             # Resampling rate for both data and synthetics
+    dt: 0.0160             # Resampling rate for both data and synthetics
     component:
       COMP: semv           # Synthetic component to use
       EN2RT: 0             # Rotate E & N to R & T (1: yes, 0: no)
@@ -11,9 +11,10 @@ defaults:
       EGF:
         criteria:
           n_wavelength: 2.0        # Distance threshold = P2 * n_wavelength * ref_velocity_km_s
-          ref_velocity_km_s: 3.5   # Reference velocity for wavelength (km/s)
+          ref_velocity_km_s: 3.   # Reference velocity for wavelength (km/s)
     gradients_weighting:
-      type: absmax_in_stage_first_iter           # absmax_in_stage_first_iter: normalize by the maximum absolute gradient from the 1st iteration this stage; p95_in_stage_first_iter: normalize by the 95th percentile of absolute gradient values from the 1st iteration this stage; user: user-defined weight
+      normalization: p95_in_stage_first_iter  # How each dataset gradient is normalized before combination: absmax_in_stage_first_iter, p95_in_stage_first_iter, or none
+      use_dataset_gradient_weight: 1          # 1: after normalization, also multiply each dataset by inversion.gradient_weight during combination; 0: combine normalized gradients directly
       
 datasets:
   # Specify the parameters of a specific dataset here.
@@ -32,34 +33,67 @@ datasets:
   #   - par_file: parameter file under FLEXWIN/
   #   - bin_file: output windows dir under FLEXWIN/
   #   - user_dir: windows dir under TOMO/ when flexwin_mode == 'user'
-  - name: EQ_10_30s
+
+  - name: EGF_5_12s
+    data:
+      waveform_dir: wav_all
+    synthetics:
+      do_wave_simulation: 1
+      waveform_dir: SYN_EGF
+    flexwin:
+      par_file: Joint_par_and_bin/EGF_5_12/PAR_FILE      # **(under FLEXWIN/)** the parameter file for FLEXWIN
+      bin_file: Joint_par_and_bin/EGF_5_12/flexwin     # **(under FLEXWIN/)** the directory to store time-windows picked by FLEXWIN
+      user_dir: user_windows
+    measure_adj:
+      par_file: Joint_par/EGF_5_12/MEASUREMENT.PAR  # **(under MEASURE_ADJ/)** the parameter file for measuring adjoint sources
+      bin_file: measure_adj
+    source:
+      type: force
+    list:
+      evlst: sta_91_EGF.txt
+      evchk: sta_21_EGF.txt
+      stlst: sta_91_EGF.txt
+    seismogram:
+      filter: {P1: 5, P2: 12}
+    inversion:
+      weight: 1                  # Weight used when averaging misfit across datasets
+      gradient_weight: 1         # Weight used only when combining dataset gradients; if omitted, workflow falls back to inversion.weight
+      smoothing:
+        ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
+        smooth_par_gradient:
+          SIGMA_H: 4000        # Horizontal smoothing width (m)
+          SIGMA_V: 4000         # Vertical smoothing width (m)
+  
+
+  - name: EQ_5_12s
     data:
       waveform_dir: wav_EQ
     synthetics:
       do_wave_simulation: 1
       waveform_dir: SYN_EQ
     flexwin:
-      par_file: Joint_par_and_bin/EQ_10_30/PAR_FILE      # **(under FLEXWIN/)** the parameter file for FLEXWIN
-      bin_file: Joint_par_and_bin/EQ_10_30/flexwin    # **(under FLEXWIN/)** the directory to store time-windows picked by FLEXWIN
-      user_dir: eq_user_dir
+      par_file: Joint_par_and_bin/EQ_5_12/PAR_FILE      # **(under FLEXWIN/)** the parameter file for FLEXWIN
+      bin_file: Joint_par_and_bin/EQ_5_12/flexwin    # **(under FLEXWIN/)** the directory to store time-windows picked by FLEXWIN
+      user_dir: user_windows
     measure_adj:
-      par_file: Joint_par/EQ_10_30/MEASUREMENT.PAR  # **(under MEASURE_ADJ/)** the parameter file for measuring adjoint sources
+      par_file: Joint_par/EQ_5_12/MEASUREMENT.PAR  # **(under MEASURE_ADJ/)** the parameter file for measuring adjoint sources
       bin_file: measure_adj
     source:
       type: cmt
     list:
-      evlst: cmt_evt_test.txt
-      evchk: cmt_evt_test.txt
+      evlst: fwi_new_cat_version4.txt
+      evchk: fwi_new_cat_version4_18.txt
       stlst: sta_new_remove_western.txt
     seismogram:
-      filter: {P1: 10, P2: 30}
+      filter: {P1: 5, P2: 12}
     inversion:
-      weight: 0.5
+      weight: 1.                 # Weight used when averaging misfit across datasets
+      gradient_weight: 1.        # Weight used only when combining dataset gradients; if omitted, workflow falls back to inversion.weight
       smoothing:
         ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
         smooth_par_gradient:
-          SIGMA_H: 20000        # Horizontal smoothing width (m)
-          SIGMA_V: 15000         # Vertical smoothing width (m)
+          SIGMA_H: 6000        # Horizontal smoothing width (m)
+          SIGMA_V: 4000         # Vertical smoothing width (m)
   
   # - name: EQ_6_12s
   #   data:
@@ -83,32 +117,3 @@ datasets:
   #     filter: {P1: 6, P2: 12}
   #   inversion:
   #     weight: 0.5
-
-  - name: EGF_8_18s
-    data:
-      waveform_dir: wav_EGF
-    synthetics:
-      do_wave_simulation: 1
-      waveform_dir: SYN_EGF
-    flexwin:
-      par_file: Joint_par_and_bin/EGF_8_18/PAR_FILE      # **(under FLEXWIN/)** the parameter file for FLEXWIN
-      bin_file: Joint_par_and_bin/EGF_8_18/flexwin     # **(under FLEXWIN/)** the directory to store time-windows picked by FLEXWIN
-      user_dir: egf_user_dir
-    measure_adj:
-      par_file: Joint_par/EGF_8_18/MEASUREMENT.PAR  # **(under MEASURE_ADJ/)** the parameter file for measuring adjoint sources
-      bin_file: measure_adj
-    source:
-      type: force
-    list:
-      evlst: force_evt_test.txt
-      evchk: force_evt_test.txt
-      stlst: sta_91_EGF.txt
-    seismogram:
-      filter: {P1: 8, P2: 18}
-    inversion:
-      weight: 0.5
-      smoothing:
-        ISMOOTH: 1            # Smooth kernel (1: yes, 0: no)
-        smooth_par_gradient:
-          SIGMA_H: 20000        # Horizontal smoothing width (m)
-          SIGMA_V: 15000         # Vertical smoothing width (m)

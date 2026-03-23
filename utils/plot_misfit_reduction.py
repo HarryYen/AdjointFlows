@@ -1,16 +1,17 @@
 #%%
-import pandas as pd
-import numpy as np
-import pygmt
 import os
 import sys
+
+import numpy as np
+import pandas as pd
+import pygmt
 
 # Allow running from utils/ without PYTHONPATH preconfigured.
 try:
     from tools.dataset_loader import (
-        load_dataset_config,
-        get_by_path,
         deep_merge,
+        get_by_path,
+        load_dataset_config,
         resolve_dataset_list_path,
     )
 except ModuleNotFoundError:
@@ -19,9 +20,9 @@ except ModuleNotFoundError:
     if adjointflows_dir not in sys.path:
         sys.path.insert(0, adjointflows_dir)
     from tools.dataset_loader import (
-        load_dataset_config,
-        get_by_path,
         deep_merge,
+        get_by_path,
+        load_dataset_config,
         resolve_dataset_list_path,
     )
 
@@ -97,7 +98,7 @@ def get_misfit_list(model_beg, model_end, dataset_entries, base_dir, default_evl
             evlst = resolve_dataset_list_path(
                 base_dir,
                 dataset_entry,
-                "list.evchk",
+                "list.evlst",
                 "evlst",
                 default=default_evlst_name,
                 required=True,
@@ -113,11 +114,24 @@ def get_misfit_list(model_beg, model_end, dataset_entries, base_dir, default_evl
     return misfit_list
 
 
+def get_improvement_pct_list(misfit_list):
+    improvement_pct_list = [None]
+    for idx in range(1, len(misfit_list)):
+        previous_misfit = misfit_list[idx - 1]
+        current_misfit = misfit_list[idx]
+        if previous_misfit == 0.0:
+            improvement_pct_list.append(None if current_misfit != 0.0 else 0.0)
+            continue
+        improvement_pct = ((previous_misfit - current_misfit) / abs(previous_misfit)) * 100.0
+        improvement_pct_list.append(improvement_pct)
+    return improvement_pct_list
+
+
 def pygmt_begin():
     fig = pygmt.Figure()
     pygmt.config(
-        FONT_LABEL='16p',
-        FONT_ANNOT_PRIMARY='15p',
+        FONT_LABEL="16p",
+        FONT_ANNOT_PRIMARY="15p",
     )
 
     return fig
@@ -125,15 +139,21 @@ def pygmt_begin():
 
 def plot_misfit(fig, model_beg, model_end, misfit_list):
     model_list = np.arange(model_beg, model_end + 1)
+    y_min = float(np.min(misfit_list))
+    y_max = float(np.max(misfit_list))
+    if np.isclose(y_min, y_max):
+        y_pad = max(abs(y_min) * 0.05, 0.01)
+    else:
+        y_pad = (y_max - y_min) * 0.1
     fig.basemap(
-        region=[model_beg - 0.9, model_end + 0.9, 0.3, 1.09],
+        region=[model_beg - 0.9, model_end + 0.9, y_min - y_pad, y_max + y_pad],
         projection="X8c/10c",
-        frame=["WSne+tMisfit Reduction", "x1a1f+lModel Number", "y+lMisfit"],
+        frame=["WSne+tMisfit", "x1a1f+lModel Number", "y+lWeighted Average Misfit"],
     )
     fig.plot(
         x=model_list,
         y=misfit_list,
-        pen='1p,black'
+        pen="1p,black",
     )
     fig.plot(
         x=model_list,
@@ -152,14 +172,14 @@ def check_output_dir(output_dir):
     return output_dir
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # -----------------PARAMETERS----------------- #
     script_dir = os.path.dirname(os.path.abspath(__file__))
     base_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
     adjointflows_dir = f"{base_dir}/adjointflows"
     tomo_dir = f"{base_dir}/TOMO"
     out_dir = f"{tomo_dir}/OUTPUT"
-    model_n_list = [0, 4]
+    model_n_list = [26, 28]
 
     # -------------------------------------------- #
 
@@ -167,7 +187,7 @@ if __name__ == '__main__':
     dataset_entries = _build_dataset_entries(dataset_config)
     if not dataset_entries:
         raise ValueError("No datasets defined in dataset.yaml; misfit calculation requires dataset entries.")
-    default_evlst_name = get_by_path(dataset_config, "defaults.list.evchk")
+    default_evlst_name = get_by_path(dataset_config, "defaults.list.evlst")
 
     misfit_list = get_misfit_list(
         model_beg=model_n_list[0],
@@ -176,9 +196,23 @@ if __name__ == '__main__':
         base_dir=base_dir,
         default_evlst_name=default_evlst_name,
     )
-    misfit_arr = np.array(misfit_list)
-    if misfit_arr.size > 0 and misfit_arr[0] != 0:
-        misfit_arr = misfit_arr / misfit_arr[0]
+    misfit_arr = np.array(misfit_list, dtype=float)
+    improvement_pct_list = get_improvement_pct_list(misfit_arr.tolist())
+
+    print("Weighted average misfit by model:")
+    for model_num, misfit in zip(range(model_n_list[0], model_n_list[1] + 1), misfit_arr):
+        print(f"m{model_num:03d}: {misfit:.5f}")
+
+    print("\nMisfit improvement relative to previous model:")
+    for model_num, improvement_pct in zip(
+        range(model_n_list[0], model_n_list[1] + 1),
+        improvement_pct_list,
+    ):
+        if improvement_pct is None:
+            print(f"m{model_num:03d}: N/A")
+        else:
+            print(f"m{model_num:03d}: {improvement_pct:.3f}%")
+
     fig = pygmt_begin()
     fig = plot_misfit(fig=fig, model_beg=model_n_list[0], model_end=model_n_list[1], misfit_list=misfit_arr)
 
