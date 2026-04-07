@@ -240,45 +240,41 @@ def build_gaussian_ckb(
     sign_z = ((np.arange(len(z_centers)) % 2) * 2 - 1)
 
 
+    z_centers_valid = z_centers[iz_valid]                      # (nz_valid,)
+    signs_z_valid   = sign_z[iz_valid]                         # (nz_valid,)
+
     pert = np.zeros_like(lon_arr, dtype=np.float32)
     for ix in ix_valid:
         for iy in iy_valid:
-       
+
             cx, cy = x_grid[ix, iy], y_grid[ix, iy]
             dx_all = x_arr - cx
             dy_all = y_arr - cy
-            
+
             xy_mask = (
                 (np.abs(dx_all) <= n_sigma * sx) &
                 (np.abs(dy_all) <= n_sigma * sy)
             )
             if not np.any(xy_mask):
                 continue
-            
+
             idx_xy = np.where(xy_mask)[0]
             dx = dx_all[idx_xy]
             dy = dy_all[idx_xy]
-            z_local_all = z_arr[idx_xy]
-            
-            base_r2 = (dx*dx) / (2.0 * sx*sx) + (dy*dy) / (2.0 * sy*sy)
-            
-            for iz in iz_valid:
-                cz = z_centers[iz]
+            z_local = z_arr[idx_xy]                            # (n_local,)
 
-                dz_all = z_local_all - cz
-                z_mask = np.abs(dz_all) <= n_sigma * sz
-                
-                if not np.any(z_mask):
-                    continue
-                
-                idx = idx_xy[z_mask]
-                dz_local = dz_all[z_mask]
-                
-                r2 = base_r2[z_mask] + (dz_local*dz_local) / (2.0 * sz*sz)
-                gauss = np.exp(-r2)
+            base_r2 = (dx*dx) / (2.0 * sx*sx) + (dy*dy) / (2.0 * sy*sy)  # (n_local,)
 
-                sign = sign_x[ix] * sign_y[iy] * sign_z[iz]
-                pert[idx] += sign * amplitude * gauss
+            # Vectorize over iz: broadcast (n_local, 1) vs (1, nz_valid)
+            dz = z_local[:, None] - z_centers_valid[None, :]  # (n_local, nz_valid)
+            z_mask = np.abs(dz) <= n_sigma * sz
+
+            r2   = base_r2[:, None] + (dz * dz) / (2.0 * sz * sz)  # (n_local, nz_valid)
+            gauss = np.exp(-r2)                                      # (n_local, nz_valid)
+            gauss[~z_mask] = 0.0
+
+            signs = sign_x[ix] * sign_y[iy] * signs_z_valid   # (nz_valid,)
+            pert[idx_xy] += amplitude * (gauss * signs[None, :]).sum(axis=1)
 
     return pert
 

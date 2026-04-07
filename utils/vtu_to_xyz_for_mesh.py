@@ -1,26 +1,67 @@
 #%%
 from pathlib import Path
-from vtk.util.numpy_support import vtk_to_numpy
-from scipy.interpolate import griddata
+from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
 import numpy as np
 import os
 import vtk
 import sys
 
 
-def project_gll_to_regular(databases_dir, kernel_name, query_lon_arr, query_lat_arr, query_dep_arr, default_value):
+# ---------------------------------------------------------------------------
+# AK135 1D reference model (Kennett et al. 1995)
+# depth_km | vp (km/s) | vs (km/s) | rho (g/cm³)
+# Duplicate depth entries represent velocity discontinuities.
+# ---------------------------------------------------------------------------
+_AK135 = np.array([
+    [  0.00, 1.4500, 0.0000, 1.0200],  # ocean water
+    [  3.00, 1.4500, 0.0000, 1.0200],
+    [  3.00, 1.6500, 1.0000, 2.0000],  # sediment
+    [  3.30, 1.6500, 1.0000, 2.0000],
+    [  3.30, 5.8000, 3.2000, 2.6000],  # upper crust
+    [ 10.00, 5.8000, 3.2000, 2.6000],
+    [ 10.00, 6.8000, 3.9000, 2.9200],  # lower crust
+    [ 18.00, 6.8000, 3.9000, 2.9200],
+    [ 18.00, 8.0355, 4.4839, 3.6410],  # upper mantle (Moho)
+    [ 43.00, 8.0379, 4.4856, 3.5801],
+    [ 80.00, 8.0400, 4.4800, 3.5020],
+    [ 80.00, 8.0450, 4.4900, 3.5020],  # LVZ top
+    [120.00, 8.0505, 4.5000, 3.4268],
+    [165.00, 8.1750, 4.5090, 3.3711],
+    [210.00, 8.3007, 4.5184, 3.3243],
+    [210.00, 8.3007, 4.5184, 3.3243],
+    [260.00, 8.4822, 4.6094, 3.3663],
+    [310.00, 8.6650, 4.6964, 3.4110],
+    [360.00, 8.8476, 4.7832, 3.4577],
+    [410.00, 9.0302, 4.8702, 3.5068],  # 410-km discontinuity
+])
+_AK135_DEPTH_KM = _AK135[:, 0]
+_AK135_VP  = _AK135[:, 1] * 1000.0   # km/s  → m/s
+_AK135_VS  = _AK135[:, 2] * 1000.0   # km/s  → m/s
+_AK135_RHO = _AK135[:, 3] * 1000.0   # g/cm³ → kg/m³
+
+_AK135_ARRAYS = {'vp': _AK135_VP, 'vs': _AK135_VS, 'rho': _AK135_RHO}
+
+def _ak135_value(depth_m, kernel_name):
     """
-    Use vtkProbeFilter for samling
-    - Fill the empty values with 'nanmean' 
-    - If there is no value through the whole layer, we use *default_value*
+    Interpolate AK135 value at a given depth.
+    depth_m: depth in metres, negative = underground (same convention as query_dep_arr)
+    """
+    depth_km = max(-depth_m / 1000.0, 0.0)  # above-surface clamped to 0
+    return float(np.interp(depth_km, _AK135_DEPTH_KM, _AK135_ARRAYS[kernel_name]))
+
+
+def project_gll_to_regular(databases_dir, kernel_name, query_lon_arr, query_lat_arr, query_dep_arr):
+    """
+    Use vtkProbeFilter for sampling.
+    - Fill invalid points within a layer with the layer nanmean.
+    - If the whole layer has no valid values, fall back to the AK135 1D reference model.
     - Return shape: (nlon*nlat*ndep,) 1-D array
     Args:
         databases_dir (str): the directory of the databases
-        kernel_name (str): the name of the kernel, e.g., 'vp', 'vs', 'rho'
-        query_lon_arr (np.array): the longitude array of the query points
-        query_lat_arr (np.array): the latitude array of the query points
-        query_dep_arr (np.array): the depth array of the query points
-        default_value (float): the default value to fill in case of NaN values
+        kernel_name (str): the name of the kernel — 'vp', 'vs', or 'rho'
+        query_lon_arr (np.array): easting array of the query points (metres)
+        query_lat_arr (np.array): northing array of the query points (metres)
+        query_dep_arr (np.array): depth array (metres, negative = underground)
     """
     # 1) Read unstructuredGrid
     gll_file = os.path.join(databases_dir, f'{kernel_name}.vtu')
@@ -45,13 +86,12 @@ def project_gll_to_regular(databases_dir, kernel_name, query_lon_arr, query_lat_
     abs_list = []
     
     pts = vtk.vtkPoints()
-    pts.SetNumberOfPoints(nxy)
     for specified_dep in query_dep_arr:
         z0 = float(specified_dep)
 
         # 3a) Preparing (x, y, z0) points cloud
-        for i in range(nxy):
-            pts.SetPoint(i, float(query_x[i]), float(query_y[i]), z0)
+        coords = np.column_stack([query_x, query_y, np.full(nxy, z0)])
+        pts.SetData(numpy_to_vtk(coords, deep=True, array_type=vtk.VTK_DOUBLE))
 
         pd = vtk.vtkPolyData()
         pd.SetPoints(pts)
@@ -79,13 +119,10 @@ def project_gll_to_regular(databases_dir, kernel_name, query_lon_arr, query_lat_
 
         # use mean value to fill NaN
         if np.all(np.isnan(vals)):
-            # edge case: if the whole layer is invalid -> go back to default_value
-            vals = np.full(nxy, float(default_value))
+            # edge case: whole layer invalid -> fall back to AK135 at this depth
+            vals = np.full(nxy, _ak135_value(z0, kernel_name))
         else:
             layer_mean = np.nanmean(vals)
-            
-            if np.isnan(layer_mean):
-                layer_mean = float(default_value)
             vals = np.where(np.isnan(vals), layer_mean, vals)
 
         abs_list.append(vals)
@@ -93,17 +130,6 @@ def project_gll_to_regular(databases_dir, kernel_name, query_lon_arr, query_lat_
     # 4) Combine all depth layers
     abs_arr = np.hstack(abs_list).astype(float)
     return abs_arr
-
-def get_points_by_projection(query_x, query_y, given_x, given_y, data_arr, default_value):
-
-    given_points = np.vstack([given_x, given_y]).T
-    try:
-        grid_values = griddata(given_points, data_arr, (query_x, query_y), method='linear')
-    except ValueError as e:
-        print(f"Warning in griddata: {e}, we use default values to fill the value in this depth!")
-        # Handle the case where griddata fails, e.g., using default values
-        grid_values = np.full(query_x.shape, default_value)
-    return grid_values
 
 def output_model_txt_file(query_lon_arr, query_lat_arr, query_dep_arr, lon_interval, lat_interval, dep_interval, output_path, v1 , v2, v3):
         """
@@ -129,7 +155,7 @@ def output_model_txt_file(query_lon_arr, query_lat_arr, query_dep_arr, lon_inter
         header_info =  f'{query_lon_min:.3f} {query_lat_min:.3f} {query_dep_min:.3f} {query_lon_max:.3f} {query_lat_max:.3f} {query_dep_max:.3f}\n'
         header_info += f' {lon_interval:.3f} {lat_interval:.3f} {dep_interval:.3f}\n'
         header_info += f' {nlon:4d} {nlat:4d} {ndep:4d}\n'
-        header_info += f' {v1_abs_min:.3f} {v1_abs_max:.3f} {v2_abs_min:.3f} {v2_abs_max:.3f} {v3_abs_min:.3f} {v3_abs_max:.3f}\n'
+        header_info += f' {v1_abs_min:.3f} {v1_abs_max:.3f} {v2_abs_min:.3f} {v2_abs_max:.3f} {v3_abs_min:.3f} {v3_abs_max:.3f}'
 
         np.savetxt(output_path, output_data, fmt='%.3f', header=header_info, comments='')
 
@@ -144,19 +170,19 @@ if __name__ == '__main__':
     lat_range = [2356665.767, 2911482.965]
     dep_range = [-200000.0, 5000.0]
     lon_interval, lat_interval, dep_interval = 2500.0, 2500.0, 2500.0
-    default_values = [3000, 1600, 1736] # vp, vs, rho
     # -------------------------
 
     kernel_list = ['vp', 'vs', 'rho']
     model_file_name = f'm{model_num:03d}'
-    current_path = Path.cwd()
-    root_path = current_path.parent
+    root_path = Path(__file__).parent.parent
     databases_dir = root_path / 'TOMO' / model_file_name / 'DATABASES_MPI'
     output_path = root_path / 'TOMO' / model_file_name / 'OUTPUT' / f'tomography_model_{model_file_name}.xyz'
-    
+
     if not databases_dir.exists():
         print(f'{databases_dir} does not exist')
-        sys.exit() 
+        sys.exit()
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
 
     query_lon_arr = np.arange(lon_range[0], lon_range[1]+lon_interval, lon_interval)
@@ -166,12 +192,11 @@ if __name__ == '__main__':
 
     val_list = []
     for index, kernel_name in enumerate(kernel_list):
-        interp_data_points = project_gll_to_regular(databases_dir=databases_dir, 
-                                                    kernel_name=kernel_name, 
+        interp_data_points = project_gll_to_regular(databases_dir=databases_dir,
+                                                    kernel_name=kernel_name,
                                                     query_lon_arr=query_lon_arr,
                                                     query_lat_arr=query_lat_arr,
-                                                    query_dep_arr=query_dep_arr,
-                                                    default_value=default_values[index])
+                                                    query_dep_arr=query_dep_arr)
         val_list.append(interp_data_points)
 
     output_model_txt_file(query_lon_arr=query_lon_arr, query_lat_arr=query_lat_arr, query_dep_arr=query_dep_arr, 

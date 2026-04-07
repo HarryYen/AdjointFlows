@@ -170,7 +170,6 @@ if __name__ == "__main__":
     # Read coordinates for all ranks (once)
     # --------------------
     x_arr_list, y_arr_list, z_arr_list = [], [], []
-    ibool_arr_list = []
     ibool_data_type = None
 
     for rank in range(nproc):
@@ -184,14 +183,9 @@ if __name__ == "__main__":
         y_raw, _ = read_binary_float32(y_file)
         z_raw, _ = read_binary_float32(z_file)
 
-        x_arr = x_raw[ibool_arr - 1]
-        y_arr = y_raw[ibool_arr - 1]
-        z_arr = z_raw[ibool_arr - 1]
-
-        x_arr_list.append(x_arr)
-        y_arr_list.append(y_arr)
-        z_arr_list.append(z_arr)
-        ibool_arr_list.append(ibool_arr)
+        x_arr_list.append(x_raw[ibool_arr - 1])
+        y_arr_list.append(y_raw[ibool_arr - 1])
+        z_arr_list.append(z_raw[ibool_arr - 1])
 
         if ibool_data_type is None:
             ibool_data_type = ibool_data_type_tmp
