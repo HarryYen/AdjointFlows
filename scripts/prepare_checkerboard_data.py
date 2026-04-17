@@ -36,7 +36,7 @@ OBSERVED_COMPONENT_MAP = {
 # --------------------
 # Edit these values directly when preparing a new checkerboard dataset.
 DEFAULT_CONFIG = {
-    "source_syn_dir": "TOMO/m900/SYN_EQ_TRUE",
+    "source_syn_dir": "TOMO/m999/SYN_EQ_TRUE",
     "event_list": "DATA/evlst/fwi_new_cat_version4.txt",
     "output_data_dir": "DATA/wav_EQ_checkerboard",
     "template_data_dir": "DATA/wav_EQ",
@@ -45,7 +45,7 @@ DEFAULT_CONFIG = {
     "synthetic_component": "semv",
     "clean_output": True,
     "strict": False,
-    "dry_run": False,
+    "dry_run": True,
 }
 
 
@@ -83,27 +83,30 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--network",
-        default="TW",
+        default=None,
         help="Network code used in synthetic filenames (default: TW)",
     )
     parser.add_argument(
         "--synthetic-component",
-        default="semv",
+        default=None,
         help="Synthetic component suffix used in SYN files (default: semv)",
     )
     parser.add_argument(
         "--clean-output",
         action="store_true",
+        default=None,
         help="Delete the output directory before copying files",
     )
     parser.add_argument(
         "--strict",
         action="store_true",
+        default=None,
         help="Exit with an error if any expected source waveform is missing",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
+        default=None,
         help="Print what would be copied without writing files",
     )
     return parser.parse_args()
