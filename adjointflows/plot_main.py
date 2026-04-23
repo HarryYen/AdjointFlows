@@ -12,8 +12,13 @@ def main():
     plot_config.load()
     
     do_preprocess = plot_config.get('work_flow.do_preprocessing')
-    plot_horizontal_slices = plot_config.get('work_flow.plot_horizontal_slices')
-    plot_vertical_slices = plot_config.get('work_flow.plot_vertical_slices')
+    plot_horizontal_absolute = plot_config.get('work_flow.absolute_plot.plot_horizontal')
+    plot_horizontal_perturb = plot_config.get('work_flow.perturb_plot.plot_horizontal')
+    # plot_horizontal_vpvs = plot_config.get('work_flow.vpvs_plot.plot_horizontal')
+    plot_vertical_absolute = plot_config.get('work_flow.absolute_plot.plot_vertical')
+    plot_vertical_perturb = plot_config.get('work_flow.perturb_plot.plot_vertical')
+    # plot_vertical_vpvs = plot_config.get('work_flow.vpvs_plot.plot_vertical')
+    
     plot_horizontal_updated_amount = plot_config.get('work_flow.updated_plot.plot_horizontal')
     plot_vertical_updated_amount = plot_config.get('work_flow.updated_plot.plot_vertical')
     plot_vpvs = plot_config.get('work_flow.plot_vpvs')
@@ -62,15 +67,18 @@ def main():
                                 v2_abs=vs_abs, v2_pert=vs_pert,
                                 v3_abs=rho_abs, v3_pert=rho_pert) 
 
-    if plot_horizontal_slices:
+    if plot_horizontal_perturb:
         visualizer.plot_horizontal_slices_3x3_pert()
+    if plot_horizontal_absolute:
         visualizer.plot_horizontal_slices_3x3_abs()
 
-    if plot_vertical_slices:
+    if plot_vertical_perturb:
         visualizer.plot_vertical_profile_pert()
+    if plot_vertical_absolute:    
         visualizer.plot_vertical_profile_abs()
-        if plot_vpvs:
-            visualizer.plot_vertical_profile_vpvs()
+        
+    if plot_vpvs:
+        visualizer.plot_vertical_profile_vpvs()
 
 
     if plot_horizontal_updated_amount:

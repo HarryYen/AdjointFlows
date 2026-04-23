@@ -1,8 +1,12 @@
 work_flow:
     do_preprocessing: False
-    plot_horizontal_slices: False
-    plot_vertical_slices: True
-    plot_vpvs: True
+    perturb_plot:
+        plot_horizontal: False
+        plot_vertical: False
+    absolute_plot:
+        plot_horizontal: False
+        plot_vertical: True
+    plot_vpvs: False
     
     updated_plot:
         plot_horizontal: False
@@ -10,14 +14,14 @@ work_flow:
     
 
 pre_processing:
-    model_num: 28
-    ref_model_num: 0 # For plotting updated amount
+    model_num: 30
+    ref_model_num: 26 # For plotting updated amount
     lon_range: [119.0, 123.0]
     lat_range: [21.0, 26.0]
-    dep_range: [0., 200]
-    lon_interval: 0.08
-    lat_interval: 0.08
-    dep_interval: 5
+    dep_range: [0., 100]
+    lon_interval: 0.04
+    lat_interval: 0.04
+    dep_interval: 2
 
 
 horizontal_slice:
@@ -45,9 +49,9 @@ horizontal_slice:
 vertical_slice:
     general_map:
         map_region: [119, 123.5, 21.5, 26.] # [lon_min, lon_max, lat_min, lat_max]
-        dep_range: [0, 200] # e.g. [0, 200] means 0-200 km
-        dep_interval_for_interp: 4
-        interval_for_profile: 4
+        dep_range: [0, 100] # e.g. [0, 200] means 0-200 km
+        dep_interval_for_interp: 2
+        interval_for_profile: 1
         width_profile: [-20, 20] # e.g. [-20, 20] means +- 20 km
         width_for_projecting_eq: [-10, 10] # e.g. [-10, 10] means +- 10 km
         topo_range_for_plot: [-8000, 4000] # e.g. [-8000, 4000] means -8000 to 4000 m
@@ -57,7 +61,7 @@ vertical_slice:
         plot_mapview: True # 1: plot mapview, 0: not plot mapview
     general_file:
         topo_grd: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/taiwan_topo.grd
-        profile_input: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/profile_specific.input
+        profile_input: /home/harry/Work/adjflows_for_ambient_noise/AdjointFlows/adjointflows/visualizer/plotting_files/profile_detail.input
         eq_file: /home/harry/Work/AdjointFlows/adjointflows/visualizer/plotting_files/simple.csv
     
     fine_tune_perturb:
@@ -67,11 +71,11 @@ vertical_slice:
         reverse_cmap: False
 
     fine_tune_abs:
-        scalar_list: ['vp', 'vs']
-        scalar_range_list: [[2.6, 9.5], [1.4, 5.5]]  # each element is a list corresponding to the scalar_list 
-        cbar_label_list: ['Vp (km/s)', 'Vs (km/s)'] # the number of elements should be the same with scalar_list
-        cmap: 'turbo'
-        reverse_cmap: True # True or False
+        scalar_list: ['vs','vp']
+        scalar_range_list: [[2., 4.8], [4., 8.]]  # each element is a list corresponding to the scalar_list 
+        cbar_label_list: ['Vs (km/s)', 'Vp (km/s)'] # the number of elements should be the same with scalar_list
+        cmap: 'roma'
+        reverse_cmap: False # True or False
         contour:
             plot_contour: True
             line_interval: 0.25   # unit
