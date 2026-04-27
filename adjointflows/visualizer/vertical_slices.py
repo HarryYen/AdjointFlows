@@ -15,7 +15,17 @@ import yaml
 
 
 MODEL_COLUMNS = ['lon', 'lat', 'dep', 'vp', 'vs', 'rho', 'dvp', 'dvs', 'drho']
-COLORBAR_POSITION = 'JMR+o1.5c/-12.c+w12c/1.c+ml'
+DEFAULT_LAYOUT = {
+    'map_projection': 'M4.5i',
+    'map_frame': ['neWS', 'a2f1'],
+    'map_to_profile_xshift': '6.7i',
+    'profile_projection': 'x0.06i/-0.06i',
+    'profile_frame': ['WSne', 'a40f20', 'x+lDistance (km)', 'y+lDepth (km)'],
+    'topography_yshift': '7i',
+    'topography_projection': 'x0.06i/0.4i',
+    'topography_frame': ['WE'],
+    'colorbar_position': 'JMR+o1.5c/-12.c+w12c/1.c+ml',
+}
 
 
 def load_vertical_slice_config():
@@ -23,6 +33,10 @@ def load_vertical_slice_config():
     with open(os.path.join(current_dir, 'plot_config.yaml'), 'r') as file:
         config = yaml.safe_load(file)
     return config['vertical_slice']
+
+
+def get_layout_config(config_vert):
+    return {**DEFAULT_LAYOUT, **config_vert.get('layout', {})}
 
 
 def read_model_xyz(input_dir):
@@ -149,8 +163,13 @@ def plot_mapview_panel(
     map_region,
     topo_grd,
     topo_range_for_plot,
+    layout,
 ):
-    fig.basemap(region=map_region, projection='M4.5i', frame=['neWS', 'a2f1'])
+    fig.basemap(
+        region=map_region,
+        projection=layout['map_projection'],
+        frame=layout['map_frame'],
+    )
 
     gradient_data = pygmt.grdgradient(
         grid=topo_grd,
@@ -194,7 +213,7 @@ def plot_mapview_panel(
         fill='#fff683',
     )
 
-    fig.shift_origin(xshift='6.7i')
+    fig.shift_origin(xshift=layout['map_to_profile_xshift'])
 
 
 def plot_profile_panel(
@@ -206,7 +225,9 @@ def plot_profile_panel(
     reverse_cmap,
     contour_config=None,
     cpt_background=False,
+    layout=None,
 ):
+    layout = DEFAULT_LAYOUT if layout is None else layout
     if cpt_background:
         pygmt.makecpt(cmap=cmap, series=scalar_range, reverse=reverse_cmap, background=True)
     else:
@@ -214,8 +235,8 @@ def plot_profile_panel(
 
     fig.basemap(
         region=profile_range,
-        projection='x0.06i/-0.06i',
-        frame=['WSne', 'a40f20', 'x+lDistance (km)', 'y+lDepth (km)'],
+        projection=layout['profile_projection'],
+        frame=layout['profile_frame'],
     )
     fig.grdimage(grid=pro_surf_arr, cmap=True)
 
@@ -226,10 +247,11 @@ def plot_profile_panel(
             profile_range,
             contour_config['line_interval'],
             contour_config['annotation_interval'],
+            contour_config['line_pen'],
         )
 
 
-def plot_profile_contour(fig, pro_surf_arr, profile_range, line_interval, annotation_interval):
+def plot_profile_contour(fig, pro_surf_arr, profile_range, line_interval, annotation_interval, line_pen):
     surf_x = pro_surf_arr.coords['x']
     surf_y = pro_surf_arr.coords['y']
     surf_x_mesh, surf_y_mesh = np.meshgrid(surf_x, surf_y)
@@ -237,15 +259,80 @@ def plot_profile_contour(fig, pro_surf_arr, profile_range, line_interval, annota
         x=surf_x_mesh.flatten(),
         y=surf_y_mesh.flatten(),
         z=pro_surf_arr.values.flatten(),
-        pen='0.25p,black',
+        pen=line_pen,
         levels=line_interval,
         annotation=annotation_interval,
         region=profile_range,
     )
 
 
-def plot_topography_panel(fig, topo_grd, pro_line, profile_range, divided_points_index_list):
-    fig.shift_origin(yshift='7i')
+def normalize_topography(topo_arr):
+    topo_arr = topo_arr.astype(float)
+    finite_topo_arr = topo_arr[np.isfinite(topo_arr)]
+    if len(finite_topo_arr) == 0:
+        return np.full_like(topo_arr, np.nan)
+
+    max_abs_topo = np.max(np.abs(finite_topo_arr))
+    if max_abs_topo == 0:
+        return np.zeros_like(topo_arr)
+    return topo_arr / max_abs_topo
+
+
+def split_topography_by_sign(dist_arr, topo_arr, sign):
+    segments = []
+    current_segment = []
+
+    for point_index in range(len(dist_arr) - 1):
+        x0 = dist_arr[point_index]
+        x1 = dist_arr[point_index + 1]
+        y0 = topo_arr[point_index]
+        y1 = topo_arr[point_index + 1]
+        if not np.all(np.isfinite([x0, x1, y0, y1])):
+            if len(current_segment) >= 2:
+                segments.append(np.array(current_segment))
+            current_segment = []
+            continue
+
+        y0_is_selected = y0 * sign >= 0
+        y1_is_selected = y1 * sign >= 0
+
+        if y0_is_selected and not current_segment:
+            current_segment.append((x0, y0))
+
+        if y0_is_selected and y1_is_selected:
+            current_segment.append((x1, y1))
+            continue
+
+        if y0_is_selected and not y1_is_selected:
+            x_cross = x0 + (x1 - x0) * (0 - y0) / (y1 - y0)
+            current_segment.append((x_cross, 0))
+            segments.append(np.array(current_segment))
+            current_segment = []
+            continue
+
+        if not y0_is_selected and y1_is_selected:
+            x_cross = x0 + (x1 - x0) * (0 - y0) / (y1 - y0)
+            current_segment = [(x_cross, 0), (x1, y1)]
+
+    if current_segment:
+        segments.append(np.array(current_segment))
+
+    return [segment for segment in segments if len(segment) >= 2]
+
+
+def plot_topography_segments(fig, dist_arr, topo_arr, sign, fill):
+    for segment in split_topography_by_sign(dist_arr, topo_arr, sign):
+        fig.plot(
+            x=segment[:, 0],
+            y=segment[:, 1],
+            pen='1.5p,black',
+            fill=fill,
+            close='+y0',
+        )
+
+
+def plot_topography_panel(fig, topo_grd, pro_line, profile_range, divided_points_index_list, layout):
+    fig.shift_origin(yshift=layout['topography_yshift'])
     topo_track = pygmt.grdtrack(
         grid=topo_grd,
         points=pro_line[['r', 's', 'p']],
@@ -254,33 +341,18 @@ def plot_topography_panel(fig, topo_grd, pro_line, profile_range, divided_points
 
     fig.basemap(
         region=[profile_range[0], profile_range[1], -1.2, 1.2],
-        projection='x0.06i/0.4i',
-        frame=['WE'],
+        projection=layout['topography_projection'],
+        frame=layout['topography_frame'],
     )
 
     dist_arr = np.array(topo_track.p)
     topo_arr = np.array(topo_track.topo)
-    topo_arr = topo_arr / np.max(np.abs(topo_arr))
+    topo_arr = normalize_topography(topo_arr)
 
-    dist_arr = np.concatenate(([dist_arr[0]], dist_arr, [dist_arr[-1]]))
-    topo_arr = np.concatenate(([0], topo_arr, [0]))
-
+    plot_topography_segments(fig, dist_arr, topo_arr, sign=-1, fill='#bcdaff')
+    plot_topography_segments(fig, dist_arr, topo_arr, sign=1, fill='#fce2bb')
     fig.plot(
-        x=dist_arr[topo_arr <= 0],
-        y=topo_arr[topo_arr <= 0],
-        pen='1.5p,black',
-        fill='#bcdaff',
-        close='+y0',
-    )
-    fig.plot(
-        x=dist_arr[topo_arr >= 0],
-        y=topo_arr[topo_arr >= 0],
-        pen='1.5p,black',
-        fill='#fce2bb',
-        close='+y0',
-    )
-    fig.plot(
-        x=dist_arr[divided_points_index_list],
+        x=pro_line.p.values[divided_points_index_list],
         y=np.zeros(len(divided_points_index_list)),
         pen='1p,black',
         style='c0.5c',
@@ -329,6 +401,7 @@ def plot_single_vertical_slice(
     general_map = config_vert['general_map']
     general_flag = config_vert['general_flag']
     general_file = config_vert['general_file']
+    layout = get_layout_config(config_vert)
 
     letter_index, azi_profile, len_profile, center = parse_profile_info(profile_info)
     print(f'Profile {profile_index}: center: {center}, angle:{azi_profile}, length:{len_profile}')
@@ -357,6 +430,7 @@ def plot_single_vertical_slice(
             map_region=general_map['map_region'],
             topo_grd=general_file['topo_grd'],
             topo_range_for_plot=general_map['topo_range_for_plot'],
+            layout=layout,
         )
 
     plot_profile_panel(
@@ -368,6 +442,7 @@ def plot_single_vertical_slice(
         reverse_cmap=cbar_frame['reverse_cmap'],
         contour_config=contour_config,
         cpt_background=cpt_background,
+        layout=layout,
     )
 
     if general_flag['plot_eq'] and eq_df is not None:
@@ -386,10 +461,11 @@ def plot_single_vertical_slice(
         pro_line=pro_line,
         profile_range=profile_range,
         divided_points_index_list=divided_points_index_list,
+        layout=layout,
     )
     fig.colorbar(
         frame=cbar_frame['frame'],
-        position=COLORBAR_POSITION,
+        position=layout['colorbar_position'],
         cmap=True,
     )
     add_profile_endpoint_labels(fig, profile_range, len_profile, letter_index)
@@ -413,6 +489,7 @@ def get_contour_config(fine_tune_config):
         'plot_contour': contour_config['plot_contour'],
         'line_interval': contour_config['line_interval'],
         'annotation_interval': contour_config['annotation_interval'],
+        'line_pen': contour_config.get('line_pen', '0.25p,black'),
     }
 
 
