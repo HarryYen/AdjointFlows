@@ -52,7 +52,9 @@ def main():
     # -------------------------------
     
     iteration_process = IterationProcess(current_model_num=current_model_num, config=config)
-    iteration_process.update_model(step_fac=0.05, lbfgs_flag=False)
+    iteration_process.update_specfem_params()
+    iteration_process.save_params_json()
+    iteration_process.update_model(step_fac=0.06, lbfgs_flag=False)
     
     
     
