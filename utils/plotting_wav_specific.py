@@ -25,6 +25,7 @@ Output:
 """
 
 import matplotlib.pyplot as plt
+from matplotlib import colors as mcolors
 from obspy import read
 from obspy import UTCDateTime
 import numpy as np
@@ -69,8 +70,11 @@ def Pygmt_config():
     font = 0
     pygmt.config(MAP_FRAME_TYPE="plain",
                  FORMAT_GEO_MAP="ddd.x",
+                 FONT_ANNOT_PRIMARY="24p",
+                 FONT_ANNOT_SECONDARY="20p",
                  FONT = f'24p, {font}',
                  FONT_TITLE = f'24p, 1',
+                 FONT_LABEL = '24p, 1',
                  MAP_TITLE_OFFSET="0.1c")
     
 
@@ -143,47 +147,60 @@ if __name__ == '__main__':
     """
     
     # ---------------- PARAMETER -----------------#
-    model_ref, model_final = 0, 14
+    model_ref, model_final = 0, 30
     period_min, period_max = 5, 30
     map_region = [119, 123, 21, 26]
-    result_dir = '/home/harry/Work/AdjointFlows/TOMO'
-    data_dir = '/home/harry/Work/AdjointFlows/DATA/wav'
-    evt_file = '/home/harry/Work/AdjointFlows/DATA/evlst/fwi_new_cat_version4.txt'
-    sta_file = '/home/harry/Work/AdjointFlows/DATA/stlst/st_new_remove_western_only_new.txt'
+    result_dir = '/home/harry/Work/adjflows_for_ambient_noise/AdjointFlows/TOMO'
+    data_dir = '/home/harry/Work/adjflows_for_ambient_noise/AdjointFlows/DATA/wav_EQ'
+    evt_file = '/home/harry/Work/adjflows_for_ambient_noise/AdjointFlows/DATA/evlst/fwi_new_cat_version4.txt'
+    sta_file = '/home/harry/Work/adjflows_for_ambient_noise/AdjointFlows/DATA/stlst/sta_new_remove_western.txt'
     waveform_time_range = [0, 150]
     wav_start_time = -30.
-    output_dir = '/home/harry/Work/AdjointFlows/TOMO/OUTPUT'
-    chunksize = 6
+    output_dir = '/home/harry/Work/adjflows_for_ambient_noise/AdjointFlows/TOMO/OUTPUT'
+    chunksize = 8
     
 
-    event_list = ['202109252221', '202203222030', '202207280016', '202306100531', '202309050930', '201903122019']
-    sta_list = ['SBCB', 'TWGB', 'NTS', 'LATB', 'HOPB', 'ETLH']
-    comp_list = ['BHN', 'BHE', 'BHN', 'BHN', 'BHE', 'BHN']
+    # event_list = ['202109252221', '202203222030', '202207280016', '202306100531', '202309050930', '201903122019']
+    # sta_list = ['SBCB', 'TWGB', 'NTS', 'LATB', 'HOPB', 'ETLH']
+    # comp_list = ['BHN', 'BHE', 'BHN', 'BHN', 'BHE', 'BHN']
+    event_list = ['201602180109', '201801170559', '201605180022', '202103280641', 
+                  '202105251648', '202109252221', '202109131041', '202203222030']
+    sta_list = ['NACB', 'TPUB', 'NMLH', 'RLNB', 'SBCB', 'CHKH', 'WFSB', 'WHP']
+    comp_list = ['BHN', 'BHN', 'BHE', 'BHZ', 'BHN', 'BHN', 'BHN', 'BHE']
     # --------------------------------------------#
     
-    win_dir = f'{result_dir}/m{model_final:03d}/MEASURE/adjoints'
+    win_dir = f'{result_dir}/m{model_final:03d}/MEASURE_EQ_5_30s/adjoints'
 
     evt_meca_df = create_meca_dataframe(evt_file)
     
     model_ref = f'm{model_ref:03d}'
     model_final = f'm{model_final:03d}'
-    final_win_dir = f'{result_dir}/{model_final}/MEASURE/adjoints'
 
     ref_wav_dir = data_dir
-    ref_syn_wav_dir = f'{result_dir}/{model_ref}/SYN'
-    final_syn_wav_dir = f'{result_dir}/{model_final}/SYN'
+    ref_syn_wav_dir = f'{result_dir}/{model_ref}/SYN_EQ'
+    final_syn_wav_dir = f'{result_dir}/{model_final}/SYN_EQ'
 
     sta_df = pd.read_csv(sta_file, sep='\s+', header=None, names=['sta', 'stlo', 'stla', 'ele'])    
+    ray_cmap = plt.get_cmap('tab10', len(event_list))
+    ray_colors = [mcolors.to_hex(ray_cmap(i)) for i in range(len(event_list))]
 
+    Pygmt_config()
+    map_title = (
+        f'{model_ref} vs {model_final} | '
+        f'Filter: {period_min}-{period_max} s | '
+        f'Window: {waveform_time_range[0]}-{waveform_time_range[1]} s | '
+        f'Pairs: {len(event_list)}'
+    )
 
     # plot #
     fig = pygmt.Figure()
-    fig.basemap(region=map_region, projection="M8i", frame=['a2f1', 'WSne'])
+    fig.basemap(region=map_region, projection="M8i", frame=['a2f1', f'WSen+t{map_title}'])
     fig.coast(shorelines=True)
 
 
     pygmt.makecpt(cmap='jet', series=[0, 200], reverse=True)
     for index, evt in enumerate(event_list):
+        ray_color = ray_colors[index]
         
         evt_info = evt_meca_df[evt_meca_df.formatted_datetime == float(evt)].iloc[0]
         meca_info = modify_meca_format(evt_meca_df, evt)
@@ -193,11 +210,11 @@ if __name__ == '__main__':
         sta_info = sta_df[sta_df.sta == sta].iloc[0]
         stlon, stlat = sta_info.stlo, sta_info.stla
 
-        fig.plot(x=[stlon, evlon], y=[stlat, evlat], pen='0.8p,black')    
+        fig.plot(x=[stlon, evlon], y=[stlat, evlat], pen=f'2.p,{ray_color}')    
 
 
         
-        fig.plot(x = stlon, y = stlat, style='t0.4c', fill='blue', pen='black')
+        fig.plot(x = stlon, y = stlat, style='t0.7c', fill=ray_color, pen='1p,black')
         
         fig.meca(
             spec = meca_info,
@@ -207,16 +224,18 @@ if __name__ == '__main__':
         )
     
 
-        
-        fig.text(x=stlon, y=stlat - 0.15, text=sta, 
-                font='24p,1', justify='CM', fill='#ffffaa')
-        
-    fig.colorbar(cmap = True, position = 'x0.5c/0.5c+w7c/0.6c+m+h', frame = ['a20f10','+LDepth (km)'])  
+    with pygmt.config(FONT_ANNOT_PRIMARY="24p", FONT_LABEL="24p"):
+        fig.colorbar(
+            cmap=True,
+            position='x0.5c/0.5c+w7c/0.6c+m+h',
+            frame=['a20f10', '+LDepth (km)'],
+        )
     fig.shift_origin(xshift="22c")
 
-    with fig.subplot(nrows=chunksize, ncols=2, subsize=('17c', '5c'), margins=["0.6c", "0.6c"], 
+    with fig.subplot(nrows=chunksize, ncols=2, subsize=('17c', '3c'), margins=["0.6c", "0.6c"], 
                      sharex='b', sharey='r'):
         for i, evt in enumerate(event_list):
+            ray_color = ray_colors[i]
             evt_time = UTCDateTime(evt_meca_df[evt_meca_df.formatted_datetime == float(evt)].iloc[0].date + 'T' + evt_meca_df[evt_meca_df.formatted_datetime == float(evt)].iloc[0].time)
             
             sta = sta_list[i]
@@ -239,7 +258,7 @@ if __name__ == '__main__':
             title_list = [model_ref, model_final]        
                         
             for j, syn_sac in enumerate(syn_sac_list): 
-                index = i * 2 + j  
+                index = i * 2 + j
                 # get waveform
                 wav_data, data_time  = read_sac_data(ref_data_sac, waveform_time_range[0], waveform_time_range[1], evt_time)
                 wav_syn, syn_time    = read_sac_syn(syn_sac, waveform_time_range[0], waveform_time_range[1], evt_time)
@@ -254,6 +273,11 @@ if __name__ == '__main__':
                 with fig.set_panel(panel=index):
                     fig.basemap(region = [waveform_time_range[0], waveform_time_range[1], -1.3, 1.3], 
                                 frame = ['xa20f10', 'yf1',f'+t{formatted_title}'], projection = 'X?')
+                    fig.plot(
+                        x=[waveform_time_range[0] + 3, waveform_time_range[0] + 14],
+                        y=[1.1, 1.1],
+                        pen=f'7p,{ray_color}'
+                    )
                     
                     #get window info
                     try:
@@ -268,8 +292,8 @@ if __name__ == '__main__':
                     fig.plot(x = syn_time, y = wav_syn, pen='2.5p,red')
 
 
-
-    fig.show()
+    fig.savefig('wav.png', transparent=True, dpi=300)
+    # fig.show()
 
 
 

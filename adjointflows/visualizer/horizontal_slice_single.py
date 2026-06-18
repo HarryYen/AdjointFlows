@@ -16,17 +16,17 @@ def plot_horizontal_slices_abs(map_region, dep, vp_range, vs_range, rho_range, v
     # ----------------------------------------------------------------------
     # Load the configuration
     # ----------------------------------------------------------------------
-    model_num =  0
-    scalar_list = ['vp', 'vs', 'rho', 'vpvs']
-    unit_list = ['km/s', 'km/s', 'g/cm^3', 'ratio']
+    model_num =  30
+    scalar_list = ['vp','vs','rho','vpvs']
+    unit_list = ['km/s', 'km/s', 'g/cm^3', ' ']
     cmap = 'roma'
     reverse_cmap = False
     # dep = 25
-    tomo_dir = '/home/harry/Work/AdjointFlows/TOMO'
+    tomo_dir = '/home/harry/Work/adjflows_for_ambient_noise/AdjointFlows/TOMO'
     out_dir = f'{tomo_dir}/m{model_num:03d}/OUTPUT/fig/horizontal_slices_abs'
-    # vp_range = [4.5, 7.5, 0.05]
-    # vs_range = [3., 4.7, 0.05]
-    # rho_range = [2.0, 3.5, 0.05]
+    # vp_range = [4.5, 7.5, vel_colorbar_interval]
+    # vs_range = [3., 4.7, vel_colorbar_interval]
+    # rho_range = [2.0, 3.5, vel_colorbar_interval]
     
     # -----------------------------------------------------------------------
     input_dir = os.path.join(tomo_dir, f'm{model_num:03d}', 'OUTPUT')
@@ -66,7 +66,7 @@ def plot_horizontal_slices_abs(map_region, dep, vp_range, vs_range, rho_range, v
                     region=grd_range, 
                     spacing=f'{nx}+n/{ny}+n',
                     verbose='q')
-        pygmt.grdsample(grid='tmp.grd', spacing=0.02, 
+        pygmt.grdsample(grid='tmp.grd', spacing=0.005, 
                         region=grd_range, outgrid='tmp_fine.grd',
                         verbose='q')
 
@@ -82,50 +82,50 @@ def plot_horizontal_slices_abs(map_region, dep, vp_range, vs_range, rho_range, v
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
 
-        # fig.show()
-        # sys.exit()
         fig.savefig(f'{out_dir}/{scalar}_{dep}.png', dpi=300)
 
 
 if __name__ == '__main__':
 
     map_region = [119.0, 123.0, 21.0, 26.0]
-    dep_list = [6, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 80, 100, 120]
+    # dep_list = [6, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 80, 100, 120]
+    dep_list = [6]
+    vel_colorbar_interval = 0.01
     vp_range_list = [
-        [4., 7., 0.05],
-        [4., 7., 0.05],
-        [4.5, 7.5, 0.05],
-        [5., 8., 0.05],
-        [5.5, 8.0, 0.05],
-        [5.5, 8.0, 0.05],
-        [6.0, 8.5, 0.05],
-        [6.0, 8.5, 0.05],
-        [6.0, 8.5, 0.05],
-        [6.5, 8.5, 0.05],
-        [6.5, 8.5, 0.05],
-        [7.0, 8.6, 0.05],
-        [7.5, 9.0, 0.05],
-        [7.5, 9.0, 0.05],
-        [7.5, 9.2, 0.05],
+        [4., 7., vel_colorbar_interval],
+        [4., 7., vel_colorbar_interval],
+        [4.5, 7.5, vel_colorbar_interval],
+        [5., 8., vel_colorbar_interval],
+        [5.5, 8.0, vel_colorbar_interval],
+        [5.5, 8.0, vel_colorbar_interval],
+        [6.0, 8.5, vel_colorbar_interval],
+        [6.0, 8.5, vel_colorbar_interval],
+        [6.0, 8.5, vel_colorbar_interval],
+        [6.5, 8.5, vel_colorbar_interval],
+        [6.5, 8.5, vel_colorbar_interval],
+        [7.0, 8.6, vel_colorbar_interval],
+        [7.5, 9.0, vel_colorbar_interval],
+        [7.5, 9.0, vel_colorbar_interval],
+        [7.5, 9.2, vel_colorbar_interval],
     ]
     vs_range_list = [
-        [2., 4.5, 0.05],
-        [2., 4.5, 0.05],
-        [2.5, 4.5, 0.05],
-        [2.5, 4.6, 0.05],
-        [3., 4.8, 0.05],
-        [3., 4.8, 0.05],
-        [3.5, 5.0, 0.05],
-        [3.5, 5.0, 0.05],
-        [3.6, 5.0, 0.05],
-        [4., 5.0, 0.05],
-        [4., 5.0, 0.05],
-        [4., 5.0, 0.05],
-        [4.3, 5.1, 0.05],
-        [4.4, 5.1, 0.05],
-        [4.4, 5.1, 0.05],
+        [2.2, 4.2, vel_colorbar_interval],
+        [2., 4.5, vel_colorbar_interval],
+        [2.5, 4.5, vel_colorbar_interval],
+        [2.5, 4.6, vel_colorbar_interval],
+        [3., 4.8, vel_colorbar_interval],
+        [3., 4.8, vel_colorbar_interval],
+        [3.5, 5.0, vel_colorbar_interval],
+        [3.5, 5.0, vel_colorbar_interval],
+        [3.6, 5.0, vel_colorbar_interval],
+        [4., 5.0, vel_colorbar_interval],
+        [4., 5.0, vel_colorbar_interval],
+        [4., 5.0, vel_colorbar_interval],
+        [4.3, 5.1, vel_colorbar_interval],
+        [4.4, 5.1, vel_colorbar_interval],
+        [4.4, 5.1, vel_colorbar_interval],
     ]
-    rho_range_list = [[2.0, 3.5, 0.05]] * 15
+    rho_range_list = [[2.0, 3.5, vel_colorbar_interval]] * 15
     
     vpvs_range_list = [[1.4, 2.2, 0.02]] * 15
     

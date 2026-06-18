@@ -224,7 +224,9 @@ def read_sac_data(sac, t0, t1, time):
         times = np.nan
     return wav, times
 
-def plot_waveforms(fig, evt, evt_time, channel, waveform_time_range, chunk_df, win_dict_evt, ref_syn_wav_dir, final_syn_wav_dir, ref_wav_dir, data_comp_prefix='HH', normalize_waveform=True):
+def plot_waveforms(fig, evt, evt_time, channel, waveform_time_range, chunk_df, win_dict_evt,
+                   ref_syn_wav_dir, final_syn_wav_dir, ref_wav_dir, data_comp_prefix='HH',
+                   normalize_mode='independent'):
     global wav_start_time, chunksize, model_ref, model_final
     
     fig.shift_origin(xshift="22c")
@@ -267,7 +269,7 @@ def plot_waveforms(fig, evt, evt_time, channel, waveform_time_range, chunk_df, w
                     print(f'WARNING: waveform read failed for evt={evt}, sta={sta}, channel={channel}, syn={syn_sac}')
                     continue
 
-                if normalize_waveform:
+                if normalize_mode == 'independent':
                     data_max = np.max(np.abs(wav_data))
                     syn_max = np.max(np.abs(wav_syn))
                     if data_max == 0 or syn_max == 0:
@@ -276,13 +278,19 @@ def plot_waveforms(fig, evt, evt_time, channel, waveform_time_range, chunk_df, w
                     wav_data = wav_data / data_max
                     wav_syn = wav_syn / syn_max
                     y_min, y_max = -1.3, 1.3
-                else:
+                elif normalize_mode == 'shared':
                     max_val = np.max(np.abs(np.hstack([wav_data, wav_syn])))
                     if max_val == 0:
                         print(f'WARNING: zero amplitude for evt={evt}, sta={sta}, channel={channel}, syn={syn_sac}')
                         continue
-                    y_lim = max_val * 1.1
-                    y_min, y_max = -y_lim, y_lim
+                    wav_data = wav_data / max_val
+                    wav_syn = wav_syn / max_val
+                    y_min, y_max = -1.3, 1.3
+                else:
+                    raise ValueError(
+                        f"Unsupported normalize_mode='{normalize_mode}'. "
+                        "Use 'independent' or 'shared'."
+                    )
 
                 formatted_title = f'{sta} {channel} {title_list[j]}'
                 with fig.set_panel(panel=index):
@@ -331,29 +339,28 @@ if __name__ == '__main__':
     """
     
     # ---------------- PARAMETER -----------------#
-    model_ref, model_final = 0, 7
-    period_min, period_max = 8, 18
+    model_ref, model_final = 0, 30
+    period_min, period_max = 5, 30
     map_region = [119, 123, 21, 26]
-    result_dir = '/home/harry/Work/adjflows_for_ambient_noise/Pure_EGF_Testing/AdjointFlows_inital/TOMO'
-    data_dir = '/home/harry/Work/adjflows_for_ambient_noise/Pure_EGF_Testing/AdjointFlows_inital/DATA/wav'
-    evt_file = '/home/harry/Work/adjflows_for_ambient_noise/Pure_EGF_Testing/AdjointFlows_inital/DATA/evlst/sta_91_EGF.txt.flexwin'
+    result_dir = '/home/harry/Work/adjflows_for_ambient_noise/AdjointFlows/TOMO'
+    data_dir = '/home/harry/Work/adjflows_for_ambient_noise/AdjointFlows/DATA/wav_EQ'
+    evt_file = '/home/harry/Work/adjflows_for_ambient_noise/AdjointFlows/DATA/evlst/fwi_new_cat_version4.txt'
     waveform_time_range = [0, 150]
-    data_comp_prefix = 'BH'  # e.g., HH, EH, BH
-    normalize_waveform = True  # True: normalize to [-1, 1], False: use raw amplitude
+    data_comp_prefix = '*H'  # e.g., HH, EH, BH
+    normalize_mode = 'independent'  # 'independent': each waveform normalized separately; 'shared': use one max for data+syn
     wav_start_time = -30.
-    output_dir = '/home/harry/Work/adjflows_for_ambient_noise/Pure_EGF_Testing/AdjointFlows_inital/TOMO/OUTPUT'
+    output_dir = '/home/harry/Work/adjflows_for_ambient_noise/AdjointFlows/TOMO/OUTPUT'
     chunksize = 6
     # --------------------------------------------#
     
     evt_meca_df = create_meca_dataframe(evt_file)
-    
     model_ref = f'm{model_ref:03d}'
     model_final = f'm{model_final:03d}'
-    final_win_dir = f'{result_dir}/{model_final}/MEASURE/adjoints'
+    final_win_dir = f'{result_dir}/{model_final}/MEASURE_EQ_5_30s/adjoints'
     # ref_wav_dir = f'{result_dir}/{model_ref}/OBS'
     ref_wav_dir = data_dir
-    ref_syn_wav_dir = f'{result_dir}/{model_ref}/SYN'
-    final_syn_wav_dir = f'{result_dir}/{model_final}/SYN'
+    ref_syn_wav_dir = f'{result_dir}/{model_ref}/SYN_EQ'
+    final_syn_wav_dir = f'{result_dir}/{model_final}/SYN_EQ'
     
     output_dir = f'{output_dir}/{model_ref}_{model_final}'
     ensure_directory_exists(output_dir)
@@ -385,7 +392,7 @@ if __name__ == '__main__':
                 fig = plot_map(map_region, chunk_df, meca_info)
                 fig = plot_waveforms(fig, evt, evt_time, comp, waveform_time_range, chunk_df, win_dict_evt, 
                             ref_syn_wav_dir, final_syn_wav_dir, ref_wav_dir, data_comp_prefix=data_comp_prefix,
-                            normalize_waveform=normalize_waveform)
+                            normalize_mode=normalize_mode)
 
                 fig.savefig(f'{out_dir_evt}/{evt}_{comp}_{ii+1:02d}.jpg')
 

@@ -20,14 +20,15 @@ TOMO_DIR = Path("/home/harry/Work/adjflows_for_ambient_noise/AdjointFlows/TOMO")
 
 # Choose one: "vp", "vs", "rho", "vpvs", "dvp", "dvs", "drho".
 SCALAR = "vp"
-DEPTH_KM = 2
+DEPTH_KM = 15
 
 MAP_REGION = [119.0, 123.0, 21.0, 26.0]  # [lon_min, lon_max, lat_min, lat_max]
 
 # Set to None for automatic color range from the selected depth slice.
 # Otherwise use [min, max, interval], for example [4.0, 7.0, 0.01].
-CPT_RANGE = [4, 6., 0.1]
+CPT_RANGE = [5.0, 7.0, 0.1]
 COLORBAR_INTERVAL = 0.5
+COLORBAR_POSITION = 'JBC+w3.5c/0.3c+v+o5.5c/-4.5c'
 
 CMAP = "roma"
 REVERSE_CMAP = False
@@ -144,8 +145,8 @@ def plot_horizontal_slice():
         fig.text(text=f"dep: {DEPTH_KM:g} km", font="20p,Helvetica-Bold", position="BR", frame=True)
         pygmt.config(FONT_ANNOT_PRIMARY="20p,Helvetica")
         pygmt.config(FONT_LABEL="20p,Helvetica")
-        fig.colorbar(frame=make_colorbar_frame(cbar_label))
-        fig.savefig(str(output_file), dpi=DPI)
+        fig.colorbar(frame=make_colorbar_frame(cbar_label), position=COLORBAR_POSITION)
+        # fig.savefig(str(output_file), dpi=DPI, transparent=True)
         fig.show()
 
     print(f"Saved: {output_file}")
